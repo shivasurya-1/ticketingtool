@@ -3,6 +3,12 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ChatbotPopup from '../components/ChatBot';
+import appSupportImage from "../assets/applications_support_image.png"
+import itImage from "../assets/infrastructure_support_image.png"
+import softwareLicenses from "../assets/software_license_image.png"
+import itAssets from "../assets/it_asset_management_image.png"
+import payroll from "../assets/payroll_image.png"
+import fieldServiceImage from "../assets/field_service_agent_image.png"
 
 // Ensure useNavigate hook is used correctly
 const RequestIssuePage = () => {
@@ -12,7 +18,7 @@ const RequestIssuePage = () => {
     {
       title: 'Applications Support',
       description:
-        'Lorem ipsum dolor sit amet. Et adipisci officia et nobis iure id voluptates saepe aut iste saepe non tenetur dolores non similique quibusdam.',
+        "If you are experiencing issues with business applications such as login problems, errors, or functionality concerns, raise a ticket here for assistance." ,
       icon: (
         <svg
           viewBox="0 0 24 24"
@@ -21,9 +27,9 @@ const RequestIssuePage = () => {
           stroke="currentColor"
           strokeWidth="2"
         >
-          <rect x="2" y="3" width="20" height="14" rx="2" />
-          <path d="M8 21h8" />
-          <path d="M12 17v4" />
+          {/* <rect x="2" y="3" width="20" height="14" rx="2" />4 */}
+          <image href={appSupportImage} x="2" y="3" width="20" height="20" />
+        
         </svg>
       ),
       link: '/request-issue/application-support',
@@ -31,16 +37,17 @@ const RequestIssuePage = () => {
     {
       title: 'IT Infrastructure Support',
       description:
-        'Lorem ipsum dolor sit amet. Et adipisci officia et nobis iure id voluptates saepe aut iste saepe non tenetur dolores non similique quibusdam.',
+        'Use this option to report issues related to servers, networks, VPN access, email services, or other IT infrastructure components.',
       icon: (
         <svg
           viewBox="0 0 24 24"
-          className="w-8 h-8 text-blue-600"
+          className="w-16 h-16 text-blue-600"
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
         >
-          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+          {/* <path d="M22 12h-4l-3 9L9 3l-3 9H2" /> */}
+          <image href={itImage} x="2" y="3" width="20" height="20" />
         </svg>
       ),
       link: '/request-issue/it-infrastructure-support',
@@ -48,18 +55,19 @@ const RequestIssuePage = () => {
     {
       title: 'Software Licenses',
       description:
-        'Lorem ipsum dolor sit amet. Et adipisci officia et nobis iure id voluptates saepe aut iste saepe non tenetur dolores non similique quibusdam.',
+        'Request new software licenses, renew existing ones, or report issues related to license activation and compliance.',
       icon: (
         <svg
           viewBox="0 0 24 24"
-          className="w-8 h-8 text-blue-600"
+          className="w-16 h-16 text-blue-600"
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
         >
-          <rect x="3" y="3" width="18" height="18" rx="2" />
+          {/* <rect x="3" y="3" width="18" height="18" rx="2" />
           <path d="M8 12h8" />
-          <path d="M12 8v8" />
+          <path d="M12 8v8" /> */}
+          <image href={softwareLicenses} x="2" y="3" width="20" height="20" />
         </svg>
       ),
       link: '/request-issue/software-licenses',
@@ -67,16 +75,17 @@ const RequestIssuePage = () => {
     {
       title: 'IT Assets',
       description:
-        'Lorem ipsum dolor sit amet. Et adipisci officia et nobis iure id voluptates saepe aut iste saepe non tenetur dolores non similique quibusdam.',
+        'Raise a request for new IT hardware, report hardware malfunctions, or request upgrades for company-provided devices.',
       icon: (
         <svg
           viewBox="0 0 24 24"
-          className="w-8 h-8 text-blue-600"
+          className="w-16 h-16 text-blue-600"
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
         >
-          <path d="M20 7h-3V4c0-1.1-.9-2-2-2H9c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v9c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2z" />
+          {/* <path d="M20 7h-3V4c0-1.1-.9-2-2-2H9c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v9c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2z" /> */}
+          <image href={itAssets} x="2" y="3" width="20" height="20" />
         </svg>
       ),
       link: '/request-issue/it-assets',
@@ -84,19 +93,20 @@ const RequestIssuePage = () => {
     {
       title: 'Payroll',
       description:
-        'Lorem ipsum dolor sit amet. Et adipisci officia et nobis iure id voluptates saepe aut iste saepe non tenetur dolores non similique quibusdam.',
+        'If you have concerns regarding salary payments, tax deductions, payslips, or payroll discrepancies, submit a ticket for HR assistance.',
       icon: (
         <svg
           viewBox="0 0 24 24"
-          className="w-8 h-8 text-blue-600"
+          className="w-16 h-16 text-blue-600"
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
         >
-          <rect x="3" y="4" width="18" height="18" rx="2" />
+          {/* <rect x="3" y="4" width="18" height="18" rx="2" />
           <path d="M16 2v4" />
           <path d="M8 2v4" />
-          <path d="M3 10h18" />
+          <path d="M3 10h18" /> */}
+          <image href={payroll} x="2" y="3" width="20" height="20" />
         </svg>
       ),
       link: '/request-issue/payroll',
@@ -104,17 +114,18 @@ const RequestIssuePage = () => {
     {
       title: 'Field Service Agent',
       description:
-        'Lorem ipsum dolor sit amet. Et adipisci officia et nobis iure id voluptates saepe aut iste saepe non tenetur dolores non similique quibusdam.',
+        'Request on-site IT support for hardware installations, maintenance, or troubleshooting at your workplace.',
       icon: (
         <svg
           viewBox="0 0 24 24"
-          className="w-8 h-8 text-blue-600"
+          className="w-16 h-16 text-blue-600"
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
         >
-          <circle cx="12" cy="7" r="4" />
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          {/* <circle cx="12" cy="7" r="4" />
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /> */}
+          <image href={fieldServiceImage} x="2" y="3" width="20" height="20" />
         </svg>
       ),
       link: '/request-issue/field-service-agent',

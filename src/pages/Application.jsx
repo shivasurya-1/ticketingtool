@@ -3,61 +3,71 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ChatbotPopup from '../components/ChatBot';
+import sapImage from "../assets/sap.png"
+import dataAnalyticsImage from "../assets/data_analytics_image.png"
+import microsoftImage from "../assets/microsoft_image.png"
+import oracleImage from "../assets/oracle_image.png"
+import hrmsImage from "../assets/hrms_image.png"
 
 const serviceCategories = [
     {
         title: 'SAP',
-        description: 'Lorem ipsum dolor sit amet. Et adipisci officia et nobis iure id voluptates saepe aut iste saepe non tenetur dolores non similique quibusdam.',
+        description: 'Raise a ticket for SAP-related issues, including login problems, system errors, configuration support, or access requests.',
         icon: (
             <svg viewBox="0 0 24 24" className="w-16 h-16 text-black" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="2" y="3" width="20" height="14" rx="2" />
+                {/* <rect x="2" y="3" width="20" height="14" rx="2" />
                 <path d="M8 21h8" />
-                <path d="M12 17v4" />
+                <path d="M12 17v4" /> */}
+                <image href={sapImage} x="2" y="2" width="20" height="20" ></image>
             </svg>
         ),
         link: "request-issue/application-support/create-issue"
     },
     {
         title: 'Data Analytics',
-        description: 'Lorem ipsum dolor sit amet. Et adipisci officia et nobis iure id voluptates saepe aut iste saepe non tenetur dolores non similique quibusdam.',
+        description: 'Report issues related to data visualization, reporting tools, dashboards, or data processing errors in analytics platforms.',
         icon: (
-            <svg viewBox="0 0 24 24" className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            <svg viewBox="0 0 24 24" className="w-16 h-16 text-black" fill="none" stroke="currentColor" strokeWidth="2">
+                {/* <path d="M22 12h-4l-3 9L9 3l-3 9H2" /> */}
+                <image href={dataAnalyticsImage} x="2" y="2" width="20" height="20" ></image>
             </svg>
         ),
         link: "request-issue/data-analytics/create-issue"
     },
     {
         title: 'Microsoft',
-        description: 'Lorem ipsum dolor sit amet. Et adipisci officia et nobis iure id voluptates saepe aut iste saepe non tenetur dolores non similique quibusdam.',
+        description: 'Seek support for Microsoft applications such as Office 365, Teams, Outlook, SharePoint, or Windows system-related issues.',
         icon: (
-            <svg viewBox="0 0 24 24" className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
+            <svg viewBox="0 0 24 24" className="w-16 h-16 text-black" fill="none" stroke="currentColor" strokeWidth="2">
+                {/* <rect x="3" y="3" width="18" height="18" rx="2" />
                 <path d="M8 12h8" />
-                <path d="M12 8v8" />
+                <path d="M12 8v8" /> */}
+                <image href={microsoftImage} x="2" y="2" width="20" height="20" ></image>
             </svg>
         ),
         link: "request-issue/microsoft/create-issue"
     },
     {
         title: 'Oracle',
-        description: 'Lorem ipsum dolor sit amet. Et adipisci officia et nobis iure id voluptates saepe aut iste saepe non tenetur dolores non similique quibusdam.',
+        description: 'Request assistance for Oracle database issues, ERP solutions, access management, or troubleshooting Oracle-based applications.',
         icon: (
-            <svg viewBox="0 0 24 24" className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 7h-3V4c0-1.1-.9-2-2-2H9c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v9c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2z" />
+            <svg viewBox="0 0 24 24" className="w-16 h-16 text-black" fill="none" stroke="currentColor" strokeWidth="2">
+                {/* <path d="M20 7h-3V4c0-1.1-.9-2-2-2H9c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v9c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2z" /> */}
+                <image href={oracleImage} x="1" y="1" width="23" height="23" ></image>
             </svg>
         ),
         link: "request-issue/oracle/create-issue"
     },
     {
         title: 'HRMS',
-        description: 'Lorem ipsum dolor sit amet. Et adipisci officia et nobis iure id voluptates saepe aut iste saepe non tenetur dolores non similique quibusdam.',
+        description: 'Raise a request for HRMS-related concerns, including employee records. leave management, payroll integration, or system access.',
         icon: (
-            <svg viewBox="0 0 24 24" className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
+            <svg viewBox="0 0 24 24" className="w-16 h-16 text-black" fill="none" stroke="currentColor" strokeWidth="2">
+                {/* <rect x="3" y="4" width="18" height="18" rx="2" />
                 <path d="M16 2v4" />
                 <path d="M8 2v4" />
-                <path d="M3 10h18" />
+                <path d="M3 10h18" /> */}
+                <image href={hrmsImage} x="2" y="2" width="20" height="20" ></image>
             </svg>
         ),
         link: "request-issue/hrms/create-issue"

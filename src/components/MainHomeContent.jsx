@@ -20,7 +20,7 @@ const MainHomeContent = () => {
           <Card
             icon={<AlertTriangle className="w-8 h-8 text-white" />}
             title="Report an Issue"
-            description="Issues related to applications, infra, VPN etc."
+            description="Report issues related to application, infrastructure, and more"
             className="hover:cursor-pointer hover:scale-105 transform duration-300"
             onClick={() => navigate('/request-issue')}
           />
@@ -28,21 +28,21 @@ const MainHomeContent = () => {
           <Card
             icon={<HeartHandshake className="w-8 h-8 text-white" />}
             title="Raise a Service Request"
-            description="Issues related to applications, infra, VPN etc."
+            description="Request ne services related to applications, infrastructure and more"
             className="hover:cursor-pointer hover:scale-105 transform duration-300"
           />
 
           <Card
             icon={<BookOpenText className="w-8 h-8 text-white" />}
             title="Knowledge Base"
-            description="Issues related to applications, infra, VPN etc."
+            description="Find guides,FAQs, and troubleshooting tips for applications, infrastructure and more"
             className="hover:cursor-pointer hover:scale-105 transform duration-300"
           />
         </div>
       </div>
 
       <div className=" bottom-0 mt-40 left-0 right-0 py-4 text-center ">
-        <p className="text-gray-600">Account locked out?</p>
+        {/* <p className="text-gray-600">Account locked out?</p> */}
         <a href="#" className="text-[#293988] font-bold hover:underline">
           Want to reset password?
         </a>
