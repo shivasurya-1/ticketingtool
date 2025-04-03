@@ -18,8 +18,9 @@ const ResetPassword = () => {
   );
 
   const formData = useSelector((state) => ({
-    username: state.inputs.username || "",
     email: state.inputs.email || "",
+    oldPassword: state.inputs.oldPassword || "",
+    newPassword: state.inputs.newPassword || "",
   }));
 
   useEffect(() => {
@@ -34,13 +35,12 @@ const ResetPassword = () => {
   };
 
   const handleSubmit = async (e) => {
-    console.log("Register Page Form", formData);
     e.preventDefault();
     setError("");
     setIsLoading(true);
 
-    if (!formData.username || !formData.email) {
-      setError("Username and email are required.");
+    if (!formData.email || !formData.oldPassword || !formData.newPassword) {
+      setError("All fields are required.");
       setIsLoading(false);
       return;
     }
@@ -52,17 +52,17 @@ const ResetPassword = () => {
       return;
     }
 
-    const registerAPI = process.env.REACT_APP_REGISTER_API;
+    const resetPasswordAPI = process.env.REACT_APP_RESET_PASSWORD_API; // Correct API for password reset
 
     try {
-      const response = await axiosInstance.post(registerAPI, formData, {
+      const response = await axiosInstance.post(resetPasswordAPI, formData, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
       });
-      console.log("Registration response:", response.data);
-      if (response.status === 201) {
-        toast.success("Registration Successful", {
+
+      if (response.status === 200) {
+        toast.success("Password reset successful!", {
           autoClose: 3000,
           onClose: () => navigate("/login"),
         });
@@ -73,7 +73,7 @@ const ResetPassword = () => {
       if (error.response) {
         setError(
           error.response.status === 401
-            ? "Invalid credentials"
+            ? "Old password is incorrect"
             : error.response.data.detail ||
                 "An error occurred. Please try again later."
         );
@@ -82,7 +82,7 @@ const ResetPassword = () => {
       } else {
         setError("An unexpected error occurred. Please try again.");
       }
-      console.error("Registration error:", error);
+      console.error("Password reset error:", error);
     } finally {
       setIsLoading(false);
     }
@@ -103,7 +103,7 @@ const ResetPassword = () => {
           <FieldsetInputField
             id="email"
             label="Email Address"
-            type="email" // Changed to email type for better validation
+            type="email"
             name="email"
             onChange={handleInputChange}
             required
@@ -112,7 +112,7 @@ const ResetPassword = () => {
           <FieldsetInputField
             id="oldPassword"
             label="Old Password"
-            type="text"
+            type="password"
             name="oldPassword"
             onChange={handleInputChange}
             required
@@ -121,21 +121,15 @@ const ResetPassword = () => {
           <FieldsetInputField
             id="newPassword"
             label="New Password"
-            type="text"
+            type="password"
             name="newPassword"
             onChange={handleInputChange}
             required
             disabled={isLoading}
           />
-          <div className="relative">
-            <button
-              type="button"
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-            ></button>
-          </div>
 
           <a
-            href="/login" // Fixed lowercase for consistency
+            href="/login"
             className="text-gray-600 hover:text-gray-800 underline transition-colors"
           >
             Login Here
@@ -145,17 +139,14 @@ const ResetPassword = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className={`px-6 py-2 text-white bg-blue-500 rounded-md transition-colors
-              ${
-                isLoading
-                  ? "bg-blue-400 cursor-not-allowed"
-                  : "hover:bg-blue-600"
+              className={`px-6 py-2 text-white bg-blue-500 rounded-md transition-colors ${
+                isLoading ? "bg-blue-400 cursor-not-allowed" : "hover:bg-blue-600"
               }`}
             >
-              {isLoading ? "resetting..." : "Reset"}{" "}
-              {/* Updated button text to match form purpose */}
+              {isLoading ? "Resetting..." : "Reset Password"}
             </button>
           </div>
+
           {error && (
             <div
               className="text-red-500 text-center p-2 bg-red-50 rounded-md"

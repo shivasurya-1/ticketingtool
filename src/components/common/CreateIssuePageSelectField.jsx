@@ -29,7 +29,6 @@ const CreateIssuePageSelectField = ({
     setSelectedValue(e.target.value);
     onChange(e);
   };
-
   return (
     <div className="flex items-center gap-5">
       <label htmlFor={id} className="font-medium w-[120px]">

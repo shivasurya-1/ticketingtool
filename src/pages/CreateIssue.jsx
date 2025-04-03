@@ -8,10 +8,12 @@ import { ToastContainer, toast } from "react-toastify";
 import CreateIssuePageFormField from "../components/common/CreateIssuePageFormField";
 import CreateIssuePageTextAreaField from "../components/common/CreateIssuePageTextAreaField";
 import CreateIssuePageSelectField from "../components/common/CreateIssuePageSelectField";
+import CountryListSelect from "../components/common/CountryListSelectField";
 
 export default function CreateIssue() {
   const [selected, setSelected] = useState("Comments");
   const navigate = useNavigate();
+  const [countries, setCountries] = useState([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [formData, setFormData] = useState({
     // number: "",
@@ -31,8 +33,10 @@ export default function CreateIssue() {
     supportTeam: "",
     project: "",
     product: "",
+    priority: "",
     contactMode: "",
-    developerOrganization: 1,
+    developerOrganization: "",
+    contactNumber: "",
   });
 
   const [solutionGroupList, setSolutionGroupList] = useState([]);
@@ -42,6 +46,7 @@ export default function CreateIssue() {
   const [activeUsersList, setActiveUsersList] = useState([]);
   const [impactList, setImpactList] = useState([]);
   const [contactModeList, setContactModeList] = useState([]);
+  const [priorityList, setPriorityList] = useState([]);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -70,9 +75,9 @@ export default function CreateIssue() {
     customer_country: data.customerCountry,
     developer_organization: data.developerOrganization,
     contact_mode: data.contactMode,
-
+    priority: data.priority,
+    customer_number: data.contactNumber,
     // created_by: requestor: data.requestor,
-    // support_org_name: data.supportOrgName,
   });
 
   const handleSubmit = async (e) => {
@@ -117,9 +122,14 @@ export default function CreateIssue() {
       );
       console.log(response);
       toast.success("Issue created successfully");
-      setTimeout(() => navigate(`/request-issue/application-support/sap/ticket-details/${response.data.ticket_id}`), 2100)
+      setTimeout(
+        () =>
+          navigate(
+            `/request-issue/application-support/sap/ticket-details/${response.data.ticket_id}`
+          ),
+        2100
+      );
     } catch (error) {
-      console.log(error.response.data);
       toast.error("There was an error creating the issue.");
     }
   };
@@ -142,13 +152,19 @@ export default function CreateIssue() {
           return; // Exit if no token is found
         }
         const authHeaders = getAuthorizedHeaders(accessToken);
-        const [subGroupsList, orgList, choicesList, activeUsersList] =
-          await Promise.all([
-            axiosInstance.get("solution_grp/create/", authHeaders),
-            axiosInstance.get("org/organisation/", authHeaders),
-            axiosInstance.get("ticket/ticket/choices/", authHeaders),
-            axiosInstance.get("user/api/register/", authHeaders),
-          ]);
+        const [
+          subGroupsList,
+          orgList,
+          choicesList,
+          activeUsersList,
+          priorityList,
+        ] = await Promise.all([
+          axiosInstance.get("solution_grp/create/", authHeaders),
+          axiosInstance.get("org/organisation/", authHeaders),
+          axiosInstance.get("ticket/ticket/choices/", authHeaders),
+          axiosInstance.get("user/api/register/", authHeaders),
+          axiosInstance.get("priority/priority/", authHeaders),
+        ]);
         setSolutionGroupList(subGroupsList.data);
         setOrganizationsList(orgList.data);
         setIssueTypeList(choicesList.data.issue_type_choices);
@@ -156,6 +172,7 @@ export default function CreateIssue() {
         setImpactList(choicesList.data.impact_choices);
         setContactModeList(choicesList.data.contact_mode_choices);
         setActiveUsersList(activeUsersList.data);
+        setPriorityList(priorityList.data);
       } catch (error) {
         console.error("Error fetching APIs:", error);
         if (error.response) {
@@ -197,6 +214,8 @@ export default function CreateIssue() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isSidebarOpen]);
+
+  console.log("priorityList", priorityList);
 
   return (
     <div className="flex min-h-screen relative">
@@ -277,6 +296,16 @@ export default function CreateIssue() {
                   labelKey="1"
                   required
                 />
+                {formData.contactMode === "phone" && (
+                  <CreateIssuePageFormField
+                    label="Contact Number"
+                    id="contactNumber"
+                    name="contactNumber"
+                    value={formData.contactNumber || ""}
+                    onChange={handleChange}
+                    required
+                  />
+                )}
                 <CreateIssuePageSelectField
                   label="Impact"
                   id="impact"
@@ -288,18 +317,31 @@ export default function CreateIssue() {
                   labelKey="1"
                   required
                 />
-                <CreateIssuePageFormField
+                <CreateIssuePageSelectField
+                  label="Priority"
+                  id="priority"
+                  name="priority"
+                  value={formData.priority}
+                  onChange={handleChange}
+                  options={priorityList}
+                  valueKey="priority_id"
+                  labelKey="urgency_name"
+                  required
+                />
+                <CountryListSelect
                   label="Customer Country"
                   id="customerCountry"
                   name="customerCountry"
                   value={formData.customerCountry}
                   onChange={handleChange}
+                  required
                 />
+
                 <CreateIssuePageSelectField
                   label="Support Org Name"
-                  id="supportOrgName"
-                  name="supportOrgName"
-                  value={formData.supportOrgName}
+                  id="developerOrganization"
+                  name="developerOrganization"
+                  value={formData.developerOrganization}
                   onChange={handleChange}
                   options={organizationsList}
                   valueKey="organisation_id"
