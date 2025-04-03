@@ -9,6 +9,7 @@ import CreateIssuePageFormField from "../components/common/CreateIssuePageFormFi
 import CreateIssuePageTextAreaField from "../components/common/CreateIssuePageTextAreaField";
 import CreateIssuePageSelectField from "../components/common/CreateIssuePageSelectField";
 import CountryListSelect from "../components/common/CountryListSelectField";
+import SearchableSelectField from "../components/common/SearchableSelectField";
 
 export default function CreateIssue() {
   const [selected, setSelected] = useState("Comments");
@@ -362,7 +363,8 @@ export default function CreateIssue() {
                   labelKey="1"
                   required
                 />
-                <CreateIssuePageSelectField
+                
+                <SearchableSelectField
                   label="Assignee"
                   id="assignee"
                   name="assignee"

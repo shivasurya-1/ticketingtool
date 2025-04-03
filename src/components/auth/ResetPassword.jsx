@@ -52,7 +52,7 @@ const ResetPassword = () => {
       return;
     }
 
-    const resetPasswordAPI = process.env.REACT_APP_RESET_PASSWORD_API; // Correct API for password reset
+    const resetPasswordAPI = "user/resetpassword/"; // Correct API for password reset
 
     try {
       const response = await axiosInstance.post(resetPasswordAPI, formData, {
@@ -60,7 +60,7 @@ const ResetPassword = () => {
           Authorization: `Bearer ${accessToken}`,
         },
       });
-
+      console.log("Password reset response:", response.data);
       if (response.status === 200) {
         toast.success("Password reset successful!", {
           autoClose: 3000,
@@ -140,7 +140,9 @@ const ResetPassword = () => {
               type="submit"
               disabled={isLoading}
               className={`px-6 py-2 text-white bg-blue-500 rounded-md transition-colors ${
-                isLoading ? "bg-blue-400 cursor-not-allowed" : "hover:bg-blue-600"
+                isLoading
+                  ? "bg-blue-400 cursor-not-allowed"
+                  : "hover:bg-blue-600"
               }`}
             >
               {isLoading ? "Resetting..." : "Reset Password"}
