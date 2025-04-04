@@ -42,7 +42,7 @@ const MainHomeContent = () => {
       </div>
 
       <div className=" bottom-0 mt-40 left-0 right-0 py-4 text-center ">
-        <a href="#" className="text-[#293988] font-bold hover:underline">
+        <a href="/reset-password" className="text-[#293988] font-bold hover:underline">
           Want to reset password?
         </a>
       </div>
