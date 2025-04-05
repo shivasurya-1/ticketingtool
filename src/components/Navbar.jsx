@@ -11,6 +11,8 @@ const Navbar = ({ navItems }) => {
   const activePage = useSelector((state) => state.ui.activePage);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  const userProfile = useSelector((state) => state.userProfile.userProfile);
+
   // const handleNavItemClick = (pageName) => {
   //   dispatch(setActivePage(pageName));
   // };
@@ -67,13 +69,22 @@ const Navbar = ({ navItems }) => {
               ))}
             </ul>
 
-            <div className="flex items-center space-x-3 cursor-pointer"
-            onClick={()=> navigate("/profile")}
+            <div
+              className="flex items-center space-x-3 cursor-pointer"
+              onClick={() => navigate("/profile")}
             >
-              <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                <User className="w-6 h-6 text-gray-600" />
+              <div className="h-12 w-20 rounded-full flex items-center justify-center overflow-hidden border-4">
+                {userProfile && userProfile.profile_pic ? (
+                  <img
+                    src={userProfile.profile_pic}
+                    alt="Profile"
+                    className="object-contain w-full h-full"
+                  />
+                ) : (
+                  <User className="w-4 h-4 text-gray-600" />
+                )}
               </div>
-              <span className="text-gray-700">User Profile</span>
+              <span className="text-gray-700">{userProfile.first_name}</span>
             </div>
           </div>
         </div>

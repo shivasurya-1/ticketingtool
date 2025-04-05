@@ -14,6 +14,7 @@ import buttonReducer from './Slices/buttonSlice';
 import forgotPasswordReducer from './Slices/forgotpasswordSlice';
 import itemsSlice from './Slices/itemsSlice';
 import ticketCreationSlice from '../features/auth/ticketCreationSlice';
+import userProfileReducer from './Slices/userProfileSlice'; // ✅ Add this line
 
 const store = configureStore({
   reducer: {
@@ -32,9 +33,8 @@ const store = configureStore({
     forgotPassword: forgotPasswordReducer,
     items: itemsSlice,
     ticketCreation: ticketCreationSlice,
+    userProfile: userProfileReducer, // ✅ And this line
   },
 });
 
-
 export default store;
-

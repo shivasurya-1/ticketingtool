@@ -36,6 +36,8 @@ import Register from "./components/auth/Register";
 import Profile from "./pages/Profile";
 import ResetPassword from "./components/auth/ResetPassword";
 import CreateIssueDetailPage from "./pages/CreateIssueDetailPage";
+import ListAllTickets from "./pages/ListAllTickets";
+import useFetchUserDetails from "./hooks/useFetchUserDetails";
 
 const App = () => {
   const location = useLocation();
@@ -43,6 +45,13 @@ const App = () => {
   const dispatch = useDispatch();
   const hideNavbarRoutes = ["/login", "/forgot-password", "/register", "/reset-password"];
   const showNavbar = !hideNavbarRoutes.includes(location.pathname);
+
+  const authToken = localStorage.getItem("access_token"); // Assume token is stored in localStorage
+  useFetchUserDetails(authToken); // Automatically fetches and sets user profile
+
+  const user = useSelector((state) => state.userProfile.userProfile);
+  console.log("User Profile:", user); // Log the user profile to check if it's being set correctly
+  console.log("Auth Token:", authToken); // Log the auth token to check if it's being retrieved correctly
 
   const navItems = [
     { name: "My Actions", path: "/actions" },
@@ -147,6 +156,8 @@ const App = () => {
             <Route path="/category" element={<Categorys />} />
             <Route path="/roles" element={<Roles />} />
             <Route path="/solutionGrp" element={<SolutionGroup />} />
+            <Route path="/tickets" element={<ListAllTickets />} />
+
             <Route path="*" element={<Home />} />
           {/* </Route> */}
         </Routes>
