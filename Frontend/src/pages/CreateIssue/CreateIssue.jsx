@@ -10,18 +10,8 @@ import ReferenceTicketSelector from "./Components/ReferenceTicketSelector";
 import QuillTextEditor from "./Components/QuillTextEditor";
 import { axiosInstance } from "../../utils/axiosInstance";
 import SearchableField from "./Components/SearchableField";
-import {
-  ChevronLeft,
-  Paperclip,
-  Image,
-   Send,
-} from "lucide-react";
+import { ChevronLeft, Paperclip, Image, Send } from "lucide-react";
 import ResolutionPopup from "../../components/ResolutionPopup";
-import {
-  selectActiveCategory,
-  selectSelectedService,
-} from "../../store/Slices/issueSelectionSlice";
-import { use } from "react";
 
 export default function CreateIssue() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -36,6 +26,7 @@ export default function CreateIssue() {
   const userProfile = useSelector((state) => state.userProfile.user);
   const [showDescription, setShowDescription] = useState(true);
   const [expandEditor, setExpandEditor] = useState(false);
+  const editorRef = useRef(null);
   const [currentTab, setCurrentTab] = useState("Notes");
   const [activityLog, setActivityLog] = useState([]);
   const [historyData, setHistoryData] = useState([]);
@@ -50,6 +41,7 @@ export default function CreateIssue() {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [attachments, setAttachments] = useState([]);
+  const [previewFile, setPreviewFile] = useState(null);
 
   // Project related data
   const [projectData, setProjectData] = useState([]);
@@ -61,10 +53,13 @@ export default function CreateIssue() {
   );
 
   // acttive category and selected service from redux
-  const activeCategory = useSelector(selectActiveCategory);
-  const selectedService = useSelector(selectSelectedService);
 
-  const activeCategory1 = useSelector((state) => state.issueSelection.activeCategory);
+  const activeCategory = useSelector(
+    (state) => state.issueSelection.activeCategory
+  );
+  const selectedService = useSelector(
+    (state) => state.issueSelection.selectedService
+  );
 
   // This is used to highlight the field when it is focused
   const [focusedField, setFocusedField] = useState(null);
@@ -74,6 +69,7 @@ export default function CreateIssue() {
   };
 
   const handleBlur = () => {
+    setExpandEditor(false);
     setFocusedField(null);
   };
 
@@ -175,7 +171,7 @@ export default function CreateIssue() {
       });
 
       setAttachments((prev) => [...prev, ...newFiles]);
-      toast.success("Files ready for preview. Send to upload.");
+      toast.success("Files uploaded.");
     }
 
     // Reset the file input so the same file can be selected again
@@ -247,19 +243,6 @@ export default function CreateIssue() {
 
       setMessages((prev) => [...prev, tempMessage]);
 
-      // Call the API to add a new note/message with all content
-      // if (attachments.length != 0) {
-      // await axiosInstance.post(
-      //   "/ticket/reports/",
-      //   {
-      //     title: newMessage,
-      //     ticket: formData.number,
-      //     attachments: attachmentIds, // Send attachment IDs
-      //   },
-      //   { headers: { Authorization: `Bearer ${accessToken}` } }
-      // );
-
-      // Clear the input field and attachments after successful send
       setNewMessage("");
       setAttachments([]);
 
@@ -470,6 +453,26 @@ export default function CreateIssue() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Function to handle clicks outside the editor
+    const handleClickOutside = (event) => {
+      if (editorRef.current && !editorRef.current.contains(event.target)) {
+        setExpandEditor(false);
+        setFocusedField(null);
+      }
+    };
+
+    // Add event listener when the editor is expanded
+    if (expandEditor) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    // Cleanup
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [expandEditor]);
 
   useEffect(() => {
     if (userProfile?.first_name && userProfile?.email) {
@@ -703,7 +706,8 @@ export default function CreateIssue() {
       assignee: data.assignee,
       summary: data.summary,
       description: data.description,
-      issue_type: data.issueType,
+      // issue_type: data.issueType,
+      issue_type: "F",
       solution_grp: data.solutionGroup,
       reference_tickets: data.referenceTicket,
       impact: data.impact,
@@ -816,12 +820,41 @@ export default function CreateIssue() {
         convertFormDataToSnakeCase(formData),
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
-      toast.success("Issue created successfully");
-      setTimeout(() => {
-        navigate(
-          `/request-issue/application-support/sap/ticket-details/${response.data.ticket_id}`
-        );
-      }, 2100);
+      sendMessage();
+
+      toast.success(`Ticket #${response.data.ticket_id} raised successfully`);
+      // setTimeout(() => {
+      // Reset form
+      setFormData((prev) => ({
+        number: "", // Or fetch new ticket ID if needed
+        requestor: userProfile?.first_name || "",
+        customerCountry: "india",
+        supportOrgName: "",
+        assignee: "",
+        solutionGroup: "",
+        referenceTicket: [],
+        description: "",
+        summary: "",
+        issueType: "",
+        impact: "",
+        supportTeam: "",
+        project: "",
+        product: "",
+        priority: "",
+        email: userProfile?.email || "",
+        developerOrganization: "",
+        contactNumber: "",
+        contactMode: "",
+        search: "",
+      }));
+
+      // Reset additional state
+      setAttachments([]);
+      setNewMessage("");
+      setExpandEditor(false);
+      setFormErrors({});
+
+      // }, 2100);
     } catch (error) {
       console.error("issue error:", error);
       toast.error("There was an error creating the issue.");
@@ -979,7 +1012,7 @@ export default function CreateIssue() {
                 )}
               </div>
               <div className="flex items-center ">
-                <label className="w-44 text-gray-600">Issue Category</label>
+                <label className="w-44 text-gray-600">Solution</label>
                 <input
                   type="text"
                   name="issueCategory"
@@ -994,7 +1027,7 @@ export default function CreateIssue() {
                 )}
               </div>
               <div className="flex items-center">
-                <label className="w-44 text-gray-600">Issue Type</label>
+                <label className="w-44 text-gray-600">Product</label>
                 <input
                   type="text"
                   name="issueType"
@@ -1243,7 +1276,7 @@ export default function CreateIssue() {
             </div>
             <div className="flex items-center mt-4">
               <label className="w-44 text-gray-600">Description</label>
-              <div className="w-[69%]">
+              <div className="w-[69%]" ref={editorRef}>
                 {!expandEditor ? (
                   <input
                     type="text"
@@ -1290,7 +1323,6 @@ export default function CreateIssue() {
                 <span className="text-red-500 text-xs ml-1">*</span>
               )}
             </div>
-            
 
             {/* Related Search Results */}
             <div className="mt-4 flex justify-center">
@@ -1301,18 +1333,11 @@ export default function CreateIssue() {
             </div>
             <div className="flex items-center">
               <button
-                className="p-2 text-gray-500 hover:bg-gray-100 rounded"
                 onClick={handleFileAttachment}
-                title="Attach files"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 border border-blue-300 rounded-lg hover:bg-blue-200 transition-all"
               >
-                <Paperclip size={18} />
-              </button>
-              <button
-                className="p-2 text-gray-500 hover:bg-gray-100 rounded"
-                onClick={handleImageAttachment}
-                title="Attach images"
-              >
-                <Image size={18} />
+                <Paperclip size={16} />
+                <span>Attach files</span>
               </button>
               <input
                 type="file"
@@ -1321,32 +1346,110 @@ export default function CreateIssue() {
                 className="hidden"
                 multiple
               />
-              <input
-                type="file"
-                ref={imageInputRef}
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-                multiple
-              />
 
-              <button
-                className={`${
-                  newMessage.trim() || attachments.length > 0
-                    ? "bg-blue-500 hover:bg-blue-600"
-                    : "bg-gray-300 cursor-not-allowed"
-                } text-white p-2 rounded flex items-center justify-center`}
-                onClick={sendMessage}
-                disabled={!newMessage.trim() && attachments.length === 0}
-                title={
-                  attachments.length > 0
-                    ? "Send message with attachments"
-                    : "Send message"
-                }
-              >
-                <Send size={18} />
-                <span className="ml-1 hidden sm:inline">Send All</span>
-              </button>
+              {attachments.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <div className="text-sm font-semibold text-gray-700">
+                    Attached Files:
+                  </div>
+                  <ul className="space-y-1">
+                    {attachments.map((file) => (
+                      <li
+                        key={file.id}
+                        className="flex items-center justify-between bg-white shadow-sm border px-3 py-1 rounded-md"
+                      >
+                        <div className="flex items-center gap-2">
+                          {file.type.includes("image") ? (
+                            <img
+                              src={file.previewUrl}
+                              alt={file.name}
+                              className="w-6 h-6 object-cover rounded"
+                            />
+                          ) : (
+                            <Paperclip size={16} className="text-gray-500" />
+                          )}
+                          <span className="text-sm truncate max-w-xs">
+                            {file.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-400">
+                            {(file.size / 1024).toFixed(1)} KB
+                          </span>
+                          <button
+                            onClick={() =>
+                              setAttachments((prev) =>
+                                prev.filter((f) => f.id !== file.id)
+                              )
+                            }
+                            className="text-red-500 hover:text-red-700 ml-2 text-xs"
+                            title="Remove"
+                          >
+                            ✕
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewFile(file)}
+                            className="text-sm text-left truncate max-w-xs text-blue-600 hover:underline"
+                            title="Click to preview"
+                          >
+                            {file.name}
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {previewFile && (
+                <div
+                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                  onClick={() => setPreviewFile(null)}
+                >
+                  <div
+                    className="bg-white p-4 rounded shadow-lg max-w-2xl w-full max-h-[90vh] overflow-auto"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-lg font-semibold text-gray-700">
+                        Preview: {previewFile.name}
+                      </h2>
+                      <button
+                        className="text-gray-500 hover:text-gray-700"
+                        onClick={() => setPreviewFile(null)}
+                      >
+                        &times;
+                      </button>
+                    </div>
+
+                    {previewFile.type.includes("image") ? (
+                      <img
+                        src={previewFile.previewUrl || previewFile.url}
+                        alt={previewFile.name}
+                        className="max-w-full max-h-[70vh] object-contain mx-auto"
+                      />
+                    ) : previewFile.type.includes("pdf") ? (
+                      <iframe
+                        src={previewFile.previewUrl || previewFile.url}
+                        title={previewFile.name}
+                        className="w-full h-[70vh]"
+                      />
+                    ) : (
+                      <div className="text-sm text-gray-800">
+                        Cannot preview this file type. <br />
+                        <a
+                          href={previewFile.url || previewFile.previewUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 underline"
+                        >
+                          Download instead
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Tabs Section */}
@@ -1364,7 +1467,15 @@ export default function CreateIssue() {
               onSubmit={() => {}}
             />
           )}
-          <ToastContainer />
+          <ToastContainer
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+          />
         </div>
       </div>
     </div>

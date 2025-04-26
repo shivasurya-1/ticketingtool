@@ -4,17 +4,16 @@ import Sidebar from "../components/Sidebar";
 import ChatbotPopup from "../components/ChatBot";
 import { ToastContainer, toast } from "react-toastify";
 import ReactPaginate from "react-paginate";
+import { FiSearch, FiRefreshCw } from "react-icons/fi";
 
 export default function DispatcherPage() {
   // State for page data
   const [loading, setLoading] = useState(true);
-  const [pageSize, setPageSize] = useState(5);
+  const [pageSize, setPageSize] = useState(10);
   const [unassignedTickets, setUnassignedTickets] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalEntries, setTotalEntries] = useState(0);
   const [availableSolutionGroups, setAvailableSolutionGroups] = useState([]);
-
-
   const [currentEntries, setCurrentEntries] = useState({
     start: 0,
     end: 0
@@ -37,7 +36,7 @@ export default function DispatcherPage() {
 
   const searchInputRef = useRef(null);
 
-  // Fetch unassigned tickets on component mount - using real API
+  // Fetch unassigned tickets on component mount
   useEffect(() => {
     fetchUnassignedTickets();
     fetchSupportData();
@@ -75,7 +74,22 @@ export default function DispatcherPage() {
     setCurrentPage(0);
   }, [searchTerm]);
 
-  // Fetch unassigned tickets from API
+  // Ensure currentPage is never out of bounds
+  useEffect(() => {
+    if (currentPage >= pageCount && pageCount > 0 && filteredTickets.length > 0) {
+      setCurrentPage(Math.max(0, pageCount - 1));
+    }
+  }, [filteredTickets.length, pageCount, currentPage]);
+
+  // Scroll to top when changing to the last page with fewer items
+  useEffect(() => {
+    if (currentPage === pageCount - 1 && currentItems.length < pageSize) {
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }, 200);
+    }
+  }, [currentPage, pageCount, currentItems.length, pageSize]);
+
   const fetchUnassignedTickets = async () => {
     setLoading(true);
 
@@ -90,7 +104,8 @@ export default function DispatcherPage() {
       setCurrentPage(0);
     } catch (error) {
       console.error("Error fetching unassigned tickets:", error);
-      toast.error("Failed to load unassigned tickets. Please try again.");
+      toast.error("Failed to load unassigned tickets");
+      setUnassignedTickets([]);
     } finally {
       setLoading(false);
     }
@@ -122,12 +137,13 @@ export default function DispatcherPage() {
       setSolutionGroups(solutionsRes.data);
     } catch (error) {
       console.error("Error fetching support data:", error);
-      toast.error("Failed to load support data. Some functions may be limited.");
+      toast.error("Failed to load support data");
       setSupportStaff([]);
       setSupportOrganizations([]);
       setSolutionGroups([]);
     }
   };
+
   const handlePageClick = ({ selected }) => {
     setCurrentPage(selected);
   };
@@ -141,10 +157,12 @@ export default function DispatcherPage() {
     setPageSize(newSize);
     setCurrentPage(0);
   };
+
   const handleSolutionGroupChange = (e) => {
     const solutionGroupId = e.target.value;
     setAssignmentData(prev => ({ ...prev, solutionGroupId }));
   };
+
   const openAssignmentModal = (ticket) => {
     setSelectedTicket(ticket);
     setAssignmentData({ assigneeId: "", supportOrgId: "", solutionGroupId: "" });
@@ -159,7 +177,6 @@ export default function DispatcherPage() {
     // Find the selected staff member
     const selectedStaff = supportStaff.find(staff =>
       staff.id?.toString() === assigneeId
-
     );
 
     if (selectedStaff) {
@@ -207,12 +224,12 @@ export default function DispatcherPage() {
 
     setAssignLoading(true);
 
-    const accessToken = localStorage.getItem("access_token");
     if (!accessToken) {
-      toast.error("Access token missing. Please log in.");
+      toast.error("Please log in to assign tickets");
+      setAssignLoading(false);
       return;
     }
-    console.log(assignmentData);
+
     try {
       await axiosInstance.put(
         `/ticket/dispatcher/`,
@@ -237,7 +254,7 @@ export default function DispatcherPage() {
       setShowAssignmentModal(false);
     } catch (error) {
       console.error("Error assigning ticket:", error);
-      toast.error("Failed to assign ticket. Please try again.");
+      toast.error("Failed to assign ticket");
     } finally {
       setAssignLoading(false);
     }
@@ -259,11 +276,7 @@ export default function DispatcherPage() {
 
     return org ? org.organisation_name : "Unknown Organization";
   };
-  const getSolutionGroupName = (sgId) => {
-    if (!sgId) return "Not assigned";
-    const sg = solutionGroups.find(sg => sg.solution_id?.toString() === sgId.toString());
-    return sg ? sg.group_name : "Unknown Solution Group";
-  };
+
   // Format date for display
   const formatDate = (dateString) => {
     try {
@@ -292,118 +305,274 @@ export default function DispatcherPage() {
   };
 
   return (
-    <div className="flex w-full min-h-screen bg-gray-50">
+    <div className="flex w-full h-screen bg-gray-50">
       <Sidebar />
-      <main className="flex-1 mx-4 md:mx-16">
-        <div className="p-4 md:p-6">
-          <div className="mb-6">
-            <h1 className="text-3xl md:text-[39px] font-semibold text-gray-800">Dispatcher Dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Assign unassigned tickets to support staff members
-            </p>
+      <main className="flex-1 overflow-x-hidden overflow-y-auto">
+        <div className="p-4 max-w-full">
+          {/* Condensed Header */}
+          <div className="flex justify-between items-center mb-3">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">
+                Dispatcher Dashboard
+              </h1>
+              <p className="text-gray-500 text-sm">
+                Assign unassigned tickets to support staff members
+              </p>
+            </div>
+            <button
+              onClick={fetchUnassignedTickets}
+              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              disabled={loading}
+            >
+              <FiRefreshCw size={16} className={loading ? "animate-spin" : ""} />
+              {loading ? "Loading..." : "Refresh"}
+            </button>
           </div>
 
-          <div className="mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            {/* Search input */}
-            <div className="relative w-full md:w-64">
+          {/* Search bar in a row with other controls */}
+          <div className="flex items-center gap-2 mb-3">
+            <div className="relative w-64">
               <input
                 ref={searchInputRef}
                 type="text"
-                className="border border-gray-300 rounded-md pl-10 pr-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-                placeholder="Search Tickets"
+                className="border border-gray-300 rounded-lg pl-8 pr-2 py-1.5 w-full focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                placeholder="Search tickets..."
                 value={searchTerm}
                 onChange={handleSearchInputChange}
               />
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg
-                  className="h-5 w-5 text-gray-400"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
+              <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                <FiSearch className="text-gray-400" size={16} />
               </div>
             </div>
 
-            <div className="flex gap-2 w-full md:w-auto">
-              <button
-                onClick={fetchUnassignedTickets}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center shadow-sm hover:bg-blue-700 transition-colors w-full md:w-auto justify-center"
-                disabled={loading}
+            <div className="flex items-center text-sm ml-auto">
+              <label htmlFor="pageSize" className="text-gray-600 mr-1">
+                Show:
+              </label>
+              <select
+                id="pageSize"
+                value={pageSize}
+                onChange={handlePageSizeChange}
+                className="border rounded px-2 py-1 text-sm"
               >
-                {loading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Loading...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                    </svg>
-                    Refresh Tickets
-                  </>
-                )}
-              </button>
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </select>
+
+              <span className="ml-2 text-sm text-gray-600">
+                {currentEntries.start}-{currentEntries.end} of {totalEntries}
+              </span>
             </div>
           </div>
 
+          {/* Tickets Table */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden h-fit">
+            {loading ? (
+              <div className="p-4 text-center">
+                <div className="inline-block animate-spin rounded-full h-6 w-6 border-3 border-blue-500 border-t-transparent"></div>
+                <p className="mt-2 text-gray-600 text-sm">
+                  Loading tickets...
+                </p>
+              </div>
+            ) : !filteredTickets.length ? (
+              <div className="p-6 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-3">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#9CA3AF"
+                    strokeWidth="2"
+                  >
+                    <path d="M10 21h4M19 12V8.2c0-1.12 0-1.68-.218-2.108a2 2 0 00-.874-.874C17.48 5 16.92 5 15.8 5H8.2c-1.12 0-1.68 0-2.108.218a2 2 0 00-.874.874C5 6.52 5 7.08 5 8.2V12" />
+                    <path d="M15 17H9c-.93 0-1.395 0-1.776.102a3 3 0 00-2.122 2.122C5 19.605 5 20.07 5 21v0M7 10h.01M12 10h.01M17 10h.01" />
+                  </svg>
+                </div>
+                <p className="text-gray-500 text-sm">
+                  {searchTerm
+                    ? "No matching tickets found"
+                    : "No unassigned tickets available"}
+                </p>
+                <button
+                  onClick={fetchUnassignedTickets}
+                  className="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded-lg flex items-center gap-1 mx-auto text-sm"
+                >
+                  <FiRefreshCw size={16} />
+                  Refresh Tickets
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-auto h-full">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Ticket ID
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Summary
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Issue Type
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Priority
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Requestor
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Created At
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {currentItems.map((ticket, index) => (
+                      <tr
+                        key={index}
+                        className="hover:bg-gray-50 transition-colors duration-150"
+                      >
+                        <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
+                          {ticket.ticket_id}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-800 max-w-xs truncate">
+                          {ticket.summary}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-800">
+                          {ticket.issue_type}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          <span className={`px-2 py-0.5 rounded-full text-xs ${getPriorityBadgeClass(ticket.priority)}`}>
+                            {ticket.priority}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {ticket.created_by}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {formatDate(ticket.created_at)}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs font-medium">
+                          <button
+                            onClick={() => openAssignmentModal(ticket)}
+                            className="text-blue-600 hover:text-blue-900 py-1 px-2 rounded bg-blue-50 hover:bg-blue-100 transition-colors text-xs"
+                          >
+                            Assign
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Compact Pagination Controls */}
+          {filteredTickets.length > 0 && (
+            <div className="mt-2 flex justify-end items-center">
+              <ReactPaginate
+                previousLabel={
+                  <span className="flex items-center">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                  </span>
+                }
+                nextLabel={
+                  <span className="flex items-center">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                  </span>
+                }
+                breakLabel={"..."}
+                pageCount={pageCount}
+                marginPagesDisplayed={1}
+                pageRangeDisplayed={2}
+                onPageChange={handlePageClick}
+                forcePage={currentPage}
+                containerClassName="flex space-x-1"
+                pageClassName="w-6 h-6 flex items-center justify-center rounded text-xs"
+                pageLinkClassName="w-full h-full flex items-center justify-center"
+                activeClassName="bg-blue-600 text-white"
+                activeLinkClassName="font-medium"
+                previousClassName="px-1.5 py-1 rounded flex items-center text-xs text-gray-700 hover:bg-gray-100"
+                nextClassName="px-1.5 py-1 rounded flex items-center text-xs text-gray-700 hover:bg-gray-100"
+                disabledClassName="opacity-50 cursor-not-allowed"
+                breakClassName="w-6 h-6 flex items-center justify-center"
+              />
+            </div>
+          )}
+
           {/* Assignment Modal */}
           {showAssignmentModal && selectedTicket && (
-            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-              <div className="relative bg-white p-6 md:p-8 rounded-lg shadow-xl w-[90%] md:w-[45%] max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center">
-                  <h1 className="text-lg font-semibold">
+            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+                <div className="border-b border-gray-200 p-3 flex justify-between items-center">
+                  <h2 className="text-lg font-semibold text-gray-800">
                     Assign Ticket #{selectedTicket.ticket_id}
-                  </h1>
+                  </h2>
                   <button
                     onClick={() => setShowAssignmentModal(false)}
                     className="text-gray-500 hover:text-gray-700"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    ✕
                   </button>
                 </div>
-                <hr className="my-4 border-t border-gray-300" />
 
-                <div className="space-y-2 bg-gray-50 p-4 rounded-md">
-                  <p><span className="font-medium">Summary:</span> {selectedTicket.summary}</p>
-                  <p><span className="font-medium">Issue Type:</span> {selectedTicket.issue_type}</p>
-                  <p><span className="font-medium">Requested by:</span> {selectedTicket.created_by} ({selectedTicket.requester_email})</p>
-                  <p>
-                    <span className="font-medium">Priority:</span>
-                    <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getPriorityBadgeClass(selectedTicket.priority)}`}>
-                      {selectedTicket.priority}
-                    </span>
-                  </p>
-                  {selectedTicket.description && (
-                    <div>
-                      <p className="font-medium">Description:</p>
-                      <div className="text-sm mt-1 p-3 bg-white rounded border border-gray-200 max-h-32 overflow-y-auto"
-                        dangerouslySetInnerHTML={{ __html: selectedTicket.description }} />
-                    </div>
-                  )}
+                <div className="p-3 bg-gray-50 border-b">
+                  <div className="space-y-1 text-sm">
+                    <p><span className="font-medium">Summary:</span> {selectedTicket.summary}</p>
+                    <p><span className="font-medium">Issue Type:</span> {selectedTicket.issue_type}</p>
+                    <p><span className="font-medium">Requested by:</span> {selectedTicket.created_by} ({selectedTicket.requester_email})</p>
+                    <p>
+                      <span className="font-medium">Priority:</span>
+                      <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${getPriorityBadgeClass(selectedTicket.priority)}`}>
+                        {selectedTicket.priority}
+                      </span>
+                    </p>
+                    {selectedTicket.description && (
+                      <div>
+                        <p className="font-medium">Description:</p>
+                        <div className="text-xs mt-1 p-2 bg-white rounded border border-gray-200 max-h-28 overflow-y-auto"
+                          dangerouslySetInnerHTML={{ __html: selectedTicket.description }} />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <form onSubmit={handleAssignTicket} className="space-y-6 pt-4 mt-4">
-                  <div className="flex flex-col">
-                    <label htmlFor="assignee" className="font-medium mb-2">
+                <form onSubmit={handleAssignTicket} className="p-4 space-y-4">
+                  <div>
+                    <label htmlFor="assignee" className="block text-xs font-medium text-gray-700 mb-1">
                       Assignee <span className="text-red-500">*</span>
                     </label>
                     <select
                       id="assignee"
                       value={assignmentData.assigneeId}
                       onChange={handleAssigneeChange}
-                      className="border p-3 w-full rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
+                      className="border border-gray-300 rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select an assignee</option>
                       {supportStaff.map(staff => (
@@ -414,20 +583,20 @@ export default function DispatcherPage() {
                     </select>
                   </div>
 
-                  <div className="flex flex-col">
-                    <label htmlFor="supportOrg" className="font-medium mb-2">
+                  <div>
+                    <label htmlFor="supportOrg" className="block text-xs font-medium text-gray-700 mb-1">
                       Support Organization
                     </label>
                     <input
                       id="supportOrg"
                       value={getOrganizationName(assignmentData.supportOrgId)}
-                      className="border p-3 w-full rounded-md bg-gray-100"
                       disabled
+                      className="border border-gray-300 rounded-lg p-2 w-full bg-gray-50 text-gray-500 text-sm"
                     />
                   </div>
 
-                  <div className="flex flex-col">
-                    <label htmlFor="solutionGroup" className="font-medium mb-2">
+                  <div>
+                    <label htmlFor="solutionGroup" className="block text-xs font-medium text-gray-700 mb-1">
                       Solution Group
                     </label>
                     {availableSolutionGroups.length > 0 ? (
@@ -435,7 +604,7 @@ export default function DispatcherPage() {
                         id="solutionGroup"
                         value={assignmentData.solutionGroupId}
                         onChange={handleSolutionGroupChange}
-                        className="border p-3 w-full rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="border border-gray-300 rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="">Select a solution group</option>
                         {availableSolutionGroups.map((group, index) => (
@@ -448,190 +617,67 @@ export default function DispatcherPage() {
                       <input
                         id="solutionGroup"
                         value="No solution groups available"
-                        className="border p-3 w-full rounded-md bg-gray-100"
                         disabled
+                        className="border border-gray-300 rounded-lg p-2 w-full bg-gray-50 text-gray-500 text-sm"
                       />
                     )}
                   </div>
 
-                  <div className="flex justify-end gap-4">
+                  <div className="flex justify-end gap-2 pt-3 border-t">
                     <button
                       type="button"
                       onClick={() => setShowAssignmentModal(false)}
-                      className="border p-2 rounded-md hover:bg-gray-100 transition-colors"
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
                       disabled={assignLoading}
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="border p-2 rounded-md bg-[#2E6EC0] text-white hover:bg-[#2555a0] transition-colors flex items-center justify-center min-w-[120px]"
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors flex items-center gap-1"
                       disabled={assignLoading}
                     >
-                      {assignLoading ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Assigning...
-                        </>
-                      ) : "Assign Ticket"}
+                      {assignLoading && (
+                        <svg
+                          className="animate-spin h-3 w-3 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                      )}
+                      {assignLoading ? "Assigning..." : "Assign Ticket"}
                     </button>
                   </div>
                 </form>
               </div>
             </div>
           )}
-
-          {/* Status indicator */}
-          {loading && (
-            <div className="w-full bg-blue-50 border border-blue-200 p-4 rounded-md mb-4 flex items-center">
-              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span>Loading unassigned tickets...</span>
-            </div>
-          )}
-
-          {/* Tickets Table */}
-          <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-            {!loading && !filteredTickets.length ? (
-              <div className="p-8 text-center">
-                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
-                  {searchTerm ? "No matching tickets found" : "No unassigned tickets available"}
-                </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {searchTerm
-                    ? "Try adjusting your search criteria."
-                    : "All tickets are currently assigned or there are no tickets in the system."}
-                </p>
-                <div className="mt-6">
-                  <button
-                    onClick={fetchUnassignedTickets}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                    </svg>
-                    Refresh Tickets
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket ID</th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Summary</th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue Type</th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requestor</th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created Date</th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {currentItems.map((ticket, index) => (
-                        <tr
-                          key={index}
-                          className="hover:bg-gray-50 transition-colors"
-                        >
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {ticket.ticket_id}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">
-                            {ticket.summary}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {ticket.issue_type}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            <span className={`px-2 py-1 rounded-full text-xs ${getPriorityBadgeClass(ticket.priority)}`}>
-                              {ticket.priority}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {ticket.created_by}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {formatDate(ticket.created_at)}
-                          </td>
-                          <td className="px-4 py-3 text-sm">
-                            <button
-                              onClick={() => openAssignmentModal(ticket)}
-                              className="bg-blue-600 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                            >
-                              Assign
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Pagination and Page Size Controls */}
-          {filteredTickets.length > 0 && (
-            <div className="flex flex-col md:flex-row justify-between items-center mt-6 bg-white p-4 rounded-lg border shadow-sm">
-              <div className="mb-4 md:mb-0 flex items-center flex-wrap gap-2">
-                <div className="flex items-center">
-                  <label htmlFor="pageSize" className="mr-2 text-sm text-gray-700">
-                    Items per page:
-                  </label>
-                  <select
-                    id="pageSize"
-                    value={pageSize}
-                    onChange={handlePageSizeChange}
-                    className="border rounded-md p-1 text-sm"
-                  >
-                    <option value="2">2</option>
-                    <option value="5">5</option>
-                    <option value="10">10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                  </select>
-                </div>
-                {totalEntries > 0 && (
-                  <span className="text-sm text-gray-700">
-                    Showing {currentEntries.start} to {currentEntries.end} of{" "}
-                    {totalEntries} entries
-                  </span>
-                )}
-              </div>
-
-              <ReactPaginate
-                previousLabel={"← Previous"}
-                nextLabel={"Next →"}
-                breakLabel={"..."}
-                pageCount={pageCount}
-                marginPagesDisplayed={1}
-                pageRangeDisplayed={2}
-                onPageChange={handlePageClick}
-                forcePage={currentPage}
-                containerClassName="flex space-x-1"
-                pageClassName="px-3 py-1 border rounded-md cursor-pointer hover:bg-gray-100 text-sm"
-                activeClassName="bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
-                previousClassName="px-3 py-1 border rounded-md cursor-pointer hover:bg-gray-100 text-sm"
-                nextClassName="px-3 py-1 border rounded-md cursor-pointer hover:bg-gray-100 text-sm"
-                disabledClassName="opacity-50 cursor-not-allowed"
-                breakClassName="px-3 py-1 border rounded-md text-sm"
-              />
-            </div>
-          )}
         </div>
       </main>
       <ChatbotPopup />
-      <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} />
+      <ToastContainer
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </div>
   );
 }

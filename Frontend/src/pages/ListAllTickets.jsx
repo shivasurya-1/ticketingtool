@@ -305,7 +305,15 @@ export default function ListAllTickets() {
         </div>
       </main>
       <ChatbotPopup />
-      <ToastContainer />
+      <ToastContainer
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </div>
   );
 }

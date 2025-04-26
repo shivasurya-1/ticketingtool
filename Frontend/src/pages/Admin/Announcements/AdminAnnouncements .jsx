@@ -11,18 +11,18 @@ export default function AdminAnnouncements() {
   const [appreciations, setAppreciations] = useState([]);
   const [users, setUsers] = useState([]);
   const [employees, setEmployees] = useState([]);
-  
+
   const [announcementForm, setAnnouncementForm] = useState({
     title: "",
     content: "",
-    org_employees: []
+    org_employees: [],
   });
-  
+
   const [appreciationForm, setAppreciationForm] = useState({
     user: "",
     message: "",
   });
-  
+
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [showAppreciationModal, setShowAppreciationModal] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -44,11 +44,14 @@ export default function AdminAnnouncements() {
         setLoading(false);
         return;
       }
-      const response = await axiosInstance.get("five_notifications/announcements/", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      const response = await axiosInstance.get(
+        "five_notifications/announcements/",
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
       setAnnouncements(response.data);
     } catch (error) {
       console.error("Error fetching announcements:", error);
@@ -67,11 +70,14 @@ export default function AdminAnnouncements() {
         setLoading(false);
         return;
       }
-      const response = await axiosInstance.get("five_notifications/appreciations/", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      const response = await axiosInstance.get(
+        "five_notifications/appreciations/",
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
       setAppreciations(response.data);
     } catch (error) {
       console.error("Error fetching appreciations:", error);
@@ -85,7 +91,7 @@ export default function AdminAnnouncements() {
     try {
       const accessToken = localStorage.getItem("access_token");
       if (!accessToken) return;
-      
+
       const response = await axiosInstance.get("users/", {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -101,7 +107,7 @@ export default function AdminAnnouncements() {
     try {
       const accessToken = localStorage.getItem("access_token");
       if (!accessToken) return;
-      
+
       const response = await axiosInstance.get("org/employees/", {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -122,10 +128,13 @@ export default function AdminAnnouncements() {
   };
 
   const handleEmployeeSelection = (e) => {
-    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+    const selectedOptions = Array.from(
+      e.target.selectedOptions,
+      (option) => option.value
+    );
     setAnnouncementForm({
       ...announcementForm,
-      org_employees: selectedOptions
+      org_employees: selectedOptions,
     });
   };
 
@@ -140,7 +149,7 @@ export default function AdminAnnouncements() {
   const handleAnnouncementSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const accessToken = localStorage.getItem("access_token");
       if (!accessToken) {
@@ -150,7 +159,7 @@ export default function AdminAnnouncements() {
       }
 
       let response;
-      
+
       if (modalMode === "add") {
         response = await axiosInstance.post(
           "five_notifications/announcements/",
@@ -161,7 +170,7 @@ export default function AdminAnnouncements() {
             },
           }
         );
-        
+
         if (response.status === 201 || response.status === 200) {
           toast.success("Announcement added successfully");
         }
@@ -175,18 +184,20 @@ export default function AdminAnnouncements() {
             },
           }
         );
-        
+
         if (response.status === 200) {
           toast.success("Announcement updated successfully");
         }
       }
-      
+
       setShowAnnouncementModal(false);
       resetAnnouncementForm();
       fetchAnnouncements();
     } catch (error) {
       console.error("Error managing announcement:", error);
-      toast.error(error.response?.data?.message || `Failed to ${modalMode} announcement`);
+      toast.error(
+        error.response?.data?.message || `Failed to ${modalMode} announcement`
+      );
     } finally {
       setLoading(false);
     }
@@ -195,7 +206,7 @@ export default function AdminAnnouncements() {
   const handleAppreciationSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const accessToken = localStorage.getItem("access_token");
       if (!accessToken) {
@@ -205,7 +216,7 @@ export default function AdminAnnouncements() {
       }
 
       let response;
-      
+
       if (modalMode === "add") {
         response = await axiosInstance.post(
           "five_notifications/appreciations/",
@@ -216,7 +227,7 @@ export default function AdminAnnouncements() {
             },
           }
         );
-        
+
         if (response.status === 201 || response.status === 200) {
           toast.success("Appreciation added successfully");
         }
@@ -230,18 +241,20 @@ export default function AdminAnnouncements() {
             },
           }
         );
-        
+
         if (response.status === 200) {
           toast.success("Appreciation updated successfully");
         }
       }
-      
+
       setShowAppreciationModal(false);
       resetAppreciationForm();
       fetchAppreciations();
     } catch (error) {
       console.error("Error managing appreciation:", error);
-      toast.error(error.response?.data?.message || `Failed to ${modalMode} appreciation`);
+      toast.error(
+        error.response?.data?.message || `Failed to ${modalMode} appreciation`
+      );
     } finally {
       setLoading(false);
     }
@@ -251,7 +264,7 @@ export default function AdminAnnouncements() {
     setAnnouncementForm({
       title: "",
       content: "",
-      org_employees: []
+      org_employees: [],
     });
     setSelectedItemId(null);
   };
@@ -276,7 +289,7 @@ export default function AdminAnnouncements() {
     setAnnouncementForm({
       title: announcement.title,
       content: announcement.content,
-      org_employees: announcement.org_employees?.map(emp => emp.id) || []
+      org_employees: announcement.org_employees?.map((emp) => emp.id) || [],
     });
     setShowAnnouncementModal(true);
   };
@@ -292,14 +305,14 @@ export default function AdminAnnouncements() {
     setSelectedItemId(appreciation.id);
     setAppreciationForm({
       user: appreciation.user?.id || "",
-      message: appreciation.message
+      message: appreciation.message,
     });
     setShowAppreciationModal(true);
   };
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    return date.toLocaleDateString() + " " + date.toLocaleTimeString();
   };
 
   return (
@@ -308,7 +321,9 @@ export default function AdminAnnouncements() {
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <header className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Admin Dashboard
+            </h1>
             <p className="mt-2 text-sm text-gray-600">
               Manage announcements and achievements for your organization
             </p>
@@ -345,7 +360,9 @@ export default function AdminAnnouncements() {
               {activeTab === "announcements" && (
                 <div>
                   <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-lg font-medium text-gray-900">Manage Announcements</h2>
+                    <h2 className="text-lg font-medium text-gray-900">
+                      Manage Announcements
+                    </h2>
                     <button
                       onClick={openAddAnnouncementModal}
                       className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
@@ -370,7 +387,9 @@ export default function AdminAnnouncements() {
                   {loading ? (
                     <div className="flex justify-center items-center p-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                      <span className="ml-2 text-gray-600">Loading announcements...</span>
+                      <span className="ml-2 text-gray-600">
+                        Loading announcements...
+                      </span>
                     </div>
                   ) : !announcements.length ? (
                     <div className="p-8 text-center text-gray-500">
@@ -381,29 +400,50 @@ export default function AdminAnnouncements() {
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead>
                           <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th
+                              scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
                               Title
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th
+                              scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
                               Content
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th
+                              scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
                               Created At
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th
+                              scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
                               Updated At
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th
+                              scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
                               Created By
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th
+                              scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
                               Actions
                             </th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {announcements.map((announcement, index) => (
-                            <tr key={index} className="hover:bg-gray-50 transition-colors">
+                            <tr
+                              key={index}
+                              className="hover:bg-gray-50 transition-colors"
+                            >
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 {announcement.title}
                               </td>
@@ -421,7 +461,9 @@ export default function AdminAnnouncements() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                 <button
-                                  onClick={() => openEditAnnouncementModal(announcement)}
+                                  onClick={() =>
+                                    openEditAnnouncementModal(announcement)
+                                  }
                                   className="text-blue-600 hover:text-blue-800 mr-3"
                                 >
                                   Edit
@@ -439,7 +481,9 @@ export default function AdminAnnouncements() {
               {activeTab === "appreciations" && (
                 <div>
                   <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-lg font-medium text-gray-900">Manage Appreciations</h2>
+                    <h2 className="text-lg font-medium text-gray-900">
+                      Manage Appreciations
+                    </h2>
                     <button
                       onClick={openAddAppreciationModal}
                       className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
@@ -464,7 +508,9 @@ export default function AdminAnnouncements() {
                   {loading ? (
                     <div className="flex justify-center items-center p-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                      <span className="ml-2 text-gray-600">Loading appreciations...</span>
+                      <span className="ml-2 text-gray-600">
+                        Loading appreciations...
+                      </span>
                     </div>
                   ) : !appreciations.length ? (
                     <div className="p-8 text-center text-gray-500">
@@ -475,29 +521,50 @@ export default function AdminAnnouncements() {
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead>
                           <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th
+                              scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
                               User
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th
+                              scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
                               Message
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th
+                              scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
                               Created At
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th
+                              scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
                               Updated At
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th
+                              scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
                               Created By
                             </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th
+                              scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
                               Actions
                             </th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {appreciations.map((appreciation, index) => (
-                            <tr key={index} className="hover:bg-gray-50 transition-colors">
+                            <tr
+                              key={index}
+                              className="hover:bg-gray-50 transition-colors"
+                            >
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 {appreciation.user?.name || "Unknown User"}
                               </td>
@@ -515,7 +582,9 @@ export default function AdminAnnouncements() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                 <button
-                                  onClick={() => openEditAppreciationModal(appreciation)}
+                                  onClick={() =>
+                                    openEditAppreciationModal(appreciation)
+                                  }
                                   className="text-blue-600 hover:text-blue-800 mr-3"
                                 >
                                   Edit
@@ -539,13 +608,18 @@ export default function AdminAnnouncements() {
             <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h2 className="text-lg font-medium text-gray-900">
-                  {modalMode === "add" ? "Add Announcement" : "Edit Announcement"}
+                  {modalMode === "add"
+                    ? "Add Announcement"
+                    : "Edit Announcement"}
                 </h2>
               </div>
-              
+
               <form onSubmit={handleAnnouncementSubmit} className="px-6 py-4">
                 <div className="mb-4">
-                  <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="title"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Title
                   </label>
                   <input
@@ -557,9 +631,12 @@ export default function AdminAnnouncements() {
                     className="w-full border border-gray-200 rounded-md py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
-  
+
                 <div className="mb-4">
-                  <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="content"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Content
                   </label>
                   <textarea
@@ -572,9 +649,12 @@ export default function AdminAnnouncements() {
                     className="w-full border border-gray-200 rounded-md py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
-                
+
                 <div className="mb-6">
-                  <label htmlFor="org_employees" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="org_employees"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Organization Employees
                   </label>
                   <select
@@ -587,7 +667,9 @@ export default function AdminAnnouncements() {
                   >
                     {employees.map((employee) => (
                       <option key={employee.id} value={employee.id}>
-                        {employee.name || employee.email || `Employee #${employee.id}`}
+                        {employee.name ||
+                          employee.email ||
+                          `Employee #${employee.id}`}
                       </option>
                     ))}
                   </select>
@@ -595,7 +677,7 @@ export default function AdminAnnouncements() {
                     Hold Ctrl or Cmd to select multiple employees
                   </p>
                 </div>
-  
+
                 <div className="flex justify-end gap-3">
                   <button
                     type="button"
@@ -610,15 +692,34 @@ export default function AdminAnnouncements() {
                     className="py-2 px-4 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     disabled={loading}
                   >
-                    {loading ? 
+                    {loading ? (
                       <span className="flex items-center">
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        <svg
+                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
                         </svg>
-                        {modalMode === "add" ? "Adding..." : "Updating..."} 
-                      </span> : 
-                      (modalMode === "add" ? "Add Announcement" : "Update Announcement")}
+                        {modalMode === "add" ? "Adding..." : "Updating..."}
+                      </span>
+                    ) : modalMode === "add" ? (
+                      "Add Announcement"
+                    ) : (
+                      "Update Announcement"
+                    )}
                   </button>
                 </div>
               </form>
@@ -632,13 +733,18 @@ export default function AdminAnnouncements() {
             <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h2 className="text-lg font-medium text-gray-900">
-                  {modalMode === "add" ? "Add Appreciation" : "Edit Appreciation"}
+                  {modalMode === "add"
+                    ? "Add Appreciation"
+                    : "Edit Appreciation"}
                 </h2>
               </div>
-              
+
               <form onSubmit={handleAppreciationSubmit} className="px-6 py-4">
                 <div className="mb-4">
-                  <label htmlFor="user" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="user"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     User
                   </label>
                   <select
@@ -657,9 +763,12 @@ export default function AdminAnnouncements() {
                     ))}
                   </select>
                 </div>
-  
+
                 <div className="mb-6">
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="message"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Message
                   </label>
                   <textarea
@@ -672,7 +781,7 @@ export default function AdminAnnouncements() {
                     className="w-full border border-gray-200 rounded-md py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
-  
+
                 <div className="flex justify-end gap-3">
                   <button
                     type="button"
@@ -687,23 +796,50 @@ export default function AdminAnnouncements() {
                     className="py-2 px-4 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     disabled={loading}
                   >
-                    {loading ? 
+                    {loading ? (
                       <span className="flex items-center">
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        <svg
+                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
                         </svg>
-                        {modalMode === "add" ? "Adding..." : "Updating..."} 
-                      </span> : 
-                      (modalMode === "add" ? "Add Appreciation" : "Update Appreciation")}
+                        {modalMode === "add" ? "Adding..." : "Updating..."}
+                      </span>
+                    ) : modalMode === "add" ? (
+                      "Add Appreciation"
+                    ) : (
+                      "Update Appreciation"
+                    )}
                   </button>
                 </div>
               </form>
             </div>
           </div>
         )}
-        
-        <ToastContainer />
+
+        <ToastContainer
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
       </main>
     </div>
   );

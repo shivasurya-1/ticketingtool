@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import Sidebar from "../../components/Sidebar";
+import { FiSearch, FiEdit2, FiEye, FiPlus } from "react-icons/fi";
 import ChatbotPopup from "../../components/ChatBot";
 import Button from "../../components/common/Button";
 import ReactPaginate from "react-paginate";
@@ -8,52 +9,57 @@ import { axiosInstance } from "../../utils/axiosInstance";
 
 export default function Priority() {
   const [loading, setLoading] = useState(true);
-  const [pageSize, setPageSize] = useState(5);
+  const [pageSize, setPageSize] = useState(10);
   const [priorities, setPriorities] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [formData, setFormData] = useState({
     urgencyName: "",
     description: "",
     responseTargetTime: "",
-    isActive: true
+    isActive: true,
   });
-  const [addPriority, setAddPriority] = useState(false);
-  const [editPriority, setEditPriority] = useState(false);
-  const [selectedPriority, setSelectedPriority] = useState(null);
+  const [showPriorityModal, setShowPriorityModal] = useState(false);
   const [totalEntries, setTotalEntries] = useState(0);
   const [currentEntries, setCurrentEntries] = useState({
     start: 0,
-    end: 0
+    end: 0,
   });
   const [searchTerm, setSearchTerm] = useState("");
+  const [modalMode, setModalMode] = useState("add"); // "add" or "edit" or "view"
+  const [selectedPriorityId, setSelectedPriorityId] = useState(null);
+
   const searchInputRef = useRef(null);
   const formRef = useRef(null);
 
-  // Filter priorities based on search term - real-time filtering
-  const filteredPriorities = priorities.filter(priority => {
+  // Filter priorities based on search term
+  const filteredPriorities = priorities.filter((priority) => {
+    if (!searchTerm.trim()) return true;
+
+    const searchTermLower = searchTerm.toLowerCase().trim();
     return (
-      priority.urgency_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (priority.description && priority.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      priority.priority_id.toString().includes(searchTerm) ||
-      (priority.response_target_time && priority.response_target_time.toString().includes(searchTerm))
+      priority.urgency_name.toLowerCase().includes(searchTermLower) ||
+      (priority.description &&
+        priority.description.toLowerCase().includes(searchTermLower)) ||
+      priority.priority_id.toString().includes(searchTermLower) ||
+      (priority.response_target_time &&
+        priority.response_target_time.toString().includes(searchTermLower))
     );
   });
 
-  // Calculate pagination values - safeguard against empty data
-  const pageCount = Math.max(1, Math.ceil(filteredPriorities.length / pageSize));
-  
-  // Calculate offset once after currentPage and pageSize are set
+  // Calculate pagination values
+  const pageCount = Math.max(
+    1,
+    Math.ceil(filteredPriorities.length / pageSize)
+  );
   const offset = currentPage * pageSize;
-  
-  // Get current items for display
   const currentItems = filteredPriorities.slice(offset, offset + pageSize);
 
-  // Fetch priorities on component mount only
+  // Fetch priorities on component mount
   useEffect(() => {
     fetchPriorities();
   }, []);
 
-  // Update current entries information and total entries when filteredPriorities, offset, or pageSize changes
+  // Update current entries information when filteredPriorities changes
   useEffect(() => {
     const start = filteredPriorities.length > 0 ? offset + 1 : 0;
     const end = Math.min(offset + pageSize, filteredPriorities.length);
@@ -61,17 +67,21 @@ export default function Priority() {
     setTotalEntries(filteredPriorities.length);
   }, [filteredPriorities.length, offset, pageSize]);
 
-  // Ensure currentPage is never out of bounds - only run this when pageCount or filteredPriorities change
-  useEffect(() => {
-    if (currentPage >= pageCount && pageCount > 0 && filteredPriorities.length > 0) {
-      setCurrentPage(Math.max(0, pageCount - 1));
-    }
-  }, [filteredPriorities.length, pageCount, currentPage]);
-
   // Reset to first page when search term changes
   useEffect(() => {
     setCurrentPage(0);
   }, [searchTerm]);
+
+  // Ensure currentPage is never out of bounds
+  useEffect(() => {
+    if (
+      currentPage >= pageCount &&
+      pageCount > 0 &&
+      filteredPriorities.length > 0
+    ) {
+      setCurrentPage(Math.max(0, pageCount - 1));
+    }
+  }, [filteredPriorities.length, pageCount, currentPage]);
 
   // Scroll to top when changing to the last page with fewer items
   useEffect(() => {
@@ -104,7 +114,7 @@ export default function Priority() {
       }
     } catch (error) {
       console.error("Error fetching priorities:", error);
-      toast.error("Failed to load priorities");
+      toast.error(error.response?.data?.error || "Failed to load priorities");
       setPriorities([]);
     } finally {
       setLoading(false);
@@ -117,90 +127,44 @@ export default function Priority() {
 
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
-    // Handle checkbox separately
-    if (type === "checkbox") {
-      setFormData({
-        ...formData,
-        [name]: checked,
-      });
-    } else {
-      setFormData({
-        ...formData,
-        [name]: value,
-      });
-    }
-  };
-
-  // Function to handle edit button click
-  const handleEditClick = (priority) => {
-    setSelectedPriority(priority);
-    
-    // Fill form with current priority data
     setFormData({
-      urgencyName: priority.urgency_name,
-      description: priority.description || "",
-      // Store the raw backend format for the edit form
-      responseTargetTime: priority.response_target_time || "",
-      isActive: priority.is_active
+      ...formData,
+      [name]: type === "checkbox" ? checked : value,
     });
-    
-    setEditPriority(true);
   };
 
-  // Handle status toggle
-  const handleStatusToggle = async (priority) => {
-    setLoading(true);
-    const accessToken = localStorage.getItem("access_token");
-    if (!accessToken) {
-      toast.error("Please log in to update priorities.");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const response = await axiosInstance.put(
-        `/priority/priority/${priority.priority_id}/`,
-        {
-          urgency_name: priority.urgency_name,
-          description: priority.description,
-          input_response_target_time: priority.response_target_time,
-          is_active: !priority.is_active
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      if (response.status === 200) {
-        toast.success(`Priority status ${!priority.is_active ? 'activated' : 'deactivated'} successfully`);
-        await fetchPriorities();
-      }
-    } catch (error) {
-      console.error("Error updating priority status:", error);
-      toast.error(error.response?.data?.message || "Failed to update priority status");
-    } finally {
-      setLoading(false);
+  // Toggle active status
+  const handleToggleActive = () => {
+    if (modalMode !== "view") {
+      setFormData({
+        ...formData,
+        isActive: !formData.isActive,
+      });
     }
   };
 
-  // Handle search input changes in real-time
   const handleSearchInputChange = (e) => {
     setSearchTerm(e.target.value);
+  };
+
+  const handlePageSizeChange = (e) => {
+    const newSize = parseInt(e.target.value);
+    setPageSize(newSize);
+    setCurrentPage(0);
   };
 
   // Time conversion functions
   const isBackendFormat = (timeStr) => {
     if (!timeStr) return false;
-    // Match pattern like: "4 20:10:20" (days hours:minutes:seconds) or "0days 02:00:00" 
-    const backendFormatRegex = /^(\d+)(?:\s|\s?days\s)(\d{1,2}:\d{1,2}:\d{1,2})$/;
+    // Match pattern like: "4 20:10:20" (days hours:minutes:seconds) or "0days 02:00:00"
+    const backendFormatRegex =
+      /^(\d+)(?:\s|\s?days\s)(\d{1,2}:\d{1,2}:\d{1,2})$/;
     return backendFormatRegex.test(timeStr);
   };
 
   const normalizeBackendFormat = (timeStr) => {
     if (!timeStr) return "0 00:00:00";
-    
+
     // If it's in the format "0days 02:00:00", convert to "0 02:00:00"
     if (timeStr.includes("days")) {
       const match = timeStr.match(/^(\d+)days\s+(\d{2}:\d{2}:\d{2})$/);
@@ -208,23 +172,23 @@ export default function Priority() {
         return `${match[1]} ${match[2]}`;
       }
     }
-    
+
     // Return as is if already in correct format
     if (isBackendFormat(timeStr)) {
       return timeStr;
     }
-    
+
     return timeStr;
   };
 
   const convertTimeToBackendFormat = (timeStr) => {
     if (!timeStr || timeStr.trim() === "") return "0 00:00:00";
-    
+
     // Normalize the format if it's already in backend format
     if (isBackendFormat(timeStr) || timeStr.includes("days")) {
       return normalizeBackendFormat(timeStr);
     }
-    
+
     // Handle direct numeric input (assume hours)
     if (!isNaN(timeStr) && timeStr !== "") {
       const hours = parseFloat(timeStr);
@@ -232,32 +196,41 @@ export default function Priority() {
       const remainingHours = Math.floor(hours % 24);
       const minutes = Math.floor((hours * 60) % 60);
       const seconds = Math.floor((hours * 3600) % 60);
-      
-      return `${days} ${String(remainingHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+      return `${days} ${String(remainingHours).padStart(2, "0")}:${String(
+        minutes
+      ).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
     }
-    
+
     // Handle HH:MM:SS format (assume hours:minutes:seconds, no days)
     if (timeStr.includes(":")) {
       const parts = timeStr.split(":");
-      
+
       // If we have exactly three parts, assume it's HH:MM:SS (no days)
       if (parts.length === 3) {
         const hours = parseInt(parts[0]) || 0;
         const days = Math.floor(hours / 24);
         const remainingHours = hours % 24;
-        
-        return `${days} ${String(remainingHours).padStart(2, '0')}:${String(parseInt(parts[1]) || 0).padStart(2, '0')}:${String(parseInt(parts[2]) || 0).padStart(2, '0')}`;
-      } 
+
+        return `${days} ${String(remainingHours).padStart(2, "0")}:${String(
+          parseInt(parts[1]) || 0
+        ).padStart(2, "0")}:${String(parseInt(parts[2]) || 0).padStart(
+          2,
+          "0"
+        )}`;
+      }
       // If we have two parts, assume it's HH:MM (no days, no seconds)
       else if (parts.length === 2) {
         const hours = parseInt(parts[0]) || 0;
         const days = Math.floor(hours / 24);
         const remainingHours = hours % 24;
-        
-        return `${days} ${String(remainingHours).padStart(2, '0')}:${String(parseInt(parts[1]) || 0).padStart(2, '0')}:00`;
+
+        return `${days} ${String(remainingHours).padStart(2, "0")}:${String(
+          parseInt(parts[1]) || 0
+        ).padStart(2, "0")}:00`;
       }
     }
-    
+
     // Handle "X hours" format
     if (timeStr.toLowerCase().includes("hour")) {
       const match = timeStr.match(/(\d+(\.\d+)?)/);
@@ -267,12 +240,70 @@ export default function Priority() {
         const remainingHours = Math.floor(hours % 24);
         const minutes = Math.floor((hours * 60) % 60);
         const seconds = Math.floor((hours * 3600) % 60);
-        
-        return `${days} ${String(remainingHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+        return `${days} ${String(remainingHours).padStart(2, "0")}:${String(
+          minutes
+        ).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
       }
     }
-    
+
     return "0 00:00:00"; // Default if cannot parse
+  };
+
+  // Format the target time for display
+  const formatTargetTime = (timeValue) => {
+    if (!timeValue) return "-";
+
+    try {
+      // First normalize the format if it contains "days"
+      let normalizedValue = timeValue;
+      if (timeValue.includes("days")) {
+        const match = timeValue.match(/^(\d+)days\s+(\d{2}:\d{2}:\d{2})$/);
+        if (match) {
+          normalizedValue = `${match[1]} ${match[2]}`;
+        }
+      }
+
+      // Expected format: "D HH:MM:SS"
+      const parts = normalizedValue.split(" ");
+      if (parts.length !== 2) return timeValue; // Return as-is if not in expected format
+
+      const days = parseInt(parts[0]);
+      const timeParts = parts[1].split(":");
+
+      if (timeParts.length !== 3) return timeValue; // Return as-is if not in expected format
+
+      const hours = parseInt(timeParts[0]);
+      const minutes = parseInt(timeParts[1]);
+      const seconds = parseInt(timeParts[2]);
+
+      let result = [];
+
+      if (days > 0) {
+        result.push(`${days} day${days !== 1 ? "s" : ""}`);
+      }
+
+      if (hours > 0) {
+        result.push(`${hours} hour${hours !== 1 ? "s" : ""}`);
+      }
+
+      if (minutes > 0) {
+        result.push(`${minutes} minute${minutes !== 1 ? "s" : ""}`);
+      }
+
+      if (seconds > 0) {
+        result.push(`${seconds} second${seconds !== 1 ? "s" : ""}`);
+      }
+
+      if (result.length === 0) {
+        return "0 seconds";
+      }
+
+      return result.join(" ");
+    } catch (error) {
+      console.error("Error formatting time:", error);
+      return timeValue; // Return as-is if there's an error
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -286,548 +317,544 @@ export default function Priority() {
     setLoading(true);
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) {
-      toast.error("Please log in to add priorities.");
+      toast.error("Please log in to manage priorities.");
       setLoading(false);
       return;
     }
 
     // Convert the target time to the backend format
-    const formattedTargetTime = convertTimeToBackendFormat(formData.responseTargetTime);
+    const formattedTargetTime = convertTimeToBackendFormat(
+      formData.responseTargetTime
+    );
 
     const parseFormData = (data) => ({
       urgency_name: data.urgencyName,
       description: data.description,
       input_response_target_time: formattedTargetTime,
-      is_active: data.isActive
+      is_active: data.isActive,
     });
 
     try {
       const parsedData = parseFormData(formData);
-      const response = await axiosInstance.post(
-        "/priority/priority/",
-        parsedData,
-        {
+      let response;
+
+      if (modalMode === "add") {
+        response = await axiosInstance.post("/priority/priority/", parsedData, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
-        }
-      );
-
-      if (response.status === 201 || response.status === 200) {
-        toast.success("Priority added successfully");
-        setAddPriority(false);
-        setFormData({
-          urgencyName: "",
-          description: "",
-          responseTargetTime: "",
-          isActive: true
         });
-        // Refresh the data after adding new priority
-        await fetchPriorities();
+
+        if (response.status === 201 || response.status === 200) {
+          toast.success(
+            response?.data?.message || "Priority added successfully"
+          );
+        }
+      } else if (modalMode === "edit") {
+        response = await axiosInstance.put(
+          `/priority/priority/${selectedPriorityId}/`,
+          parsedData,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+
+        if (response.status === 200) {
+          toast.success(
+            response?.data?.message || "Priority updated successfully"
+          );
+        }
       }
+
+      setShowPriorityModal(false);
+      resetForm();
+      // Refresh the data after adding/editing priority
+      await fetchPriorities();
     } catch (error) {
-      console.error("Error adding priority:", error);
       toast.error(
-        error.response?.data?.message || "Failed to add priority"
+        error.response?.data?.error ||
+          error.response?.data?.urgency_name?.[0] ||
+          `Failed to ${modalMode} priority`
       );
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle update/edit submit
-  const handleUpdateSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!formData.urgencyName) {
-      toast.error("Please fill in the required fields");
-      return;
-    }
-
-    setLoading(true);
-    const accessToken = localStorage.getItem("access_token");
-    if (!accessToken) {
-      toast.error("Please log in to update priorities.");
-      setLoading(false);
-      return;
-    }
-
-    // Always convert the target time to the backend format
-    const formattedTargetTime = convertTimeToBackendFormat(formData.responseTargetTime);
-
-    const parseFormData = (data) => ({
-      urgency_name: data.urgencyName,
-      description: data.description,
-      input_response_target_time: formattedTargetTime,
-      is_active: data.isActive
+  const handleView = (priority) => {
+    setSelectedPriorityId(priority.priority_id);
+    setFormData({
+      urgencyName: priority.urgency_name,
+      description: priority.description || "",
+      responseTargetTime: priority.response_target_time || "",
+      isActive: priority.is_active,
     });
-
-    try {
-      const parsedData = parseFormData(formData);
-      const response = await axiosInstance.put(
-        `/priority/priority/${selectedPriority.priority_id}/`,
-        parsedData,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      if (response.status === 200) {
-        toast.success("Priority updated successfully");
-        setEditPriority(false);
-        setSelectedPriority(null);
-        setFormData({
-          urgencyName: "",
-          description: "",
-          responseTargetTime: "",
-          isActive: true
-        });
-        // Refresh the data after updating priority
-        await fetchPriorities();
-      }
-    } catch (error) {
-      console.error("Error updating priority:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to update priority"
-      );
-    } finally {
-      setLoading(false);
-    }
+    setModalMode("view");
+    setShowPriorityModal(true);
   };
 
-  // Handle changing page size
-  const handlePageSizeChange = (e) => {
-    const newSize = parseInt(e.target.value);
-    setPageSize(newSize);
-    setCurrentPage(0); // Reset to first page when changing page size
+  const handleEdit = (priority) => {
+    setSelectedPriorityId(priority.priority_id);
+    setFormData({
+      urgencyName: priority.urgency_name,
+      description: priority.description || "",
+      responseTargetTime: priority.response_target_time || "",
+      isActive: priority.is_active,
+    });
+    setModalMode("edit");
+    setShowPriorityModal(true);
   };
 
-  // Reset form data and close modals
-  const handleCancel = () => {
+  const openAddModal = () => {
+    resetForm();
+    setModalMode("add");
+    setShowPriorityModal(true);
+  };
+
+  const resetForm = () => {
     setFormData({
       urgencyName: "",
       description: "",
       responseTargetTime: "",
-      isActive: true
+      isActive: true,
     });
-    setAddPriority(false);
-    setEditPriority(false);
-    setSelectedPriority(null);
-  };
-
-  // Format the target time for display
-  const formatTargetTime = (timeValue) => {
-    if (!timeValue) return "-";
-    
-    try {
-      // First normalize the format if it contains "days"
-      let normalizedValue = timeValue;
-      if (timeValue.includes("days")) {
-        const match = timeValue.match(/^(\d+)days\s+(\d{2}:\d{2}:\d{2})$/);
-        if (match) {
-          normalizedValue = `${match[1]} ${match[2]}`;
-        }
-      }
-      
-      // Expected format: "D HH:MM:SS"
-      const parts = normalizedValue.split(' ');
-      if (parts.length !== 2) return timeValue; // Return as-is if not in expected format
-      
-      const days = parseInt(parts[0]);
-      const timeParts = parts[1].split(':');
-      
-      if (timeParts.length !== 3) return timeValue; // Return as-is if not in expected format
-      
-      const hours = parseInt(timeParts[0]);
-      const minutes = parseInt(timeParts[1]);
-      const seconds = parseInt(timeParts[2]);
-      
-      let result = [];
-      
-      if (days > 0) {
-        result.push(`${days} day${days !== 1 ? 's' : ''}`);
-      }
-      
-      if (hours > 0) {
-        result.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
-      }
-      
-      if (minutes > 0) {
-        result.push(`${minutes} minute${minutes !== 1 ? 's' : ''}`);
-      }
-      
-      if (seconds > 0) {
-        result.push(`${seconds} second${seconds !== 1 ? 's' : ''}`);
-      }
-      
-      if (result.length === 0) {
-        return "0 seconds";
-      }
-      
-      return result.join(' ');
-    } catch (error) {
-      console.error("Error formatting time:", error);
-      return timeValue; // Return as-is if there's an error
-    }
+    setSelectedPriorityId(null);
   };
 
   return (
-    <div className="flex w-full min-h-screen bg-gray-50">
+    <div className="flex w-full h-screen bg-gray-50">
       <Sidebar />
-      <main className="flex-1 mx-4 md:mx-8 lg:mx-16">
-        <div className="p-4 md:p-6">
-          <div className="mb-6">
-            <h1 className="text-3xl md:text-[39px] font-semibold text-gray-800">Priorities</h1>
-            <p className="text-sm text-gray-500">
-              Add, Search, and Manage your priorities all in one place
-            </p>
+      <main className="flex-1 overflow-x-hidden overflow-y-auto">
+        <div className="p-4 max-w-full">
+          {/* Condensed Header */}
+          <div className="flex justify-between items-center mb-3">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">Priorities</h1>
+              <p className="text-gray-500 text-sm">
+                Add, search, and manage your priorities
+              </p>
+            </div>
+            <Button
+              blueBackground
+              onClick={openAddModal}
+              label="Add Priority"
+              icon={<FiPlus size={16} />}
+              primary={true}
+            />
           </div>
 
-          <div className="mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            {/* Real-time search input */}
-            <div className="relative w-full md:w-auto">
-              <input 
+          {/* Search bar in a row with other controls */}
+          <div className="flex items-center gap-2 mb-3">
+            <div className="relative w-64">
+              <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search Priority"
+                className="border border-gray-300 rounded-lg pl-8 pr-2 py-1.5 w-full focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                placeholder="Search priorities..."
                 value={searchTerm}
                 onChange={handleSearchInputChange}
-                className="pl-10 pr-4 py-2 border rounded-md w-full md:w-[300px] focus:ring-2 focus:ring-blue-300 focus:border-blue-500 outline-none transition-all"
               />
-              <svg 
-                className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" 
-                xmlns="http://www.w3.org/2000/svg" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
-                />
-              </svg>
+              <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                <FiSearch className="text-gray-400" size={16} />
+              </div>
             </div>
-            <div className="flex gap-2 w-full md:w-auto">
-              <Button label="Bulk Import" />
-              <Button
-                onClick={() => setAddPriority(true)}
-                label="Add Priority"
-                blueBackground
-              />
+
+            <div className="flex items-center text-sm ml-auto">
+              <label htmlFor="pageSize" className="text-gray-600 mr-1">
+                Show:
+              </label>
+              <select
+                id="pageSize"
+                value={pageSize}
+                onChange={handlePageSizeChange}
+                className="border rounded px-2 py-1 text-sm"
+              >
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </select>
+
+              <span className="ml-2 text-sm text-gray-600">
+                {currentEntries.start}-{currentEntries.end} of {totalEntries}
+              </span>
             </div>
           </div>
 
-          {/* Add Priority Modal */}
-          {addPriority && (
-            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-              <div className="relative bg-white p-6 md:p-8 rounded-lg shadow-lg w-[90%] md:w-[70%] lg:w-[45%] max-h-[90vh] overflow-y-auto">
-                <h1 className="text-xl font-semibold mb-4 text-gray-800">Add Priority</h1>
-                <hr className="border-t border-gray-300 mb-6" />
-                <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
-                  <div className="flex flex-col">
-                    <label
-                      htmlFor="urgencyName"
-                      className="font-medium mb-2 text-gray-700"
-                    >
-                      Urgency Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="urgencyName"
-                      name="urgencyName"
-                      value={formData.urgencyName}
-                      onChange={handleFormChange}
-                      required
-                      className="border p-3 w-full rounded-md shadow-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-500 outline-none transition-all"
-                      placeholder="Enter urgency name"
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <label htmlFor="responseTargetTime" className="font-medium mb-2 text-gray-700">
-                      Target Response Time
-                    </label>
-                    <p className="text-sm text-gray-500 mb-2">
-                      Enter time in any format: "4 20:10:20" (4 days, 20 hours, 10 minutes, 20 seconds), 
-                      "24" (24 hours), or "3:30" (3 hours, 30 minutes)
-                    </p>
-                    <input
-                      id="responseTargetTime"
-                      name="responseTargetTime"
-                      type="text"
-                      value={formData.responseTargetTime}
-                      onChange={handleFormChange}
-                      placeholder="e.g., 4 20:10:20 or 24 or 3:30"
-                      className="border p-3 w-full rounded-md shadow-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-500 outline-none transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <label htmlFor="description" className="font-medium mb-2 text-gray-700">
-                      Description
-                    </label>
-                    <textarea
-                      id="description"
-                      name="description"
-                      value={formData.description}
-                      onChange={handleFormChange}
-                      placeholder="Enter a detailed description for this priority level"
-                      className="border p-3 w-full rounded-md shadow-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-500 outline-none transition-all"
-                      rows="3"
-                    />
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      id="isActive"
-                      name="isActive"
-                      type="checkbox"
-                      checked={formData.isActive}
-                      onChange={handleFormChange}
-                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <label htmlFor="isActive" className="ml-2 font-medium text-gray-700">
-                      Active
-                    </label>
-                  </div>
-                  {/* Cancel and ADD Button */}
-                  <div className="flex justify-end gap-4 pt-2">
-                    <button
-                      type="button"
-                      onClick={handleCancel}
-                      className="border p-2 px-4 rounded-md hover:bg-gray-100 transition"
-                      disabled={loading}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="border p-2 px-6 rounded-md bg-[#2E6EC0] text-white hover:bg-[#2255a4] transition"
-                      disabled={loading}
-                    >
-                      {loading ? "Adding..." : "Add"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* Edit Priority Modal */}
-          {editPriority && selectedPriority && (
-            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-              <div className="relative bg-white p-6 md:p-8 rounded-lg shadow-lg w-[90%] md:w-[70%] lg:w-[45%] max-h-[90vh] overflow-y-auto">
-                <h1 className="text-xl font-semibold mb-4 text-gray-800">Edit Priority</h1>
-                <hr className="border-t border-gray-300 mb-6" />
-                <form ref={formRef} onSubmit={handleUpdateSubmit} className="space-y-6">
-                  <div className="flex flex-col">
-                    <label
-                      htmlFor="urgencyName"
-                      className="font-medium mb-2 text-gray-700"
-                    >
-                      Urgency Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="urgencyName"
-                      name="urgencyName"
-                      value={formData.urgencyName}
-                      onChange={handleFormChange}
-                      required
-                      className="border p-3 w-full rounded-md shadow-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-500 outline-none transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <label htmlFor="responseTargetTime" className="font-medium mb-2 text-gray-700">
-                      Target Response Time
-                    </label>
-                    <p className="text-sm text-gray-500 mb-2">
-                      Enter time in any format: "4 20:10:20" (4 days, 20 hours, 10 minutes, 20 seconds), 
-                      "24" (24 hours), or "3:30" (3 hours, 30 minutes)
-                    </p>
-                    <input
-                      id="responseTargetTime"
-                      name="responseTargetTime"
-                      type="text"
-                      value={formData.responseTargetTime}
-                      onChange={handleFormChange}
-                      placeholder="e.g., 4 20:10:20 or 24 or 3:30"
-                      className="border p-3 w-full rounded-md shadow-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-500 outline-none transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <label htmlFor="description" className="font-medium mb-2 text-gray-700">
-                      Description
-                    </label>
-                    <textarea
-                      id="description"
-                      name="description"
-                      value={formData.description}
-                      onChange={handleFormChange}
-                      className="border p-3 w-full rounded-md shadow-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-500 outline-none transition-all"
-                      rows="3"
-                      placeholder="Enter a detailed description for this priority level"
-                    />
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      id="isActive"
-                      name="isActive"
-                      type="checkbox"
-                      checked={formData.isActive}
-                      onChange={handleFormChange}
-                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <label htmlFor="isActive" className="ml-2 font-medium text-gray-700">
-                      Active
-                    </label>
-                    <p className="ml-4 text-sm text-gray-500">
-                      (Controls whether this priority is available for selection)
-                    </p>
-                  </div>
-                  {/* Cancel and UPDATE Button */}
-                  <div className="flex justify-end gap-4 pt-2">
-                    <button
-                      type="button"
-                      onClick={handleCancel}
-                      className="border p-2 px-4 rounded-md hover:bg-gray-100 transition"
-                      disabled={loading}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="border p-2 px-6 rounded-md bg-[#2E6EC0] text-white hover:bg-[#2255a4] transition"
-                      disabled={loading}
-                    >
-                      {loading ? "Updating..." : "Update"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-         
-          {/* Priorities Table */}
-          <div className="bg-white rounded-md border overflow-hidden mt-8 shadow-sm">
+          {/* Priorities Table - More compact */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden h-fit">
             {loading ? (
-              <div className="p-4 text-center">Loading priorities...</div>
-            ) : !filteredPriorities.length ? (
               <div className="p-4 text-center">
-                {searchTerm ? "No matching priorities found" : "No priorities found"}
+                <div className="inline-block animate-spin rounded-full h-6 w-6 border-3 border-blue-500 border-t-transparent"></div>
+                <p className="mt-2 text-gray-600 text-sm">
+                  Loading priorities...
+                </p>
+              </div>
+            ) : !filteredPriorities.length ? (
+              <div className="p-6 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-3">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#9CA3AF"
+                    strokeWidth="2"
+                  >
+                    <path d="M10 21h4M19 12V8.2c0-1.12 0-1.68-.218-2.108a2 2 0 00-.874-.874C17.48 5 16.92 5 15.8 5H8.2c-1.12 0-1.68 0-2.108.218a2 2 0 00-.874.874C5 6.52 5 7.08 5 8.2V12" />
+                    <path d="M15 17H9c-.93 0-1.395 0-1.776.102a3 3 0 00-2.122 2.122C5 19.605 5 20.07 5 21v0M7 10h.01M12 10h.01M17 10h.01" />
+                  </svg>
+                </div>
+                <p className="text-gray-500 text-sm">
+                  {searchTerm
+                    ? "No matching priorities found"
+                    : "No priorities found"}
+                </p>
+                <button
+                  onClick={openAddModal}
+                  className="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded-lg flex items-center gap-1 mx-auto text-sm"
+                >
+                  <FiPlus size={16} />
+                  Add Priority
+                </button>
               </div>
             ) : (
-              <table className="min-w-full table-fixed">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Priority ID</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">
-                      Urgency Name
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">
-                      Description
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">
-                      Target Time
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentItems.map((priority, index) => (
-                    <tr
-                      key={index}
-                      className={`${
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                      } border-t border-gray-200 hover:bg-gray-100 transition-colors`}
-                    >
-                      <td className="px-4 py-3 break-words">
-                        {priority.priority_id}
-                      </td>
-                      <td className="px-4 py-3 break-words font-medium">
-                        {priority.urgency_name}
-                      </td>
-                      <td className="px-4 py-3 break-words text-gray-600">
-                        {priority.description || "-"}
-                      </td>
-                      <td className="px-4 py-3 break-words">
-                        {formatTargetTime(priority.response_target_time)}
-                      </td>
-                      <td className="px-4 py-3 break-words">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${priority.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                          {priority.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 break-words">
-                        <button
-                          onClick={() => handleEditClick(priority)}
-                          className="text-blue-600 hover:text-blue-800 mr-4 transition-colors"
-                        >
-                          Edit
-                        </button>
-                        {/* Removed the deactivate button as requested - using checkbox in edit modal instead */}
-                      </td>
+              <div className="overflow-auto h-full">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        ID
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Urgency Name
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Description
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Target Time
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Status
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Actions
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {currentItems.map((priority, index) => (
+                      <tr
+                        key={index}
+                        className="hover:bg-gray-50 transition-colors duration-150"
+                      >
+                        <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
+                          {priority.priority_id}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-800">
+                          {priority.urgency_name}
+                        </td>
+                        <td className="px-3 py-2 text-xs text-gray-600 max-w-xs truncate">
+                          {priority.description || "-"}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {formatTargetTime(priority.response_target_time)}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                              priority.is_active
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {priority.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs font-medium">
+                          <div className="flex space-x-1">
+                            <button
+                              onClick={() => handleView(priority)}
+                              className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
+                              title="View Details"
+                            >
+                              <FiEye size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleEdit(priority)}
+                              className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
+                              title="Edit Priority"
+                            >
+                              <FiEdit2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 
-          {/* Pagination and Page Size Controls */}
+          {/* Compact Pagination Controls */}
           {filteredPriorities.length > 0 && (
-            <div className="flex flex-col md:flex-row justify-between items-center mt-6 mb-8">
-              <div className="mb-4 md:mb-0">
-                <label htmlFor="pageSize" className="mr-2 text-sm text-gray-600">
-                  Items per page:
-                </label>
-                <select
-                  id="pageSize"
-                  value={pageSize}
-                  onChange={handlePageSizeChange}
-                  className="border rounded-md p-1 focus:ring-2 focus:ring-blue-300 focus:border-blue-500 outline-none transition-all"
-                >
-                  <option value="2">2</option>
-                  <option value="5">5</option>
-                  <option value="10">10</option>
-                  <option value="25">25</option>
-                  <option value="50">50</option>
-                </select>
-                {totalEntries > 0 && (
-                  <span className="ml-4 text-sm text-gray-600">
-                    Showing {currentEntries.start} to {currentEntries.end} of{" "}
-                    {totalEntries} entries
-                  </span>
-                )}
-              </div>
-
+            <div className="mt-2 flex justify-end items-center">
               <ReactPaginate
-                previousLabel={"← Previous"}
-                nextLabel={"Next →"}
+                previousLabel={
+                  <span className="flex items-center">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                  </span>
+                }
+                nextLabel={
+                  <span className="flex items-center">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                  </span>
+                }
                 breakLabel={"..."}
                 pageCount={pageCount}
-                marginPagesDisplayed={2}
-                pageRangeDisplayed={3}
+                marginPagesDisplayed={1}
+                pageRangeDisplayed={2}
                 onPageChange={handlePageClick}
                 forcePage={currentPage}
                 containerClassName="flex space-x-1"
-                pageClassName="px-3 py-1 border rounded-md cursor-pointer hover:bg-gray-100 transition-colors"
-                activeClassName="bg-blue-500 text-white border-blue-500"
-                previousClassName="px-3 py-1 border rounded-md cursor-pointer hover:bg-gray-100 transition-colors"
-                nextClassName="px-3 py-1 border rounded-md cursor-pointer hover:bg-gray-100 transition-colors"
+                pageClassName="w-6 h-6 flex items-center justify-center rounded text-xs"
+                pageLinkClassName="w-full h-full flex items-center justify-center"
+                activeClassName="bg-blue-600 text-white"
+                activeLinkClassName="font-medium"
+                previousClassName="px-1.5 py-1 rounded flex items-center text-xs text-gray-700 hover:bg-gray-100"
+                nextClassName="px-1.5 py-1 rounded flex items-center text-xs text-gray-700 hover:bg-gray-100"
                 disabledClassName="opacity-50 cursor-not-allowed"
+                breakClassName="w-6 h-6 flex items-center justify-center"
               />
             </div>
           )}
+
+          {/* Priority Modal */}
+          {showPriorityModal && (
+            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+                <div className="border-b border-gray-200 p-3 flex justify-between items-center">
+                  <h2 className="text-lg font-semibold text-gray-800">
+                    {modalMode === "add"
+                      ? "Add New Priority"
+                      : modalMode === "edit"
+                      ? "Edit Priority"
+                      : "Priority Details"}
+                  </h2>
+                  <button
+                    onClick={() => setShowPriorityModal(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form
+                  ref={formRef}
+                  onSubmit={handleSubmit}
+                  className="p-4 space-y-4"
+                >
+                  {(modalMode === "edit" || modalMode === "view") && (
+                    <div>
+                      <label
+                        htmlFor="priorityId"
+                        className="block text-xs font-medium text-gray-700 mb-1"
+                      >
+                        Priority ID
+                      </label>
+                      <input
+                        id="priorityId"
+                        value={selectedPriorityId || ""}
+                        disabled
+                        className="border border-gray-300 rounded-lg p-2 w-full bg-gray-50 text-gray-500 text-sm"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label
+                      htmlFor="urgencyName"
+                      className="block text-xs font-medium text-gray-700 mb-1"
+                    >
+                      Urgency Name{" "}
+                      {modalMode !== "view" && (
+                        <span className="text-red-500">*</span>
+                      )}
+                    </label>
+                    <input
+                      id="urgencyName"
+                      name="urgencyName"
+                      value={formData.urgencyName}
+                      onChange={handleFormChange}
+                      required={modalMode !== "view"}
+                      disabled={modalMode === "view"}
+                      className={`border rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
+                        modalMode === "view" ? "bg-gray-50 text-gray-500" : ""
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="responseTargetTime"
+                      className="block text-xs font-medium text-gray-700 mb-1"
+                    >
+                      Target Response Time
+                    </label>
+                    {modalMode !== "view" && (
+                      <p className="text-xs text-gray-500 mb-1">
+                        Enter time in any format: "4 20:10:20" (4 days, 20
+                        hours, 10 minutes, 20 seconds), "24" (24 hours), or
+                        "3:30" (3 hours, 30 minutes)
+                      </p>
+                    )}
+                    <input
+                      id="responseTargetTime"
+                      name="responseTargetTime"
+                      type="text"
+                      value={formData.responseTargetTime}
+                      onChange={handleFormChange}
+                      placeholder="e.g., 4 20:10:20 or 24 or 3:30"
+                      disabled={modalMode === "view"}
+                      className={`border rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
+                        modalMode === "view" ? "bg-gray-50 text-gray-500" : ""
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="description"
+                      className="block text-xs font-medium text-gray-700 mb-1"
+                    >
+                      Description
+                    </label>
+                    <textarea
+                      id="description"
+                      name="description"
+                      value={formData.description}
+                      onChange={handleFormChange}
+                      placeholder="Enter a detailed description for this priority level"
+                      disabled={modalMode === "view"}
+                      className={`border rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
+                        modalMode === "view" ? "bg-gray-50 text-gray-500" : ""
+                      }`}
+                      rows="3"
+                    />
+                  </div>
+
+                  <div className="flex items-center">
+                    <div
+                      onClick={handleToggleActive}
+                      className={`relative inline-block w-10 h-5 rounded-full transition-colors cursor-pointer ${
+                        modalMode === "view"
+                          ? "opacity-70 pointer-events-none"
+                          : ""
+                      } ${formData.isActive ? "bg-blue-500" : "bg-gray-300"}`}
+                    >
+                      <span
+                        className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white transition-transform transform ${
+                          formData.isActive ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                      <input
+                        id="isActive"
+                        name="isActive"
+                        type="checkbox"
+                        checked={formData.isActive}
+                        onChange={handleFormChange}
+                        className="sr-only"
+                        disabled={modalMode === "view"}
+                      />
+                    </div>
+                    <label
+                      htmlFor="isActive"
+                      className="text-xs font-medium text-gray-700 ml-2 cursor-pointer"
+                      onClick={handleToggleActive}
+                    >
+                      {formData.isActive ? "Active" : "Inactive"}
+                    </label>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-3 border-t">
+                    {modalMode === "view" ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setShowPriorityModal(false)}
+                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm transition-colors"
+                        >
+                          Close
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setModalMode("edit");
+                          }}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                        >
+                          Edit
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setShowPriorityModal(false)}
+                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                        >
+                          {modalMode === "add"
+                            ? "Add Priority"
+                            : "Update Priority"}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          <ChatbotPopup />
+          <ToastContainer
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+          />
         </div>
       </main>
-      <ChatbotPopup />
-      <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );
 }

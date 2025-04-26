@@ -28,7 +28,7 @@ import Organisations from "./pages/Admin/Organisations";
 import Priority from "./pages/Admin/Priority";
 import Categorys from "./pages/Admin/Category";
 import Roles from "./pages/Admin/Roles";
-import SolutionGroup from "./pages/Admin/SolutionGropup";
+import SolutionGroup from "./pages/Admin/SolutionGroup";
 import CreateIssueDetailPage from "./pages/User/Tickets/CreateIssueDetailsPage";
 import ListAllTickets from "./pages/ListAllTickets";
 import Dashboard from "./pages/User/Dashboard";

@@ -6,12 +6,7 @@ import "react-toastify/dist/ReactToastify.css";
 import ChatUI from "../../../pages/attachment";
 import ResolutionInfo from "../../../pages/ResolutionInfo";
 
-import {
-  Search,
-  ChevronLeft,
-  Paperclip,
-  Clock
-} from 'lucide-react';
+import { Search, ChevronLeft, Paperclip, Clock } from "lucide-react";
 
 import Sidebar from "../../../components/Sidebar";
 import ChatbotPopup from "../../../components/ChatBot";
@@ -23,7 +18,7 @@ export default function TicketDetailsPage() {
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [currentTab, setCurrentTab] = useState('Details');
+  const [currentTab, setCurrentTab] = useState("Details");
   const [activityLog, setActivityLog] = useState([]);
   const [newNote, setNewNote] = useState("");
   const [relatedRecords, setRelatedRecords] = useState([]);
@@ -36,7 +31,8 @@ export default function TicketDetailsPage() {
   useEffect(() => {
     const fetchTicketDetails = async () => {
       try {
-        const response = await axiosInstance.get(`ticket/tickets/${ticketId}/`,
+        const response = await axiosInstance.get(
+          `ticket/tickets/${ticketId}/`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("access_token")}`,
@@ -54,17 +50,22 @@ export default function TicketDetailsPage() {
               type: "Issue Creation",
               changes: [
                 { field: "Issue Number", value: response.data.ticket_id },
-                { field: "Created by", value: response.data.created_by }
-              ]
-            }
+                { field: "Created by", value: response.data.created_by },
+              ],
+            },
           ]);
 
           // Mock related records if reference tickets exist
-          if (response.data.reference_tickets && response.data.reference_tickets.length > 0) {
-            const mockRelated = response.data.reference_tickets.map(ref => ({
+          if (
+            response.data.reference_tickets &&
+            response.data.reference_tickets.length > 0
+          ) {
+            const mockRelated = response.data.reference_tickets.map((ref) => ({
               id: ref,
               type: Math.random() > 0.5 ? "Incident" : "Problem",
-              summary: `Related to ${response.data.summary?.substring(0, 25) || "issue"}`
+              summary: `Related to ${
+                response.data.summary?.substring(0, 25) || "issue"
+              }`,
             }));
             setRelatedRecords(mockRelated);
           }
@@ -77,30 +78,54 @@ export default function TicketDetailsPage() {
               timestamp: new Date(response.data.created_at).toLocaleString(),
               user: response.data.created_by || "System User",
               changes: [
-                { field: "Priority", originalValue: "", newValue: response.data.priority },
+                {
+                  field: "Priority",
+                  originalValue: "",
+                  newValue: response.data.priority,
+                },
                 { field: "Status", originalValue: "", newValue: "Open" },
-                { field: "Summary", originalValue: "", newValue: response.data.summary }
-              ]
+                {
+                  field: "Summary",
+                  originalValue: "",
+                  newValue: response.data.summary,
+                },
+              ],
             },
             {
               id: 2,
               type: "Update Ticket",
-              timestamp: new Date(new Date(response.data.created_at).getTime() + 86400000).toLocaleString(),
+              timestamp: new Date(
+                new Date(response.data.created_at).getTime() + 86400000
+              ).toLocaleString(),
               user: response.data.assignee || "Support Agent",
               changes: [
-                { field: "Status", originalValue: "open", newValue: "In Progress" },
-                { field: "Assignee", originalValue: "", newValue: response.data.assignee }
-              ]
+                {
+                  field: "Status",
+                  originalValue: "open",
+                  newValue: "In Progress",
+                },
+                {
+                  field: "Assignee",
+                  originalValue: "",
+                  newValue: response.data.assignee,
+                },
+              ],
             },
             {
               id: 3,
               type: "Automation Rule Triggered",
-              timestamp: new Date(new Date(response.data.created_at).getTime() + 172800000).toLocaleString(),
+              timestamp: new Date(
+                new Date(response.data.created_at).getTime() + 172800000
+              ).toLocaleString(),
               user: "System",
               changes: [
-                { field: "Solution Group", originalValue: "", newValue: response.data.solution_grp }
-              ]
-            }
+                {
+                  field: "Solution Group",
+                  originalValue: "",
+                  newValue: response.data.solution_grp,
+                },
+              ],
+            },
           ];
           setHistoryData(mockHistory);
         }
@@ -120,16 +145,16 @@ export default function TicketDetailsPage() {
       if (!ticketId) return;
 
       try {
-        const response = await axiosInstance.get('ticket/attachments/', {
+        const response = await axiosInstance.get("ticket/attachments/", {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("access_token")}`,
           },
-          params: { ticket: ticketId }
+          params: { ticket: ticketId },
         });
 
         // Filter attachments for the current ticket
         const ticketAttachments = response.data.filter(
-          attachment => attachment.ticket === ticket?.ticket_id
+          (attachment) => attachment.ticket === ticket?.ticket_id
         );
 
         setAttachments(ticketAttachments);
@@ -153,9 +178,9 @@ export default function TicketDetailsPage() {
         user: ticket?.created_by || "Current User",
         timestamp: new Date().toLocaleString(),
         type: "Work Note",
-        changes: [{ field: "Note", value: newNote }]
+        changes: [{ field: "Note", value: newNote }],
       },
-      ...activityLog
+      ...activityLog,
     ]);
 
     setNewNote("");
@@ -165,15 +190,22 @@ export default function TicketDetailsPage() {
   // Filter history records
   const getFilteredHistory = () => {
     if (historyFilter === "all") return historyData;
-    return historyData.filter(item => item.type.toLowerCase().includes(historyFilter.toLowerCase()));
+    return historyData.filter((item) =>
+      item.type.toLowerCase().includes(historyFilter.toLowerCase())
+    );
   };
 
   // Show loading state
   if (loading) {
     return (
       <div className="flex h-screen bg-gray-100">
-        <div className={`fixed md:static top-0 left-0 h-full z-30 transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-          }`}>
+        <div
+          className={`fixed md:static top-0 left-0 h-full z-30 transition-transform duration-300 ease-in-out ${
+            isSidebarOpen
+              ? "translate-x-0"
+              : "-translate-x-full md:translate-x-0"
+          }`}
+        >
           <Sidebar />
         </div>
         <div className="flex-1 flex justify-center items-center">
@@ -186,14 +218,14 @@ export default function TicketDetailsPage() {
   // Helper function to render read-only field
   const renderField = (label, value, additionalClasses = "") => {
     const displayValue = value || "N/A";
-    const fieldClasses = `border rounded px-3 py-2 w-64 bg-gray-50 text-gray-700 ${!value ? "italic text-gray-400" : ""} ${additionalClasses}`;
+    const fieldClasses = `border rounded px-3 py-2 w-64 bg-gray-50 text-gray-700 ${
+      !value ? "italic text-gray-400" : ""
+    } ${additionalClasses}`;
 
     return (
       <div className="flex items-center mb-3">
         <label className="w-44 text-gray-600 font-medium">{label}</label>
-        <div className={fieldClasses}>
-          {displayValue}
-        </div>
+        <div className={fieldClasses}>{displayValue}</div>
       </div>
     );
   };
@@ -201,22 +233,32 @@ export default function TicketDetailsPage() {
   // Helper function to determine status color
   const getStatusColor = (status) => {
     switch (status) {
-      case "Open": return "bg-yellow-100 border-yellow-300";
-      case "Closed": return "bg-gray-100 border-gray-300";
-      case "Resolved": return "bg-green-100 border-green-300";
-      case "In Progress": return "bg-blue-100 border-blue-300";
-      default: return "bg-gray-50";
+      case "Open":
+        return "bg-yellow-100 border-yellow-300";
+      case "Closed":
+        return "bg-gray-100 border-gray-300";
+      case "Resolved":
+        return "bg-green-100 border-green-300";
+      case "In Progress":
+        return "bg-blue-100 border-blue-300";
+      default:
+        return "bg-gray-50";
     }
   };
 
   // Helper function to determine priority color
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case "Critical": return "bg-red-100 border-red-300 font-medium";
-      case "High": return "bg-orange-100 border-orange-300 font-medium";
-      case "Medium": return "bg-yellow-100 border-yellow-300";
-      case "Low": return "bg-green-100 border-green-300";
-      default: return "bg-gray-50";
+      case "Critical":
+        return "bg-red-100 border-red-300 font-medium";
+      case "High":
+        return "bg-orange-100 border-orange-300 font-medium";
+      case "Medium":
+        return "bg-yellow-100 border-yellow-300";
+      case "Low":
+        return "bg-green-100 border-green-300";
+      default:
+        return "bg-gray-50";
     }
   };
 
@@ -230,8 +272,9 @@ export default function TicketDetailsPage() {
         />
       )}
       <div
-        className={`fixed md:static top-0 left-0 h-full z-30 transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-          }`}
+        className={`fixed md:static top-0 left-0 h-full z-30 transition-transform duration-300 ease-in-out ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
       >
         <Sidebar />
       </div>
@@ -252,8 +295,6 @@ export default function TicketDetailsPage() {
               <div className="text-gray-600 text-sm">{ticket?.ticket_id}</div>
             </div>
           </div>
-
-
         </div>
 
         {/* Main content */}
@@ -268,12 +309,17 @@ export default function TicketDetailsPage() {
                 {renderField("Project", ticket?.project)}
                 {renderField("Issue Type", ticket?.issue_type)}
 
-
                 {renderField("Impact", ticket?.impact)}
 
                 <div className="flex items-center mb-3">
-                  <label className="w-44 text-gray-600 font-medium">Status</label>
-                  <div className={`border rounded px-3 py-2 w-64 ${getStatusColor(ticket?.status)}`}>
+                  <label className="w-44 text-gray-600 font-medium">
+                    Status
+                  </label>
+                  <div
+                    className={`border rounded px-3 py-2 w-64 ${getStatusColor(
+                      ticket?.status
+                    )}`}
+                  >
                     {ticket?.status || "N/A"}
                   </div>
                 </div>
@@ -282,8 +328,14 @@ export default function TicketDetailsPage() {
               {/* Right Column */}
               <div className="space-y-3">
                 <div className="flex items-center mb-3">
-                  <label className="w-44 text-gray-600 font-medium">Priority</label>
-                  <div className={`border rounded px-3 py-2 w-64 ${getPriorityColor(ticket?.priority)}`}>
+                  <label className="w-44 text-gray-600 font-medium">
+                    Priority
+                  </label>
+                  <div
+                    className={`border rounded px-3 py-2 w-64 ${getPriorityColor(
+                      ticket?.priority
+                    )}`}
+                  >
                     {ticket?.priority || "N/A"}
                   </div>
                 </div>
@@ -292,34 +344,49 @@ export default function TicketDetailsPage() {
                 {renderField("Assignee", ticket?.assignee)}
                 {renderField("Solution Group", ticket?.solution_grp)}
                 {renderField("Organization", ticket?.developer_organization)}
-                {renderField("Created On", ticket?.created_at ? new Date(ticket.created_at).toLocaleString() : null)}
+                {renderField(
+                  "Created On",
+                  ticket?.created_at
+                    ? new Date(ticket.created_at).toLocaleString()
+                    : null
+                )}
               </div>
             </div>
 
             {/* Reference Ticket */}
-            {ticket?.reference_tickets && ticket.reference_tickets.length > 0 && (
-              <div className="flex items-center mt-4">
-                <label className="w-44 text-gray-600 font-medium">Reference Ticket</label>
-                <div className="border rounded px-3 py-2 w-64 bg-gray-50">
-                  {ticket.reference_tickets.join(", ")}
+            {ticket?.reference_tickets &&
+              ticket.reference_tickets.length > 0 && (
+                <div className="flex items-center mt-4">
+                  <label className="w-44 text-gray-600 font-medium">
+                    Reference Ticket
+                  </label>
+                  <div className="border rounded px-3 py-2 w-64 bg-gray-50">
+                    {ticket.reference_tickets.join(", ")}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Full-width fields */}
             <div className="mt-6 space-y-4">
               <div className="flex items-center">
-                <label className="w-44 text-gray-600 font-medium">Summary</label>
+                <label className="w-44 text-gray-600 font-medium">
+                  Summary
+                </label>
                 <div className="border rounded px-3 py-2 flex-1 bg-gray-50 min-h-[42px]">
                   {ticket?.summary || "No summary provided"}
                 </div>
               </div>
 
               <div className="flex">
-                <label className="w-44 text-gray-600 font-medium pt-3">Description</label>
-                <div className="border rounded px-3 py-2 flex-1 bg-gray-50 min-h-[120px]"
-                  dangerouslySetInnerHTML={{ __html: ticket?.description || "No description provided" }}>
-                </div>
+                <label className="w-44 text-gray-600 font-medium pt-3">
+                  Description
+                </label>
+                <div
+                  className="border rounded px-3 py-2 flex-1 bg-gray-50 min-h-[120px]"
+                  dangerouslySetInnerHTML={{
+                    __html: ticket?.description || "No description provided",
+                  }}
+                ></div>
               </div>
             </div>
           </div>
@@ -327,7 +394,11 @@ export default function TicketDetailsPage() {
           <div className="mt-4 border-b">
             <div className="flex">
               <button
-                className={`px-4 py-2 font-medium ${currentTab === "Details" ? "bg-green-100 border-t border-l border-r text-green-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                className={`px-4 py-2 font-medium ${
+                  currentTab === "Details"
+                    ? "bg-green-100 border-t border-l border-r text-green-700"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
                 onClick={() => setCurrentTab("Details")}
               >
                 Details
@@ -339,25 +410,41 @@ export default function TicketDetailsPage() {
                 Notes
               </button> */}
               <button
-                className={`px-4 py-2 font-medium ${currentTab === "Chat" ? "bg-green-100 border-t border-l border-r text-green-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                className={`px-4 py-2 font-medium ${
+                  currentTab === "Chat"
+                    ? "bg-green-100 border-t border-l border-r text-green-700"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
                 onClick={() => setCurrentTab("Chat")}
               >
                 Chat
               </button>
               <button
-                className={`px-4 py-2 font-medium ${currentTab === "History" ? "bg-green-100 border-t border-l border-r text-green-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                className={`px-4 py-2 font-medium ${
+                  currentTab === "History"
+                    ? "bg-green-100 border-t border-l border-r text-green-700"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
                 onClick={() => setCurrentTab("History")}
               >
                 History
               </button>
               <button
-                className={`px-4 py-2 font-medium ${currentTab === "RelatedRecords" ? "bg-green-100 border-t border-l border-r text-green-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                className={`px-4 py-2 font-medium ${
+                  currentTab === "RelatedRecords"
+                    ? "bg-green-100 border-t border-l border-r text-green-700"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
                 onClick={() => setCurrentTab("RelatedRecords")}
               >
                 Related Records
               </button>
               <button
-                className={`px-4 py-2 font-medium ${currentTab === "ResolutionInfo" ? "bg-green-100 border-t border-l border-r text-green-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                className={`px-4 py-2 font-medium ${
+                  currentTab === "ResolutionInfo"
+                    ? "bg-green-100 border-t border-l border-r text-green-700"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
                 onClick={() => setCurrentTab("ResolutionInfo")}
               >
                 Resolution Info
@@ -372,9 +459,19 @@ export default function TicketDetailsPage() {
                 <h3 className="font-medium text-lg mb-4">Additional Details</h3>
 
                 {renderField("Created By", ticket?.created_by)}
-                {renderField("Created At", ticket?.created_at ? new Date(ticket.created_at).toLocaleString() : null)}
+                {renderField(
+                  "Created At",
+                  ticket?.created_at
+                    ? new Date(ticket.created_at).toLocaleString()
+                    : null
+                )}
                 {renderField("Modified By", ticket?.modified_by)}
-                {renderField("Modified At", ticket?.modified_at ? new Date(ticket.modified_at).toLocaleString() : null)}
+                {renderField(
+                  "Modified At",
+                  ticket?.modified_at
+                    ? new Date(ticket.modified_at).toLocaleString()
+                    : null
+                )}
                 {renderField("Customer Country", ticket?.customer_country)}
               </div>
             )}
@@ -383,7 +480,9 @@ export default function TicketDetailsPage() {
               <div className="flex flex-col h-full">
                 <div className="mb-3">
                   <div className="flex shadow-sm rounded-md overflow-hidden">
-                    <div className="w-24 p-2 bg-gray-100 border-l border-t border-b font-medium text-gray-700 flex items-center">Work notes</div>
+                    <div className="w-24 p-2 bg-gray-100 border-l border-t border-b font-medium text-gray-700 flex items-center">
+                      Work notes
+                    </div>
                     <input
                       type="text"
                       placeholder="Add work notes"
@@ -408,7 +507,12 @@ export default function TicketDetailsPage() {
                     onChange={(e) => setCustomerVisible(e.target.checked)}
                     id="customerVisible"
                   />
-                  <label htmlFor="customerVisible" className="text-gray-700 cursor-pointer">Additional comments (Customer visible)</label>
+                  <label
+                    htmlFor="customerVisible"
+                    className="text-gray-700 cursor-pointer"
+                  >
+                    Additional comments (Customer visible)
+                  </label>
                   <button
                     className="bg-blue-500 text-white rounded px-4 py-1 ml-2 hover:bg-blue-600 transition-colors"
                     onClick={addNote}
@@ -420,7 +524,9 @@ export default function TicketDetailsPage() {
                 {/* Activity Log */}
                 <div className="flex-1 overflow-y-auto">
                   <div className="flex justify-between items-center mb-3 sticky top-0 bg-white p-2 z-10 border-b">
-                    <div className="font-medium">Activities: {activityLog?.length || 0}</div>
+                    <div className="font-medium">
+                      Activities: {activityLog?.length || 0}
+                    </div>
                     <div className="flex items-center">
                       <input
                         type="text"
@@ -436,7 +542,10 @@ export default function TicketDetailsPage() {
                   {activityLog && activityLog.length > 0 ? (
                     <div className="space-y-4">
                       {activityLog.map((activity, index) => (
-                        <div key={index} className="border p-3 my-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                        <div
+                          key={index}
+                          className="border p-3 my-3 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                        >
                           <div className="flex items-center mb-2">
                             <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
                               👤
@@ -445,32 +554,43 @@ export default function TicketDetailsPage() {
                               <div className="font-medium">{activity.user}</div>
                             </div>
                             <div className="ml-auto flex items-center text-sm text-gray-600">
-                              <span className="font-medium">{activity.type}</span>
+                              <span className="font-medium">
+                                {activity.type}
+                              </span>
                               <span className="mx-2">•</span>
                               <span>{activity.timestamp}</span>
                             </div>
                           </div>
 
                           <div className="bg-gray-50 rounded-lg p-2">
-                            {activity.changes && activity.changes.map((change, changeIndex) => (
-                              <div key={changeIndex} className="flex justify-between py-1 border-b border-gray-100 last:border-b-0">
-                                <div className="text-right w-1/3 text-gray-600 font-medium">{change.field}:</div>
-                                <div className="w-2/3 pl-4">{change.value}</div>
-                              </div>
-                            ))}
+                            {activity.changes &&
+                              activity.changes.map((change, changeIndex) => (
+                                <div
+                                  key={changeIndex}
+                                  className="flex justify-between py-1 border-b border-gray-100 last:border-b-0"
+                                >
+                                  <div className="text-right w-1/3 text-gray-600 font-medium">
+                                    {change.field}:
+                                  </div>
+                                  <div className="w-2/3 pl-4">
+                                    {change.value}
+                                  </div>
+                                </div>
+                              ))}
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-6 text-gray-500">No activity records found</div>
+                    <div className="text-center py-6 text-gray-500">
+                      No activity records found
+                    </div>
                   )}
                 </div>
               </div>
             )}
 
-            {currentTab === "Chat" && (
-              <ChatUI />)}
+            {currentTab === "Chat" && <ChatUI />}
 
             {currentTab === "History" && (
               <div className="p-4">
@@ -516,8 +636,12 @@ export default function TicketDetailsPage() {
                             )}
                           </div>
                           <span className="font-medium">{item.type}</span>
-                          <span className="text-gray-500 text-sm ml-2">- {item.timestamp}</span>
-                          <span className="text-gray-500 text-sm ml-auto">by {item.user}</span>
+                          <span className="text-gray-500 text-sm ml-2">
+                            - {item.timestamp}
+                          </span>
+                          <span className="text-gray-500 text-sm ml-auto">
+                            by {item.user}
+                          </span>
                         </div>
 
                         {item.changes.length > 0 && (
@@ -525,17 +649,29 @@ export default function TicketDetailsPage() {
                             <table className="w-full text-sm">
                               <thead className="bg-gray-50">
                                 <tr>
-                                  <th className="text-left py-1 px-2 w-1/3">Field</th>
-                                  <th className="text-left py-1 px-2 w-1/3">Original Value</th>
-                                  <th className="text-left py-1 px-2 w-1/3">New Value</th>
+                                  <th className="text-left py-1 px-2 w-1/3">
+                                    Field
+                                  </th>
+                                  <th className="text-left py-1 px-2 w-1/3">
+                                    Original Value
+                                  </th>
+                                  <th className="text-left py-1 px-2 w-1/3">
+                                    New Value
+                                  </th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {item.changes.map((change, index) => (
                                   <tr key={index} className="hover:bg-gray-100">
-                                    <td className="py-1 px-2">{change.field}</td>
-                                    <td className="py-1 px-2">{change.originalValue}</td>
-                                    <td className="py-1 px-2">{change.newValue}</td>
+                                    <td className="py-1 px-2">
+                                      {change.field}
+                                    </td>
+                                    <td className="py-1 px-2">
+                                      {change.originalValue}
+                                    </td>
+                                    <td className="py-1 px-2">
+                                      {change.newValue}
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -545,7 +681,9 @@ export default function TicketDetailsPage() {
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-8 text-gray-500">No history records found</div>
+                    <div className="text-center py-8 text-gray-500">
+                      No history records found
+                    </div>
                   )}
                 </div>
               </div>
@@ -636,7 +774,9 @@ export default function TicketDetailsPage() {
                       <thead className="bg-gray-100">
                         <tr>
                           <th className="border-b p-2 text-left">File</th>
-                          <th className="border-b p-2 text-left">Uploaded At</th>
+                          <th className="border-b p-2 text-left">
+                            Uploaded At
+                          </th>
                           <th className="border-b p-2 text-left">Actions</th>
                         </tr>
                       </thead>
@@ -644,25 +784,35 @@ export default function TicketDetailsPage() {
                         {/* We'll fetch attachments in useEffect */}
                         {attachments && attachments.length > 0 ? (
                           attachments.map((attachment) => (
-                            <tr key={attachment.id} className="hover:bg-gray-50">
+                            <tr
+                              key={attachment.id}
+                              className="hover:bg-gray-50"
+                            >
                               <td className="border-b p-2">
-                                <a href={attachment.file_url}
+                                <a
+                                  href={attachment.file_url}
                                   className="flex items-center text-blue-600 hover:underline"
                                   target="_blank"
-                                  rel="noopener noreferrer">
+                                  rel="noopener noreferrer"
+                                >
                                   <Paperclip size={16} className="mr-2" />
                                   {/* {attachment.file_url}(
                                   {attachment.file_url.split('/').pop()}||" ") */}
                                 </a>
                               </td>
                               <td className="border-b p-2">
-                                {new Date(attachment.uploaded_at).toLocaleString()}
+                                {new Date(
+                                  attachment.uploaded_at
+                                ).toLocaleString()}
                               </td>
                               <td className="border-b p-2">
                                 <div className="flex space-x-2">
                                   <button
                                     className="text-blue-500 hover:underline"
-                                    onClick={() => window.open(attachment.file_url, '_blank')}>
+                                    onClick={() =>
+                                      window.open(attachment.file_url, "_blank")
+                                    }
+                                  >
                                     View
                                   </button>
                                   {/* <button className="text-red-500 hover:underline">
@@ -674,7 +824,10 @@ export default function TicketDetailsPage() {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="3" className="p-4 text-center text-gray-500">
+                            <td
+                              colSpan="3"
+                              className="p-4 text-center text-gray-500"
+                            >
                               No attachments found for this ticket
                             </td>
                           </tr>
@@ -686,15 +839,21 @@ export default function TicketDetailsPage() {
               </div>
             )}
 
-            {currentTab === "ResolutionInfo" && (
-              <ResolutionInfo />
-            )}
+            {currentTab === "ResolutionInfo" && <ResolutionInfo />}
           </div>
         </div>
 
         {/* Toast Container and Chatbot */}
         <ChatbotPopup />
-        <ToastContainer />
+        <ToastContainer
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
       </div>
     </div>
   );

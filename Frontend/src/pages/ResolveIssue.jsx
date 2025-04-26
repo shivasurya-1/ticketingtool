@@ -11,21 +11,21 @@ import {
   Star,
   RefreshCw,
   MoreHorizontal,
-  Clock
-} from 'lucide-react';
-
+  Clock,
+} from "lucide-react";
+import SLATimer from "../components/SlaTimer";
 import Sidebar from "../components/Sidebar";
 import ChatbotPopup from "../components/ChatBot";
 import { axiosInstance } from "../utils/axiosInstance";
 import ChatUI from "./attachment";
 import ResolutionInfo from "./ResolutionInfo";
-export default function ResolveDetailsPage() {
+export default function ResolveIssue() {
   const { ticketId } = useParams();
   const navigate = useNavigate();
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [currentTab, setCurrentTab] = useState('Details');
+  const [currentTab, setCurrentTab] = useState("Details");
   const [activityLog, setActivityLog] = useState([]);
   const [newNote, setNewNote] = useState("");
   const [relatedRecords, setRelatedRecords] = useState([]);
@@ -38,7 +38,7 @@ export default function ResolveDetailsPage() {
   const [assignmentData, setAssignmentData] = useState({
     assigneeId: "",
     supportOrgId: "",
-    solutionGroupId: ""
+    solutionGroupId: "",
   });
 
   const [customerVisible, setCustomerVisible] = useState(false);
@@ -47,14 +47,14 @@ export default function ResolveDetailsPage() {
       isAgent: true,
       text: "Hello! How can I assist you today?",
       timestamp: new Date().toLocaleString(),
-      attachments: []
+      attachments: [],
     },
     {
       isAgent: false,
       text: "I have a question about my ticket.",
       timestamp: new Date().toLocaleString(),
-      attachments: []
-    }
+      attachments: [],
+    },
   ]);
   const chatEndRef = useRef(null);
   const [newAttachment, setNewAttachment] = useState(null);
@@ -71,7 +71,8 @@ export default function ResolveDetailsPage() {
   useEffect(() => {
     const fetchTicketDetails = async () => {
       try {
-        const response = await axiosInstance.get(`ticket/tickets/${ticketId}/`,
+        const response = await axiosInstance.get(
+          `ticket/tickets/${ticketId}/`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("access_token")}`,
@@ -89,17 +90,22 @@ export default function ResolveDetailsPage() {
               type: "Issue Creation",
               changes: [
                 { field: "Issue Number", value: response.data.ticket_id },
-                { field: "Created by", value: response.data.created_by }
-              ]
-            }
+                { field: "Created by", value: response.data.created_by },
+              ],
+            },
           ]);
 
           // Mock related records if reference tickets exist
-          if (response.data.reference_tickets && response.data.reference_tickets.length > 0) {
-            const mockRelated = response.data.reference_tickets.map(ref => ({
+          if (
+            response.data.reference_tickets &&
+            response.data.reference_tickets.length > 0
+          ) {
+            const mockRelated = response.data.reference_tickets.map((ref) => ({
               id: ref,
               type: Math.random() > 0.5 ? "Incident" : "Problem",
-              summary: `Related to ${response.data.summary?.substring(0, 25) || "issue"}`
+              summary: `Related to ${
+                response.data.summary?.substring(0, 25) || "issue"
+              }`,
             }));
             setRelatedRecords(mockRelated);
           }
@@ -112,30 +118,54 @@ export default function ResolveDetailsPage() {
               timestamp: new Date(response.data.created_at).toLocaleString(),
               user: response.data.created_by || "System User",
               changes: [
-                { field: "Priority", originalValue: "", newValue: response.data.priority },
+                {
+                  field: "Priority",
+                  originalValue: "",
+                  newValue: response.data.priority,
+                },
                 { field: "Status", originalValue: "", newValue: "Open" },
-                { field: "Summary", originalValue: "", newValue: response.data.summary }
-              ]
+                {
+                  field: "Summary",
+                  originalValue: "",
+                  newValue: response.data.summary,
+                },
+              ],
             },
             {
               id: 2,
               type: "Update Ticket",
-              timestamp: new Date(new Date(response.data.created_at).getTime() + 86400000).toLocaleString(),
+              timestamp: new Date(
+                new Date(response.data.created_at).getTime() + 86400000
+              ).toLocaleString(),
               user: response.data.assignee || "Support Agent",
               changes: [
-                { field: "Status", originalValue: "Open", newValue: "In Progress" },
-                { field: "Assignee", originalValue: "", newValue: response.data.assignee }
-              ]
+                {
+                  field: "Status",
+                  originalValue: "Open",
+                  newValue: "In Progress",
+                },
+                {
+                  field: "Assignee",
+                  originalValue: "",
+                  newValue: response.data.assignee,
+                },
+              ],
             },
             {
               id: 3,
               type: "Automation Rule Triggered",
-              timestamp: new Date(new Date(response.data.created_at).getTime() + 172800000).toLocaleString(),
+              timestamp: new Date(
+                new Date(response.data.created_at).getTime() + 172800000
+              ).toLocaleString(),
               user: "System",
               changes: [
-                { field: "Solution Group", originalValue: "", newValue: response.data.solution_grp }
-              ]
-            }
+                {
+                  field: "Solution Group",
+                  originalValue: "",
+                  newValue: response.data.solution_grp,
+                },
+              ],
+            },
           ];
           setHistoryData(mockHistory);
         }
@@ -159,7 +189,7 @@ export default function ResolveDetailsPage() {
           }),
           axiosInstance.get("org/autoAssignee/", {
             headers: { Authorization: `Bearer ${accessToken}` },
-          })
+          }),
         ]);
 
         setSupportStaff(staffRes.data);
@@ -167,7 +197,7 @@ export default function ResolveDetailsPage() {
         const cleanedOrgData = orgsRes.data.map((item) => ({
           username: item.username,
           organisation_name: item.organisation_name,
-          solutiongroup: item.solutiongroup
+          solutiongroup: item.solutiongroup,
         }));
         setSupportOrganizations(cleanedOrgData);
       } catch (error) {
@@ -191,7 +221,9 @@ export default function ResolveDetailsPage() {
       const solutionGroupList = matchedOrg?.solutiongroup;
       const normalizedGroups = Array.isArray(solutionGroupList)
         ? solutionGroupList
-        : solutionGroupList ? [solutionGroupList] : [];
+        : solutionGroupList
+        ? [solutionGroupList]
+        : [];
 
       setAvailableSolutionGroups(normalizedGroups);
 
@@ -204,26 +236,21 @@ export default function ResolveDetailsPage() {
     }
   }, [ticket, supportStaff, supportOrganizations]);
 
-
   useEffect(() => {
     const fetchAttachments = async () => {
       if (!ticketId) return;
 
       try {
-        const response = await axiosInstance.get('ticket/attachments/', {
+        const response = await axiosInstance.get("ticket/attachments/", {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("access_token")}`,
           },
-          params: { ticket: ticketId }
+          params: { ticket: ticketId },
         });
-
-
-
-
 
         // Filter attachments for the current ticket
         const ticketAttachments = response.data.filter(
-          attachment => attachment.ticket === ticket?.ticket_id
+          (attachment) => attachment.ticket === ticket?.ticket_id
         );
 
         setAttachments(ticketAttachments);
@@ -247,15 +274,14 @@ export default function ResolveDetailsPage() {
         user: ticket?.created_by || "Current User",
         timestamp: new Date().toLocaleString(),
         type: "Work Note",
-        changes: [{ field: "Note", value: newNote }]
+        changes: [{ field: "Note", value: newNote }],
       },
-      ...activityLog
+      ...activityLog,
     ]);
 
     setNewNote("");
     toast.success("Note added successfully");
   };
-
 
   // const addattachment = async () => {
   //   if (!newNote.trim()) return;
@@ -295,15 +321,22 @@ export default function ResolveDetailsPage() {
   // Filter history records
   const getFilteredHistory = () => {
     if (historyFilter === "all") return historyData;
-    return historyData.filter(item => item.type.toLowerCase().includes(historyFilter.toLowerCase()));
+    return historyData.filter((item) =>
+      item.type.toLowerCase().includes(historyFilter.toLowerCase())
+    );
   };
 
   // Show loading state
   if (loading) {
     return (
       <div className="flex h-screen bg-gray-100">
-        <div className={`fixed md:static top-0 left-0 h-full z-30 transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-          }`}>
+        <div
+          className={`fixed md:static top-0 left-0 h-full z-30 transition-transform duration-300 ease-in-out ${
+            isSidebarOpen
+              ? "translate-x-0"
+              : "-translate-x-full md:translate-x-0"
+          }`}
+        >
           <Sidebar />
         </div>
         <div className="flex-1 flex justify-center items-center">
@@ -331,24 +364,24 @@ export default function ResolveDetailsPage() {
     }
   };
   const handleAssigneeChange = (assigneeId) => {
-    setAssignmentData(prev => ({ ...prev, assigneeId }));
+    setAssignmentData((prev) => ({ ...prev, assigneeId }));
 
-    const selectedStaff = supportStaff.find(staff =>
-      staff.id?.toString() === assigneeId
+    const selectedStaff = supportStaff.find(
+      (staff) => staff.id?.toString() === assigneeId
     );
 
     if (selectedStaff) {
-      const staffOrg = supportOrganizations.find(org =>
-        org.username === selectedStaff.username
+      const staffOrg = supportOrganizations.find(
+        (org) => org.username === selectedStaff.username
       );
 
       if (staffOrg) {
-        setAssignmentData(prev => ({
+        setAssignmentData((prev) => ({
           ...prev,
           assignee: selectedStaff.username,
           supportOrgId: staffOrg.organisation_name,
           solutionGroupId: "",
-          status: editableStatus
+          status: editableStatus,
         }));
 
         if (Array.isArray(staffOrg.solutiongroup)) {
@@ -361,31 +394,29 @@ export default function ResolveDetailsPage() {
       }
     } else {
       setAvailableSolutionGroups([]);
-      setAssignmentData(prev => ({
+      setAssignmentData((prev) => ({
         ...prev,
         supportOrgId: "",
         solutionGroupId: "",
-        status: editableStatus
-
+        status: editableStatus,
       }));
     }
   };
   const handleSolutionGroupChange = (solutionGroupId) => {
-    setAssignmentData(prev => ({ ...prev, solutionGroupId }));
+    setAssignmentData((prev) => ({ ...prev, solutionGroupId }));
   };
-
 
   // Helper function to render read-only field
   const renderField = (label, value, additionalClasses = "") => {
     const displayValue = value || "N/A";
-    const fieldClasses = `border rounded px-3 py-2 w-64 bg-gray-50 text-gray-700 ${!value ? "italic text-gray-400" : ""} ${additionalClasses}`;
+    const fieldClasses = `border rounded px-3 py-2 w-64 bg-gray-50 text-gray-700 ${
+      !value ? "italic text-gray-400" : ""
+    } ${additionalClasses}`;
 
     return (
       <div className="flex items-center mb-3">
         <label className="w-44 text-gray-600 font-medium">{label}</label>
-        <div className={fieldClasses}>
-          {displayValue}
-        </div>
+        <div className={fieldClasses}>{displayValue}</div>
       </div>
     );
   };
@@ -398,8 +429,7 @@ export default function ResolveDetailsPage() {
           assignee: assignmentData.assignee,
           solution_grp: assignmentData.solutionGroupId,
           developer_organization: assignmentData.supportOrgId,
-          status: editableStatus
-
+          status: editableStatus,
         },
         {
           headers: {
@@ -410,6 +440,7 @@ export default function ResolveDetailsPage() {
 
       setTicket(response.data); // Update local state with new data
       toast.success("Assignment updated successfully!");
+      window.location.reload();
     } catch (error) {
       console.error("Failed to update assignment:", error);
       toast.error("Failed to update assignment.");
@@ -418,22 +449,32 @@ export default function ResolveDetailsPage() {
   // Helper function to determine status color
   const getStatusColor = (status) => {
     switch (status) {
-      case "Open": return "bg-yellow-100 border-yellow-300";
-      case "Closed": return "bg-gray-100 border-gray-300";
-      case "Resolved": return "bg-green-100 border-green-300";
-      case "In Progress": return "bg-blue-100 border-blue-300";
-      default: return "bg-gray-50";
+      case "Open":
+        return "bg-yellow-100 border-yellow-300";
+      case "Closed":
+        return "bg-gray-100 border-gray-300";
+      case "Resolved":
+        return "bg-green-100 border-green-300";
+      case "In Progress":
+        return "bg-blue-100 border-blue-300";
+      default:
+        return "bg-gray-50";
     }
   };
 
   // Helper function to determine priority color
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case "Critical": return "bg-red-100 border-red-300 font-medium";
-      case "High": return "bg-orange-100 border-orange-300 font-medium";
-      case "Medium": return "bg-yellow-100 border-yellow-300";
-      case "Low": return "bg-green-100 border-green-300";
-      default: return "bg-gray-50";
+      case "Critical":
+        return "bg-red-100 border-red-300 font-medium";
+      case "High":
+        return "bg-orange-100 border-orange-300 font-medium";
+      case "Medium":
+        return "bg-yellow-100 border-yellow-300";
+      case "Low":
+        return "bg-green-100 border-green-300";
+      default:
+        return "bg-gray-50";
     }
   };
 
@@ -447,13 +488,12 @@ export default function ResolveDetailsPage() {
         />
       )}
       <div
-        className={`fixed md:static top-0 left-0 h-full z-30 transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-          }`}
+        className={`fixed md:static top-0 left-0 h-full z-30 transition-transform duration-300 ease-in-out ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
       >
-
         <Sidebar />
       </div>
-
 
       <div className="flex flex-col flex-1">
         {/* Sub Header */}
@@ -470,10 +510,12 @@ export default function ResolveDetailsPage() {
               <div className="font-bold text-lg">Issue Details</div>
               <div className="text-gray-600 text-sm">{ticket?.ticket_id}</div>
 
+              {ticket?.status !== "paused" && (
+                <div>
+                  <SLATimer />
+                </div>
+              )}
             </div>
-
-
-
           </div>
           <div className="mt-3">
             <button
@@ -483,7 +525,6 @@ export default function ResolveDetailsPage() {
               Save Assignment
             </button>
           </div>
-
         </div>
 
         {/* Main content */}
@@ -498,35 +539,49 @@ export default function ResolveDetailsPage() {
                 {renderField("Project", ticket?.project)}
                 {renderField("Issue Type", ticket?.issue_type)}
 
-                {ticket?.contact_mode === "phone" && (
-                  renderField("Contact Number", ticket?.customer_number)
-                )}
+                {ticket?.contact_mode === "phone" &&
+                  renderField("Contact Number", ticket?.customer_number)}
 
                 {renderField("Impact", ticket?.impact)}
 
                 <div className="flex items-center mb-3">
-                  <label className="w-44 text-gray-600 font-medium">Status</label>
+                  <label className="w-44 text-gray-600 font-medium">
+                    Status
+                  </label>
                   <select
                     value={ticket?.status || ""}
-                    onChange={(e) => setTicket({ ...ticket, status: e.target.value })}
-                    className={`border rounded px-3 py-2 w-64 ${getStatusColor(ticket?.status)}`}
+                    onChange={(e) =>
+                      setTicket({ ...ticket, status: e.target.value })
+                    }
+                    className={`border rounded px-3 py-2 w-64 ${getStatusColor(
+                      ticket?.status
+                    )}`}
                   >
                     <option value="open">Open</option>
-                    <option value="Working in Progress">Working in Progress</option>
-                    <option value="Waiting for User Response">Waiting for User Response</option>
+                    <option value="Working in Progress">
+                      Working in Progress
+                    </option>
+                    <option value="Waiting for User Response">
+                      Waiting for User Response
+                    </option>
                     <option value="Resolved">Resolved</option>
                     <option value="Closed">Closed</option>
                     <option value="Canceled">Canceled</option>
                   </select>
                 </div>
-
               </div>
 
               {/* Right Column */}
               <div className="space-y-3">
                 <div className="flex items-center mb-3">
-                  <label className="w-44 text-gray-600 font-medium">Priority</label>
-                  <div className={`border rounded px-3 py-2 w-64 ${getPriorityColor(ticket?.priority)}`}>
+                  <label className="w-44 text-gray-600 font-medium">
+                    Priority
+                  </label>
+                  <div
+                    className={`border rounded px-3 py-2 w-64 ${getPriorityColor(
+                      ticket?.priority
+                    )}`}
+                  >
                     {ticket?.priority || "N/A"}
                   </div>
                 </div>
@@ -534,23 +589,28 @@ export default function ResolveDetailsPage() {
                 {renderField("Product", ticket?.product)}
 
                 <div className="flex items-center mb-3">
-                  <label className="w-44 text-gray-600 font-medium">Assignee</label>
+                  <label className="w-44 text-gray-600 font-medium">
+                    Assignee
+                  </label>
                   <select
                     value={assignmentData.assigneeId || ""}
                     onChange={(e) => handleAssigneeChange(e.target.value)}
                     className="border rounded px-3 py-2 w-64"
                   >
-                    <option value="" disabled>-- Select Assignee --</option>
+                    <option value="" disabled>
+                      -- Select Assignee --
+                    </option>
                     {supportStaff.map((staff) => (
                       <option key={staff.id} value={staff.id}>
                         {staff.username || staff.name}
                       </option>
                     ))}
                   </select>
-
                 </div>
                 <div className="flex items-center mb-3">
-                  <label className="w-44 text-gray-600 font-medium">Solution Group</label>
+                  <label className="w-44 text-gray-600 font-medium">
+                    Solution Group
+                  </label>
                   <select
                     value={assignmentData.solutionGroupId || ""}
                     onChange={(e) => handleSolutionGroupChange(e.target.value)}
@@ -563,47 +623,62 @@ export default function ResolveDetailsPage() {
                       </option>
                     ))}
                   </select>
-
                 </div>
                 <div className="flex items-center mb-3">
-                  <label className="w-44 text-gray-600 font-medium">Support Organization</label>
+                  <label className="w-44 text-gray-600 font-medium">
+                    Support Organization
+                  </label>
                   <input
                     type="text"
                     value={assignmentData.supportOrgId || ""}
                     className="border rounded px-3 py-2 w-64 bg-gray-50"
                     readOnly
                   />
-
                 </div>
 
-                {renderField("Created On", ticket?.created_at ? new Date(ticket.created_at).toLocaleString() : null)}
+                {renderField(
+                  "Created On",
+                  ticket?.created_at
+                    ? new Date(ticket.created_at).toLocaleString()
+                    : null
+                )}
               </div>
             </div>
 
             {/* Reference Ticket */}
-            {ticket?.reference_tickets && ticket.reference_tickets.length > 0 && (
-              <div className="flex items-center mt-4">
-                <label className="w-44 text-gray-600 font-medium">Reference Ticket</label>
-                <div className="border rounded px-3 py-2 w-64 bg-gray-50">
-                  {ticket.reference_tickets.join(", ")}
+            {ticket?.reference_tickets &&
+              ticket.reference_tickets.length > 0 && (
+                <div className="flex items-center mt-4">
+                  <label className="w-44 text-gray-600 font-medium">
+                    Reference Ticket
+                  </label>
+                  <div className="border rounded px-3 py-2 w-64 bg-gray-50">
+                    {ticket.reference_tickets.join(", ")}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Full-width fields */}
             <div className="mt-6 space-y-4">
               <div className="flex items-center">
-                <label className="w-44 text-gray-600 font-medium">Summary</label>
+                <label className="w-44 text-gray-600 font-medium">
+                  Summary
+                </label>
                 <div className="border rounded px-3 py-2 flex-1 bg-gray-50 min-h-[42px]">
                   {ticket?.summary || "No summary provided"}
                 </div>
               </div>
 
               <div className="flex">
-                <label className="w-44 text-gray-600 font-medium pt-3">Description</label>
-                <div className="border rounded px-3 py-2 flex-1 bg-gray-50 min-h-[120px]"
-                  dangerouslySetInnerHTML={{ __html: ticket?.description || "No description provided" }}>
-                </div>
+                <label className="w-44 text-gray-600 font-medium pt-3">
+                  Description
+                </label>
+                <div
+                  className="border rounded px-3 py-2 flex-1 bg-gray-50 min-h-[120px]"
+                  dangerouslySetInnerHTML={{
+                    __html: ticket?.description || "No description provided",
+                  }}
+                ></div>
               </div>
             </div>
           </div>
@@ -612,7 +687,11 @@ export default function ResolveDetailsPage() {
           <div className="mt-4 border-b">
             <div className="flex">
               <button
-                className={`px-4 py-2 font-medium ${currentTab === "Details" ? "bg-green-100 border-t border-l border-r text-green-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                className={`px-4 py-2 font-medium ${
+                  currentTab === "Details"
+                    ? "bg-green-100 border-t border-l border-r text-green-700"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
                 onClick={() => setCurrentTab("Details")}
               >
                 Details
@@ -624,25 +703,41 @@ export default function ResolveDetailsPage() {
                 Notes
               </button> */}
               <button
-                className={`px-4 py-2 font-medium ${currentTab === "Chat" ? "bg-green-100 border-t border-l border-r text-green-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                className={`px-4 py-2 font-medium ${
+                  currentTab === "Chat"
+                    ? "bg-green-100 border-t border-l border-r text-green-700"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
                 onClick={() => setCurrentTab("Chat")}
               >
                 Chat
               </button>
               <button
-                className={`px-4 py-2 font-medium ${currentTab === "History" ? "bg-green-100 border-t border-l border-r text-green-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                className={`px-4 py-2 font-medium ${
+                  currentTab === "History"
+                    ? "bg-green-100 border-t border-l border-r text-green-700"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
                 onClick={() => setCurrentTab("History")}
               >
                 History
               </button>
               <button
-                className={`px-4 py-2 font-medium ${currentTab === "RelatedRecords" ? "bg-green-100 border-t border-l border-r text-green-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                className={`px-4 py-2 font-medium ${
+                  currentTab === "RelatedRecords"
+                    ? "bg-green-100 border-t border-l border-r text-green-700"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
                 onClick={() => setCurrentTab("RelatedRecords")}
               >
                 Related Records
               </button>
               <button
-                className={`px-4 py-2 font-medium ${currentTab === "ResolutionInfo" ? "bg-green-100 border-t border-l border-r text-green-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                className={`px-4 py-2 font-medium ${
+                  currentTab === "ResolutionInfo"
+                    ? "bg-green-100 border-t border-l border-r text-green-700"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
                 onClick={() => setCurrentTab("ResolutionInfo")}
               >
                 Resolution Info
@@ -657,9 +752,19 @@ export default function ResolveDetailsPage() {
                 <h3 className="font-medium text-lg mb-4">Additional Details</h3>
 
                 {renderField("Created By", ticket?.created_by)}
-                {renderField("Created At", ticket?.created_at ? new Date(ticket.created_at).toLocaleString() : null)}
+                {renderField(
+                  "Created At",
+                  ticket?.created_at
+                    ? new Date(ticket.created_at).toLocaleString()
+                    : null
+                )}
                 {renderField("Modified By", ticket?.modified_by)}
-                {renderField("Modified At", ticket?.modified_at ? new Date(ticket.modified_at).toLocaleString() : null)}
+                {renderField(
+                  "Modified At",
+                  ticket?.modified_at
+                    ? new Date(ticket.modified_at).toLocaleString()
+                    : null
+                )}
                 {renderField("Customer Country", ticket?.customer_country)}
               </div>
             )}
@@ -668,7 +773,9 @@ export default function ResolveDetailsPage() {
               <div className="flex flex-col h-full">
                 <div className="mb-3">
                   <div className="flex shadow-sm rounded-md overflow-hidden">
-                    <div className="w-24 p-2 bg-gray-100 border-l border-t border-b font-medium text-gray-700 flex items-center">Work notes</div>
+                    <div className="w-24 p-2 bg-gray-100 border-l border-t border-b font-medium text-gray-700 flex items-center">
+                      Work notes
+                    </div>
                     <input
                       type="text"
                       placeholder="Add work notes"
@@ -693,7 +800,12 @@ export default function ResolveDetailsPage() {
                     onChange={(e) => setCustomerVisible(e.target.checked)}
                     id="customerVisible"
                   />
-                  <label htmlFor="customerVisible" className="text-gray-700 cursor-pointer">Additional comments (Customer visible)</label>
+                  <label
+                    htmlFor="customerVisible"
+                    className="text-gray-700 cursor-pointer"
+                  >
+                    Additional comments (Customer visible)
+                  </label>
                   <button
                     className="bg-blue-500 text-white rounded px-4 py-1 ml-2 hover:bg-blue-600 transition-colors"
                     onClick={addNote}
@@ -705,7 +817,9 @@ export default function ResolveDetailsPage() {
                 {/* Activity Log */}
                 <div className="flex-1 overflow-y-auto">
                   <div className="flex justify-between items-center mb-3 sticky top-0 bg-white p-2 z-10 border-b">
-                    <div className="font-medium">Activities: {activityLog?.length || 0}</div>
+                    <div className="font-medium">
+                      Activities: {activityLog?.length || 0}
+                    </div>
                     <div className="flex items-center">
                       <input
                         type="text"
@@ -721,7 +835,10 @@ export default function ResolveDetailsPage() {
                   {activityLog && activityLog.length > 0 ? (
                     <div className="space-y-4">
                       {activityLog.map((activity, index) => (
-                        <div key={index} className="border p-3 my-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                        <div
+                          key={index}
+                          className="border p-3 my-3 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                        >
                           <div className="flex items-center mb-2">
                             <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
                               👤
@@ -730,32 +847,43 @@ export default function ResolveDetailsPage() {
                               <div className="font-medium">{activity.user}</div>
                             </div>
                             <div className="ml-auto flex items-center text-sm text-gray-600">
-                              <span className="font-medium">{activity.type}</span>
+                              <span className="font-medium">
+                                {activity.type}
+                              </span>
                               <span className="mx-2">•</span>
                               <span>{activity.timestamp}</span>
                             </div>
                           </div>
 
                           <div className="bg-gray-50 rounded-lg p-2">
-                            {activity.changes && activity.changes.map((change, changeIndex) => (
-                              <div key={changeIndex} className="flex justify-between py-1 border-b border-gray-100 last:border-b-0">
-                                <div className="text-right w-1/3 text-gray-600 font-medium">{change.field}:</div>
-                                <div className="w-2/3 pl-4">{change.value}</div>
-                              </div>
-                            ))}
+                            {activity.changes &&
+                              activity.changes.map((change, changeIndex) => (
+                                <div
+                                  key={changeIndex}
+                                  className="flex justify-between py-1 border-b border-gray-100 last:border-b-0"
+                                >
+                                  <div className="text-right w-1/3 text-gray-600 font-medium">
+                                    {change.field}:
+                                  </div>
+                                  <div className="w-2/3 pl-4">
+                                    {change.value}
+                                  </div>
+                                </div>
+                              ))}
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-6 text-gray-500">No activity records found</div>
+                    <div className="text-center py-6 text-gray-500">
+                      No activity records found
+                    </div>
                   )}
                 </div>
               </div>
             )}
 
-            {currentTab === "Chat" && (
-              <ChatUI />)}
+            {currentTab === "Chat" && <ChatUI />}
 
             {currentTab === "History" && (
               <div className="p-4">
@@ -801,8 +929,12 @@ export default function ResolveDetailsPage() {
                             )}
                           </div>
                           <span className="font-medium">{item.type}</span>
-                          <span className="text-gray-500 text-sm ml-2">- {item.timestamp}</span>
-                          <span className="text-gray-500 text-sm ml-auto">by {item.user}</span>
+                          <span className="text-gray-500 text-sm ml-2">
+                            - {item.timestamp}
+                          </span>
+                          <span className="text-gray-500 text-sm ml-auto">
+                            by {item.user}
+                          </span>
                         </div>
 
                         {item.changes.length > 0 && (
@@ -810,17 +942,29 @@ export default function ResolveDetailsPage() {
                             <table className="w-full text-sm">
                               <thead className="bg-gray-50">
                                 <tr>
-                                  <th className="text-left py-1 px-2 w-1/3">Field</th>
-                                  <th className="text-left py-1 px-2 w-1/3">Original Value</th>
-                                  <th className="text-left py-1 px-2 w-1/3">New Value</th>
+                                  <th className="text-left py-1 px-2 w-1/3">
+                                    Field
+                                  </th>
+                                  <th className="text-left py-1 px-2 w-1/3">
+                                    Original Value
+                                  </th>
+                                  <th className="text-left py-1 px-2 w-1/3">
+                                    New Value
+                                  </th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {item.changes.map((change, index) => (
                                   <tr key={index} className="hover:bg-gray-100">
-                                    <td className="py-1 px-2">{change.field}</td>
-                                    <td className="py-1 px-2">{change.originalValue}</td>
-                                    <td className="py-1 px-2">{change.newValue}</td>
+                                    <td className="py-1 px-2">
+                                      {change.field}
+                                    </td>
+                                    <td className="py-1 px-2">
+                                      {change.originalValue}
+                                    </td>
+                                    <td className="py-1 px-2">
+                                      {change.newValue}
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -830,7 +974,9 @@ export default function ResolveDetailsPage() {
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-8 text-gray-500">No history records found</div>
+                    <div className="text-center py-8 text-gray-500">
+                      No history records found
+                    </div>
                   )}
                 </div>
               </div>
@@ -921,7 +1067,9 @@ export default function ResolveDetailsPage() {
                       <thead className="bg-gray-100">
                         <tr>
                           <th className="border-b p-2 text-left">File</th>
-                          <th className="border-b p-2 text-left">Uploaded At</th>
+                          <th className="border-b p-2 text-left">
+                            Uploaded At
+                          </th>
                           <th className="border-b p-2 text-left">Actions</th>
                         </tr>
                       </thead>
@@ -929,25 +1077,35 @@ export default function ResolveDetailsPage() {
                         {/* We'll fetch attachments in useEffect */}
                         {attachments && attachments.length > 0 ? (
                           attachments.map((attachment) => (
-                            <tr key={attachment.id} className="hover:bg-gray-50">
+                            <tr
+                              key={attachment.id}
+                              className="hover:bg-gray-50"
+                            >
                               <td className="border-b p-2">
-                                <a href={attachment.file_url}
+                                <a
+                                  href={attachment.file_url}
                                   className="flex items-center text-blue-600 hover:underline"
                                   target="_blank"
-                                  rel="noopener noreferrer">
+                                  rel="noopener noreferrer"
+                                >
                                   <Paperclip size={16} className="mr-2" />
                                   {/* {attachment.file_url}(
                                   {attachment.file_url.split('/').pop()}||" ") */}
                                 </a>
                               </td>
                               <td className="border-b p-2">
-                                {new Date(attachment.uploaded_at).toLocaleString()}
+                                {new Date(
+                                  attachment.uploaded_at
+                                ).toLocaleString()}
                               </td>
                               <td className="border-b p-2">
                                 <div className="flex space-x-2">
                                   <button
                                     className="text-blue-500 hover:underline"
-                                    onClick={() => window.open(attachment.file_url, '_blank')}>
+                                    onClick={() =>
+                                      window.open(attachment.file_url, "_blank")
+                                    }
+                                  >
                                     View
                                   </button>
                                   {/* <button className="text-red-500 hover:underline">
@@ -959,7 +1117,10 @@ export default function ResolveDetailsPage() {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="3" className="p-4 text-center text-gray-500">
+                            <td
+                              colSpan="3"
+                              className="p-4 text-center text-gray-500"
+                            >
                               No attachments found for this ticket
                             </td>
                           </tr>
@@ -971,15 +1132,21 @@ export default function ResolveDetailsPage() {
               </div>
             )}
 
-            {currentTab === "ResolutionInfo" && (
-              <ResolutionInfo />
-            )}
+            {currentTab === "ResolutionInfo" && <ResolutionInfo />}
           </div>
         </div>
 
         {/* Toast Container and Chatbot */}
         <ChatbotPopup />
-        <ToastContainer />
+        <ToastContainer
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
       </div>
     </div>
   );

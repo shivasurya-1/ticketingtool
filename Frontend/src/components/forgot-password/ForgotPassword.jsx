@@ -15,7 +15,8 @@ const ForgotPassword = () => {
   const new_password = useSelector((state) => state.inputs.new_password || "");
 
   const [isSubmitButtonVisible, setIsSubmitButtonVisible] = useState(true);
-  const [isSubmitOTPButtonVisible, setIsSubmitOTPButtonVisible] = useState(true);
+  const [isSubmitOTPButtonVisible, setIsSubmitOTPButtonVisible] =
+    useState(true);
   const [otpMessage, setOtpMessage] = useState("");
   const [otpVisible, setOtpVisible] = useState(false);
   const [error, setError] = useState("");
@@ -40,11 +41,13 @@ const ForgotPassword = () => {
         setIsOtpSent(true);
         setResendEnabled(false);
         setResendTimer(30);
-        const successMessage = response?.data?.message || "OTP sent to your email";
+        const successMessage =
+          response?.data?.message || "OTP sent to your email";
         toast.success(successMessage);
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.error || "Error in sending OTP";
+      const errorMessage =
+        error.response?.data?.error || "Error in sending OTP";
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -61,11 +64,13 @@ const ForgotPassword = () => {
       if (response.status === 200) {
         setIsSubmitOTPButtonVisible(false);
         setOtpVerified(true);
-        const successMessage = response?.data?.message || "OTP verified successfully";
+        const successMessage =
+          response?.data?.message || "OTP verified successfully";
         toast.success(successMessage);
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.error || "Error in Verifying OTP";
+      const errorMessage =
+        error.response?.data?.error || "Error in Verifying OTP";
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -83,14 +88,18 @@ const ForgotPassword = () => {
         new_password,
       });
       if (response.status === 200) {
-        const successMessage = response?.data?.message || "Password reset successfully. Redirecting to login...";
+        const successMessage =
+          response?.data?.message ||
+          "Password reset successfully. Redirecting to login...";
         toast.success(successMessage);
         setTimeout(() => {
           navigate("/login");
         }, 3000);
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.error || "There was an issue while changing your password. Please try again later.";
+      const errorMessage =
+        error.response?.data?.error ||
+        "There was an issue while changing your password. Please try again later.";
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -117,7 +126,9 @@ const ForgotPassword = () => {
 
   return (
     <div className="mt-6 bg-blue-50 p-8 md:p-12 rounded-3xl shadow-2xl w-full sm:w-10/12 md:w-8/12 lg:w-6/12 mx-auto">
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">Reset Your Password</h2>
+      <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">
+        Reset Your Password
+      </h2>
 
       <div className="mb-6">
         <FieldsetInputField
@@ -157,9 +168,7 @@ const ForgotPassword = () => {
           </p>
           <div className="mt-4 flex justify-center items-center">
             <Button
-              label={
-                resendEnabled ? "Resend OTP" : `Resend in ${resendTimer}s`
-              }
+              label={resendEnabled ? "Resend OTP" : `Resend in ${resendTimer}s`}
               onClick={resendEnabled ? handleEmailSubmit : null}
               className={`relative w-full md:w-1/2 py-2 rounded-lg text-sm transition-all duration-300 ${
                 resendEnabled && !isLoading
@@ -199,9 +208,7 @@ const ForgotPassword = () => {
 
       {otpVerified && (
         <div className="mb-6">
-         
-
- <FieldsetInputField
+          <FieldsetInputField
             label="Enter new password"
             type="password"
             name="new_password"
@@ -219,7 +226,15 @@ const ForgotPassword = () => {
       {error && (
         <p className="text-red-500 text-sm mt-4 text-center">{error}</p>
       )}
-      <ToastContainer />
+      <ToastContainer
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </div>
   );
 };

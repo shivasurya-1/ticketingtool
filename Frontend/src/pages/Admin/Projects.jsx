@@ -22,14 +22,14 @@ export default function Projects() {
   const [totalEntries, setTotalEntries] = useState(0);
   const [currentEntries, setCurrentEntries] = useState({
     start: 0,
-    end: 0
+    end: 0,
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add"); // "add" or "edit"
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [projectMembers, setProjectMembers] = useState([]);
-  
+
   const dropdownRef = useRef(null);
   const searchInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -41,11 +41,11 @@ export default function Projects() {
         setDropdownOpen(false);
       }
     }
-    
+
     if (dropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
-    
+
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
@@ -54,21 +54,20 @@ export default function Projects() {
   // Filter projects based on search term
   const filteredProjects = projects.filter((project) => {
     if (!searchTerm.trim()) return true;
-    
+
     const searchTermLower = searchTerm.toLowerCase().trim();
     return (
       project.project_name.toLowerCase().includes(searchTermLower) ||
       project.project_id.toString().includes(searchTermLower) ||
-      (project.organisation && project.organisation.toLowerCase().includes(searchTermLower)) ||
-      (project.product_mail && project.product_mail.toLowerCase().includes(searchTermLower))
+      (project.organisation &&
+        project.organisation.toLowerCase().includes(searchTermLower)) ||
+      (project.product_mail &&
+        project.product_mail.toLowerCase().includes(searchTermLower))
     );
   });
 
   // Calculate pagination values
-  const pageCount = Math.max(
-    1,
-    Math.ceil(filteredProjects.length / pageSize)
-  );
+  const pageCount = Math.max(1, Math.ceil(filteredProjects.length / pageSize));
   const offset = currentPage * pageSize;
   const currentItems = filteredProjects.slice(offset, offset + pageSize);
 
@@ -145,7 +144,6 @@ export default function Projects() {
     if (!accessToken) {
       return;
     }
-
   };
 
   const fetchOrganisations = async () => {
@@ -177,7 +175,7 @@ export default function Projects() {
     if (type === "file") {
       setFormData({
         ...formData,
-        [name]: files[0]
+        [name]: files[0],
       });
     } else {
       setFormData({
@@ -194,8 +192,6 @@ export default function Projects() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-
-
     setLoading(true);
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) {
@@ -210,14 +206,14 @@ export default function Projects() {
     formDataToSend.append("organisation", formData.org_name);
     formDataToSend.append("product_mail", formData.productMail);
     formDataToSend.append("is_active", formData.isActive);
-    
+
     if (formData.file) {
       formDataToSend.append("files", formData.file);
     }
 
     try {
       let response;
-      
+
       if (modalMode === "add") {
         response = await axiosInstance.post(
           "/project/details/",
@@ -229,7 +225,7 @@ export default function Projects() {
             },
           }
         );
-        
+
         if (response.status === 201 || response.status === 200) {
           toast.success("Project added successfully");
         }
@@ -244,12 +240,12 @@ export default function Projects() {
             },
           }
         );
-        
+
         if (response.status === 200) {
           toast.success("Project updated successfully");
         }
       }
-      
+
       setShowProjectModal(false);
       resetForm();
       // Refresh the data after adding/editing project
@@ -276,7 +272,7 @@ export default function Projects() {
       organisation: "",
       productMail: "",
       isActive: true,
-      files: null
+      files: null,
     });
     setSelectedProjectId(null);
     if (fileInputRef.current) {
@@ -295,14 +291,14 @@ export default function Projects() {
     setModalMode("edit");
     setShowProjectModal(false);
     setDropdownOpen(false);
-    
+
     const projectId = prompt("Please enter the Project ID you want to edit:");
     if (!projectId) return;
-    
+
     const selectedProject = projects.find(
-      project => project.project_id.toString() === projectId.trim()
+      (project) => project.project_id.toString() === projectId.trim()
     );
-    
+
     if (selectedProject) {
       setSelectedProjectId(selectedProject.project_id);
       setFormData({
@@ -310,7 +306,7 @@ export default function Projects() {
         organisation: selectedProject.org_name || "",
         productMail: selectedProject.product_mail || "",
         isActive: selectedProject.is_active || true,
-        files: null // Can't set file value for security reasons
+        files: null, // Can't set file value for security reasons
       });
       setShowProjectModal(true);
     } else {
@@ -333,19 +329,19 @@ export default function Projects() {
               Add, search, and manage your projects all in one place
             </p>
           </header>
-  
+
           <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
             <div className="flex flex-col sm:flex-row gap-4 justify-between">
               {/* Enhanced search input */}
               <div className="relative w-full sm:w-64">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg 
-                    className="h-5 w-5 text-gray-400" 
-                    fill="none" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth="2" 
-                    viewBox="0 0 24 24" 
+                  <svg
+                    className="h-5 w-5 text-gray-400"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
                     stroke="currentColor"
                   >
                     <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -360,7 +356,7 @@ export default function Projects() {
                   onChange={handleSearchInputChange}
                 />
               </div>
-              
+
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={toggleDropdown}
@@ -390,16 +386,16 @@ export default function Projects() {
                           onClick={openAddModal}
                           className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
                         >
-                          <svg 
-                            className="w-4 h-4 mr-2" 
-                            fill="none" 
-                            stroke="currentColor" 
+                          <svg
+                            className="w-4 h-4 mr-2"
+                            fill="none"
+                            stroke="currentColor"
                             viewBox="0 0 24 24"
                           >
-                            <path 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round" 
-                              strokeWidth="2" 
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
                               d="M12 4v16m8-8H4"
                             />
                           </svg>
@@ -411,16 +407,16 @@ export default function Projects() {
                           onClick={openEditModal}
                           className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
                         >
-                          <svg 
-                            className="w-4 h-4 mr-2" 
-                            fill="none" 
-                            stroke="currentColor" 
+                          <svg
+                            className="w-4 h-4 mr-2"
+                            fill="none"
+                            stroke="currentColor"
                             viewBox="0 0 24 24"
                           >
-                            <path 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round" 
-                              strokeWidth="2" 
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
                               d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                             />
                           </svg>
@@ -433,7 +429,7 @@ export default function Projects() {
               </div>
             </div>
           </div>
-  
+
           {/* Projects Table */}
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
             {loading ? (
@@ -452,29 +448,50 @@ export default function Projects() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead>
                     <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
                         ID
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
                         Project Name
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
                         Organisation
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
                         Product Mail
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
                         Files
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
                         Status
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {currentItems.map((project, index) => (
-                      <tr key={index} className="hover:bg-gray-50 transition-colors">
+                      <tr
+                        key={index}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {project.project_id}
                         </td>
@@ -489,23 +506,29 @@ export default function Projects() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                           {project.file ? (
-                            <a 
-                              href={project.file} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
+                            <a
+                              href={project.file}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               className="text-blue-600 hover:text-blue-800"
                             >
                               View File
                             </a>
-                          ) : "-"}
+                          ) : (
+                            "-"
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            project.is_active !== false 
-                              ? "bg-green-100 text-green-800" 
-                              : "bg-red-100 text-red-800"
-                          }`}>
-                            {project.is_active !== false ? "Active" : "Inactive"}
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              project.is_active !== false
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {project.is_active !== false
+                              ? "Active"
+                              : "Inactive"}
                           </span>
                         </td>
                       </tr>
@@ -514,13 +537,16 @@ export default function Projects() {
                 </table>
               </div>
             )}
-            
+
             {/* Pagination and Page Size Controls */}
             {filteredProjects.length > 0 && (
               <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
                 <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                   <div className="flex items-center">
-                    <label htmlFor="pageSize" className="text-sm text-gray-600 mr-2">
+                    <label
+                      htmlFor="pageSize"
+                      className="text-sm text-gray-600 mr-2"
+                    >
                       Show:
                     </label>
                     <select
@@ -537,21 +563,41 @@ export default function Projects() {
                     </select>
                     {totalEntries > 0 && (
                       <span className="ml-4 text-sm text-gray-600">
-                        Showing {currentEntries.start} to {currentEntries.end} of{" "}
-                        {totalEntries} entries
+                        Showing {currentEntries.start} to {currentEntries.end}{" "}
+                        of {totalEntries} entries
                       </span>
                     )}
                   </div>
-  
+
                   <ReactPaginate
                     previousLabel={
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M15 19l-7-7 7-7"
+                        />
                       </svg>
                     }
                     nextLabel={
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M9 5l7 7-7 7"
+                        />
                       </svg>
                     }
                     breakLabel={"..."}
@@ -572,7 +618,7 @@ export default function Projects() {
             )}
           </div>
         </div>
-  
+
         {/* Project Modal (Add/Edit) */}
         {showProjectModal && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
@@ -582,11 +628,14 @@ export default function Projects() {
                   {modalMode === "add" ? "Add Project" : "Edit Project"}
                 </h2>
               </div>
-              
+
               <form onSubmit={handleSubmit} className="px-6 py-4">
                 {modalMode === "edit" && (
                   <div className="mb-4">
-                    <label htmlFor="projectId" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label
+                      htmlFor="projectId"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
                       Project ID
                     </label>
                     <input
@@ -597,9 +646,12 @@ export default function Projects() {
                     />
                   </div>
                 )}
-                
+
                 <div className="mb-4">
-                  <label htmlFor="projectName" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="projectName"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Project Name
                   </label>
                   <input
@@ -611,9 +663,12 @@ export default function Projects() {
                     className="w-full border border-gray-200 rounded-md py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
-  
+
                 <div className="mb-4">
-                  <label htmlFor="organisation" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="organisation"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Organisation
                   </label>
                   <select
@@ -626,7 +681,10 @@ export default function Projects() {
                   >
                     <option value="">Select an organisation</option>
                     {organisations.map((org) => (
-                      <option key={org.id || org.organisation_id} value={org.organisation_id}>
+                      <option
+                        key={org.id || org.organisation_id}
+                        value={org.organisation_id}
+                      >
                         {org.organisation_name}
                       </option>
                     ))}
@@ -634,7 +692,10 @@ export default function Projects() {
                 </div>
 
                 <div className="mb-4">
-                  <label htmlFor="productMail" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="productMail"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Product Mail
                   </label>
                   <input
@@ -649,7 +710,10 @@ export default function Projects() {
                 </div>
 
                 <div className="mb-4">
-                  <label htmlFor="files" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="files"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Project Files
                   </label>
                   <input
@@ -666,7 +730,7 @@ export default function Projects() {
                     </p>
                   )}
                 </div>
-                
+
                 <div className="mb-6">
                   <div className="flex items-center">
                     <input
@@ -677,12 +741,15 @@ export default function Projects() {
                       onChange={handleFormChange}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
-                    <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700">
+                    <label
+                      htmlFor="isActive"
+                      className="ml-2 block text-sm text-gray-700"
+                    >
                       Active Status
                     </label>
                   </div>
                 </div>
-  
+
                 <div className="flex justify-end gap-3">
                   <button
                     type="button"
@@ -697,24 +764,51 @@ export default function Projects() {
                     className="py-2 px-4 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     disabled={loading}
                   >
-                    {loading ? 
+                    {loading ? (
                       <span className="flex items-center">
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        <svg
+                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
                         </svg>
                         {modalMode === "add" ? "Adding..." : "Updating..."}
-                      </span> : 
-                      (modalMode === "add" ? "Add Project" : "Update Project")}
+                      </span>
+                    ) : modalMode === "add" ? (
+                      "Add Project"
+                    ) : (
+                      "Update Project"
+                    )}
                   </button>
                 </div>
               </form>
             </div>
           </div>
         )}
-        
+
         <ChatbotPopup />
-        <ToastContainer />
+        <ToastContainer
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
       </main>
     </div>
   );

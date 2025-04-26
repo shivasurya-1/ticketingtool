@@ -26,7 +26,7 @@ import issueSelectionReducer from './Slices/issueSelectionSlice';
 const persistConfig = {
   key: 'root',
   storage,
-  whitelist: ['profile', 'auth', "authentication"] 
+  whitelist: ['profile', 'auth', "authentication", "issueSelection"], // Add the reducers you want to persist here
 };
 
 // Combine all reducers

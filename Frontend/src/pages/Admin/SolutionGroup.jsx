@@ -1,72 +1,115 @@
 import { useState, useEffect, useRef } from "react";
 import Sidebar from "../../components/Sidebar";
-import { FiSearch, FiEdit2, FiEye, FiPlus } from "react-icons/fi";
 import ChatbotPopup from "../../components/ChatBot";
-import Button from "../../components/common/Button";
 import ReactPaginate from "react-paginate";
 import { ToastContainer, toast } from "react-toastify";
 import { axiosInstance } from "../../utils/axiosInstance";
+import { FiSearch, FiEdit2, FiEye, FiPlus } from "react-icons/fi";
+import Button from "../../components/common/Button";
 
-export default function Category() {
+export default function SolutionGroup() {
   const [loading, setLoading] = useState(true);
-  const [pageSize, setPageSize] = useState(10); // Increased default page size
+  const [pageSize, setPageSize] = useState(5);
+  const [solutionGroups, setSolutionGroups] = useState([]);
+  const [filteredSolutionGroupsByOrg, setFilteredCategoryGroupsByOrg] =
+    useState([]);
   const [categories, setCategories] = useState([]);
   const [organisations, setOrganisations] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [formData, setFormData] = useState({
-    categoryName: "",
-    description: "",
+    groupName: "",
+    category: "",
     organisation: "",
     isActive: true,
   });
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showSolutionGroupModal, setShowSolutionGroupModal] = useState(false);
   const [totalEntries, setTotalEntries] = useState(0);
   const [currentEntries, setCurrentEntries] = useState({
     start: 0,
     end: 0,
   });
   const [searchTerm, setSearchTerm] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add"); // "add" or "edit" or "view"
-  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+  const [selectedSolutionGroupId, setSelectedSolutionGroupId] = useState(null);
 
+  const dropdownRef = useRef(null);
   const searchInputRef = useRef(null);
 
-  // Filter categories based on search term
-  const filteredCategories = categories.filter((category) => {
+  // Handle click outside for dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownOpen]);
+
+  // Filter solution groups based on search term
+  const filteredSolutionGroups = solutionGroups.filter((group) => {
     if (!searchTerm.trim()) return true;
 
     const searchTermLower = searchTerm.toLowerCase().trim();
     return (
-      category.category_name.toLowerCase().includes(searchTermLower) ||
-      (category.description &&
-        category.description.toLowerCase().includes(searchTermLower)) ||
-      category.category_id.toString().includes(searchTermLower) ||
-      (category.organisation &&
-        category.organisation.toLowerCase().includes(searchTermLower))
+      group.group_name.toLowerCase().includes(searchTermLower) ||
+      group.solution_id.toString().includes(searchTermLower) ||
+      (group.category &&
+        group.category.toLowerCase().includes(searchTermLower)) ||
+      (group.organisation &&
+        group.organisation.toLowerCase().includes(searchTermLower))
     );
   });
+
+  // Filter solution groups based on selected organization
+  useEffect(() => {
+    if (formData.organisation) {
+      const orgName = organisations.find(
+        (org) =>
+          org.organisation_id.toString() === formData.organisation.toString()
+      )?.organisation_name;
+      if (orgName) {
+        const filteredGroups = categories.filter(
+          (group) => group.organisation === orgName
+        );
+        setFilteredCategoryGroupsByOrg(filteredGroups);
+      } else {
+        setFilteredCategoryGroupsByOrg([]);
+      }
+    } else {
+      setFilteredCategoryGroupsByOrg([]);
+    }
+  }, [formData.organisation, organisations, solutionGroups]);
 
   // Calculate pagination values
   const pageCount = Math.max(
     1,
-    Math.ceil(filteredCategories.length / pageSize)
+    Math.ceil(filteredSolutionGroups.length / pageSize)
   );
   const offset = currentPage * pageSize;
-  const currentItems = filteredCategories.slice(offset, offset + pageSize);
+  const currentItems = filteredSolutionGroups.slice(offset, offset + pageSize);
 
-  // Fetch categories and organisations on component mount
+  // Fetch solution groups, categories and organisations on component mount
   useEffect(() => {
+    fetchSolutionGroups();
     fetchCategories();
     fetchOrganisations();
   }, []);
 
-  // Update current entries information when filteredCategories changes
+  // Update current entries information when filteredSolutionGroups changes
   useEffect(() => {
-    const start = filteredCategories.length > 0 ? offset + 1 : 0;
-    const end = Math.min(offset + pageSize, filteredCategories.length);
+    const start = filteredSolutionGroups.length > 0 ? offset + 1 : 0;
+    const end = Math.min(offset + pageSize, filteredSolutionGroups.length);
     setCurrentEntries({ start, end });
-    setTotalEntries(filteredCategories.length);
-  }, [filteredCategories.length, offset, pageSize]);
+    setTotalEntries(filteredSolutionGroups.length);
+  }, [filteredSolutionGroups.length, offset, pageSize]);
 
   // Reset to first page when search term changes
   useEffect(() => {
@@ -78,11 +121,11 @@ export default function Category() {
     if (
       currentPage >= pageCount &&
       pageCount > 0 &&
-      filteredCategories.length > 0
+      filteredSolutionGroups.length > 0
     ) {
       setCurrentPage(Math.max(0, pageCount - 1));
     }
-  }, [filteredCategories.length, pageCount, currentPage]);
+  }, [filteredSolutionGroups.length, pageCount, currentPage]);
 
   // Scroll to top when changing to the last page with fewer items
   useEffect(() => {
@@ -93,12 +136,43 @@ export default function Category() {
     }
   }, [currentPage, pageCount, currentItems.length, pageSize]);
 
-  const fetchCategories = async () => {
+  const fetchSolutionGroups = async () => {
     setLoading(true);
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) {
       toast.error("Please log in to access this page.");
       setLoading(false);
+      return;
+    }
+    try {
+      const response = await axiosInstance.get("/solution_grp/create/", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      if (response.status === 200) {
+        // Process solution groups with default is_active if not provided
+        const processedGroups = response.data.map((group) => ({
+          ...group,
+          is_active: group.is_active !== undefined ? group.is_active : true,
+        }));
+        setSolutionGroups(processedGroups);
+        // Reset to first page when data changes significantly
+        setCurrentPage(0);
+      }
+    } catch (error) {
+      toast.error(
+        error.response?.data?.error || "Failed to load solution groups"
+      );
+      setSolutionGroups([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) {
       return;
     }
     try {
@@ -108,22 +182,10 @@ export default function Category() {
         },
       });
       if (response.status === 200) {
-        // Process categories with default is_active if not provided
-        const processedCategories = response.data.map((category) => ({
-          ...category,
-          is_active:
-            category.is_active !== undefined ? category.is_active : true,
-        }));
-        setCategories(processedCategories);
-        // Reset to first page when data changes significantly
-        setCurrentPage(0);
+        setCategories(response.data);
       }
     } catch (error) {
-      console.error("Error fetching categories:", error);
-      toast.error("Failed to load categories");
-      setCategories([]);
-    } finally {
-      setLoading(false);
+      toast.error(error.response?.data?.error || "Failed to load categories");
     }
   };
 
@@ -142,8 +204,9 @@ export default function Category() {
         setOrganisations(response.data);
       }
     } catch (error) {
-      console.error("Error fetching organisations:", error);
-      toast.error("Failed to load organisations");
+      toast.error(
+        error.response?.data?.error || "Failed to load organisations"
+      );
     }
   };
 
@@ -156,6 +219,8 @@ export default function Category() {
     setFormData({
       ...formData,
       [name]: type === "checkbox" ? checked : value,
+      // Reset solution group when organization changes
+      ...(name === "organisation" && { category: "" }),
     });
   };
 
@@ -182,7 +247,7 @@ export default function Category() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.categoryName || !formData.organisation) {
+    if (!formData.groupName || !formData.category || !formData.organisation) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -190,14 +255,14 @@ export default function Category() {
     setLoading(true);
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) {
-      toast.error("Please log in to manage categories.");
+      toast.error("Please log in to manage solution groups.");
       setLoading(false);
       return;
     }
 
     const parseFormData = (data) => ({
-      category_name: data.categoryName,
-      description: data.description,
+      group_name: data.groupName,
+      category: data.category,
       organisation: data.organisation,
       is_active: data.isActive,
     });
@@ -207,18 +272,24 @@ export default function Category() {
       let response;
 
       if (modalMode === "add") {
-        response = await axiosInstance.post("/category/create/", parsedData, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
+        response = await axiosInstance.post(
+          "/solution_grp/create/",
+          parsedData,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
 
         if (response.status === 201 || response.status === 200) {
-          toast.success("Category added successfully");
+          toast.success(
+            response?.data?.message || "Solution Group added successfully"
+          );
         }
       } else if (modalMode === "edit") {
         response = await axiosInstance.put(
-          `/category/cg/${selectedCategoryId}/`,
+          `/solution_grp/solutions/${selectedSolutionGroupId}/`,
           parsedData,
           {
             headers: {
@@ -228,97 +299,133 @@ export default function Category() {
         );
 
         if (response.status === 200) {
-          toast.success("Category updated successfully");
+          toast.success(
+            response?.data?.message || "Solution Group updated successfully"
+          );
         }
       }
 
-      setShowCategoryModal(false);
+      setShowSolutionGroupModal(false);
       resetForm();
-      // Refresh the data after adding/editing category
-      await fetchCategories();
+      // Refresh the data after adding/editing solution group
+      await fetchSolutionGroups();
     } catch (error) {
-      console.error("Error managing category:", error);
       const errorMessage =
         error.response?.data?.message ||
-        error.response?.data?.detail ||
-        `Failed to ${modalMode} category`;
+        `Failed to ${modalMode} solution group`;
       toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleView = (category) => {
-    setSelectedCategoryId(category.category_id);
+  const handleView = (group) => {
+    setSelectedSolutionGroupId(group.solution_id);
 
-    // Similar logic to handleEdit for organization
+    // Similar logic to handleEdit for category and organization
+    let categoryId;
     let organizationId;
 
-    if (typeof category.organisation === "string") {
+    if (typeof group.category === "string") {
+      const matchingCat = categories.find(
+        (cat) => cat.category_name === group.category
+      );
+      categoryId = matchingCat ? matchingCat.category_id : "";
+    } else if (typeof group.category === "object") {
+      categoryId = group.category.category_id;
+    } else {
+      categoryId = group.category_id || "";
+    }
+
+    if (typeof group.organisation === "string") {
       const matchingOrg = organisations.find(
-        (org) => org.organisation_name === category.organisation
+        (org) => org.organisation_name === group.organisation
       );
       organizationId = matchingOrg ? matchingOrg.organisation_id : "";
-    } else if (typeof category.organisation === "object") {
-      organizationId = category.organisation.organisation_id;
+    } else if (typeof group.organisation === "object") {
+      organizationId = group.organisation.organisation_id;
     } else {
-      organizationId = category.organisation_id || "";
+      organizationId = group.organisation_id || "";
     }
 
     setFormData({
-      categoryName: category.category_name,
-      description: category.description || "",
+      groupName: group.group_name,
+      category: categoryId,
       organisation: organizationId,
-      isActive: category.is_active !== undefined ? category.is_active : true,
+      isActive: group.is_active !== undefined ? group.is_active : true,
     });
 
     setModalMode("view");
-    setShowCategoryModal(true);
+    setShowSolutionGroupModal(true);
   };
 
-  const handleEdit = (category) => {
-    setSelectedCategoryId(category.category_id);
+  const handleEdit = (group) => {
+    setSelectedSolutionGroupId(group.solution_id);
 
-    // Find the organization ID by name if we have a name instead of an ID
+    // Find the category ID and organization ID by name if we have names instead of IDs
+    let categoryId;
     let organizationId;
 
-    if (typeof category.organisation === "string") {
-      // Look up the organization ID by name
+    if (typeof group.category === "string") {
+      const matchingCat = categories.find(
+        (cat) => cat.category_name === group.category
+      );
+      categoryId = matchingCat ? matchingCat.category_id : "";
+    } else if (typeof group.category === "object") {
+      categoryId = group.category.category_id;
+    } else {
+      categoryId = group.category_id || "";
+    }
+
+    if (typeof group.organisation === "string") {
       const matchingOrg = organisations.find(
-        (org) => org.organisation_name === category.organisation
+        (org) => org.organisation_name === group.organisation
       );
       organizationId = matchingOrg ? matchingOrg.organisation_id : "";
-    } else if (typeof category.organisation === "object") {
-      organizationId = category.organisation.organisation_id;
+    } else if (typeof group.organisation === "object") {
+      organizationId = group.organisation.organisation_id;
     } else {
-      organizationId = category.organisation_id || "";
+      organizationId = group.organisation_id || "";
     }
 
     setFormData({
-      categoryName: category.category_name,
-      description: category.description || "",
-      organisation: organizationId, // Store the ID, not the name
-      isActive: category.is_active !== undefined ? category.is_active : true,
+      groupName: group.group_name,
+      category: categoryId,
+      organisation: organizationId,
+      isActive: group.is_active !== undefined ? group.is_active : true,
     });
 
     setModalMode("edit");
-    setShowCategoryModal(true);
+    setShowSolutionGroupModal(true);
   };
 
   const openAddModal = () => {
     resetForm();
     setModalMode("add");
-    setShowCategoryModal(true);
+    setShowSolutionGroupModal(true);
+    setDropdownOpen(false);
   };
 
   const resetForm = () => {
     setFormData({
-      categoryName: "",
-      description: "",
+      groupName: "",
+      category: "",
       organisation: "",
       isActive: true,
     });
-    setSelectedCategoryId(null);
+    setSelectedSolutionGroupId(null);
+  };
+
+  const toggleDropdown = () => {
+    setDropdownOpen(!dropdownOpen);
+  };
+
+  // Get solution group name by ID
+  const getSolutionGroupNameById = (id) => {
+    const group = solutionGroups.find(
+      (g) => g.solution_id.toString() === id.toString()
+    );
+    return group ? group.group_name : "";
   };
 
   return (
@@ -329,15 +436,17 @@ export default function Category() {
           {/* Condensed Header */}
           <div className="flex justify-between items-center mb-3">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">Categories</h1>
+              <h1 className="text-2xl font-bold text-gray-800">
+                Solution Groups
+              </h1>
               <p className="text-gray-500 text-sm">
-                Add, search, and manage your categories
+                Add, search, and manage your solution groups
               </p>
             </div>
             <Button
               blueBackground
               onClick={openAddModal}
-              label="Add Category"
+              label="Add Solution Group"
               icon={<FiPlus size={16} />}
               primary={true}
             />
@@ -350,7 +459,7 @@ export default function Category() {
                 ref={searchInputRef}
                 type="text"
                 className="border border-gray-300 rounded-lg pl-8 pr-2 py-1.5 w-full focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-                placeholder="Search categories..."
+                placeholder="Search solution groups..."
                 value={searchTerm}
                 onChange={handleSearchInputChange}
               />
@@ -381,16 +490,16 @@ export default function Category() {
             </div>
           </div>
 
-          {/* Categories Table - More compact */}
+          {/* Solution Groups Table - More compact */}
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden h-fit">
             {loading ? (
               <div className="p-4 text-center">
                 <div className="inline-block animate-spin rounded-full h-6 w-6 border-3 border-blue-500 border-t-transparent"></div>
                 <p className="mt-2 text-gray-600 text-sm">
-                  Loading categories...
+                  Loading solution groups...
                 </p>
               </div>
-            ) : !filteredCategories.length ? (
+            ) : !filteredSolutionGroups.length ? (
               <div className="p-6 text-center">
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-3">
                   <svg
@@ -407,15 +516,15 @@ export default function Category() {
                 </div>
                 <p className="text-gray-500 text-sm">
                   {searchTerm
-                    ? "No matching categories found"
-                    : "No categories found"}
+                    ? "No matching solution groups found"
+                    : "No solution groups found"}
                 </p>
                 <button
                   onClick={openAddModal}
                   className="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded-lg flex items-center gap-1 mx-auto text-sm"
                 >
                   <FiPlus size={16} />
-                  Add Category
+                  Add Solution Group
                 </button>
               </div>
             ) : (
@@ -430,7 +539,7 @@ export default function Category() {
                         Name
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                        Description
+                        Category
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Organisation
@@ -444,52 +553,47 @@ export default function Category() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {currentItems.map((category, index) => (
+                    {currentItems.map((group, index) => (
                       <tr
                         key={index}
                         className="hover:bg-gray-50 transition-colors duration-150"
                       >
                         <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
-                          {category.category_id}
+                          {group.solution_id}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-800">
-                          {category.category_name}
-                        </td>
-                        <td className="px-3 py-2 text-xs text-gray-600 max-w-xs truncate">
-                          {category.description || "-"}
+                          {group.group_name}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
-                          {organisations.find(
-                            (org) =>
-                              org.organisation_name === category.organisation
-                          )?.organisation_name ||
-                            category.organisation ||
-                            "-"}
+                          {group.category || "-"}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {group.organisation || "-"}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
                           <span
                             className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                              category.is_active
+                              group.is_active !== false
                                 ? "bg-green-100 text-green-800"
                                 : "bg-red-100 text-red-800"
                             }`}
                           >
-                            {category.is_active ? "Active" : "Inactive"}
+                            {group.is_active !== false ? "Active" : "Inactive"}
                           </span>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs font-medium">
                           <div className="flex space-x-1">
                             <button
-                              onClick={() => handleView(category)}
+                              onClick={() => handleView(group)}
                               className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
                               title="View Details"
                             >
                               <FiEye size={16} />
                             </button>
                             <button
-                              onClick={() => handleEdit(category)}
+                              onClick={() => handleEdit(group)}
                               className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
-                              title="Edit Category"
+                              title="Edit Solution Group"
                             >
                               <FiEdit2 size={16} />
                             </button>
@@ -504,7 +608,7 @@ export default function Category() {
           </div>
 
           {/* Compact Pagination Controls */}
-          {filteredCategories.length > 0 && (
+          {filteredSolutionGroups.length > 0 && (
             <div className="mt-2 flex justify-end items-center">
               <ReactPaginate
                 previousLabel={
@@ -554,20 +658,20 @@ export default function Category() {
             </div>
           )}
 
-          {/* Category Modal - More compact with fixed toggle switch */}
-          {showCategoryModal && (
+          {/* Solution Group Modal - More compact with fixed toggle switch */}
+          {showSolutionGroupModal && (
             <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50">
               <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-y-auto">
                 <div className="border-b border-gray-200 p-3 flex justify-between items-center">
                   <h2 className="text-lg font-semibold text-gray-800">
                     {modalMode === "add"
-                      ? "Add New Category"
+                      ? "Add New Solution Group"
                       : modalMode === "edit"
-                      ? "Edit Category"
-                      : "Category Details"}
+                      ? "Edit Solution Group"
+                      : "Solution Group Details"}
                   </h2>
                   <button
-                    onClick={() => setShowCategoryModal(false)}
+                    onClick={() => setShowSolutionGroupModal(false)}
                     className="text-gray-500 hover:text-gray-700"
                   >
                     ✕
@@ -578,14 +682,14 @@ export default function Category() {
                   {(modalMode === "edit" || modalMode === "view") && (
                     <div>
                       <label
-                        htmlFor="categoryId"
+                        htmlFor="solutionGroupId"
                         className="block text-xs font-medium text-gray-700 mb-1"
                       >
-                        Category ID
+                        Solution Group ID
                       </label>
                       <input
-                        id="categoryId"
-                        value={selectedCategoryId || ""}
+                        id="solutionGroupId"
+                        value={selectedSolutionGroupId || ""}
                         disabled
                         className="border border-gray-300 rounded-lg p-2 w-full bg-gray-50 text-gray-500 text-sm"
                       />
@@ -594,18 +698,18 @@ export default function Category() {
 
                   <div>
                     <label
-                      htmlFor="categoryName"
+                      htmlFor="groupName"
                       className="block text-xs font-medium text-gray-700 mb-1"
                     >
-                      Category Name{" "}
+                      Solution Group Name{" "}
                       {modalMode !== "view" && (
                         <span className="text-red-500">*</span>
                       )}
                     </label>
                     <input
-                      id="categoryName"
-                      name="categoryName"
-                      value={formData.categoryName}
+                      id="groupName"
+                      name="groupName"
+                      value={formData.groupName}
                       onChange={handleFormChange}
                       required={modalMode !== "view"}
                       disabled={modalMode === "view"}
@@ -614,27 +718,6 @@ export default function Category() {
                       }`}
                     />
                   </div>
-
-                  <div>
-                    <label
-                      htmlFor="description"
-                      className="block text-xs font-medium text-gray-700 mb-1"
-                    >
-                      Description
-                    </label>
-                    <textarea
-                      id="description"
-                      name="description"
-                      value={formData.description}
-                      onChange={handleFormChange}
-                      disabled={modalMode === "view"}
-                      className={`border rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                        modalMode === "view" ? "bg-gray-50 text-gray-500" : ""
-                      }`}
-                      rows="2"
-                    />
-                  </div>
-
                   <div>
                     <label
                       htmlFor="organisation"
@@ -680,110 +763,134 @@ export default function Category() {
                       </select>
                     )}
                   </div>
-
-                  <div className="flex items-center">
-                    <div
-                      onClick={handleToggleActive}
-                      className={`relative inline-block w-10 h-5 rounded-full transition-colors cursor-pointer ${
-                        modalMode === "view"
-                          ? "opacity-70 pointer-events-none"
-                          : ""
-                      } ${formData.isActive ? "bg-blue-500" : "bg-gray-300"}`}
-                    >
-                      <span
-                        className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white transition-transform transform ${
-                          formData.isActive ? "translate-x-5" : "translate-x-0"
-                        }`}
-                      />
-                      <input
-                        id="isActive"
-                        name="isActive"
-                        type="checkbox"
-                        checked={formData.isActive}
-                        onChange={handleFormChange}
-                        className="sr-only"
-                        disabled={modalMode === "view"}
-                      />
-                    </div>
+                  <div>
                     <label
-                      htmlFor="isActive"
-                      className="text-xs font-medium text-gray-700 ml-2 cursor-pointer"
-                      onClick={handleToggleActive}
+                      htmlFor="category"
+                      className="block text-xs font-medium text-gray-700 mb-1"
                     >
-                      {formData.isActive ? "Active" : "Inactive"}
+                      Solution Group Category{" "}
+                      {modalMode !== "view" && (
+                        <span className="text-red-500">*</span>
+                      )}
                     </label>
+                    {modalMode === "view" ? (
+                      <input
+                        value={
+                          categories.find(
+                            (cat) => cat.category_id === formData.category
+                          )?.category_name || formData.category
+                        }
+                        disabled
+                        className="border border-gray-300 rounded-lg p-2 w-full bg-gray-50 text-gray-500 text-sm"
+                      />
+                    ) : formData.organisation ? (
+                      <select
+                        id="category"
+                        name="category"
+                        value={formData.category}
+                        onChange={handleFormChange}
+                        required={modalMode !== "view"}
+                        disabled={
+                          modalMode === "view" || !formData.organisation
+                        }
+                        className={`border rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
+                          modalMode === "view" || !formData.organisation
+                            ? "bg-gray-50 text-gray-500"
+                            : ""
+                        }`}
+                      >
+                        <option value="">
+                          Select category from{" "}
+                          {organisations.find(
+                            (org) =>
+                              org.organisation_id.toString() ===
+                              formData.organisation.toString()
+                          )?.organisation_name || ""}
+                        </option>
+                        // Complete the remaining code for the component
+                        {filteredSolutionGroupsByOrg.length > 0 ? (
+                          filteredSolutionGroupsByOrg.map((group) => (
+                            <option
+                              key={group.category_id}
+                              value={group.category_id}
+                            >
+                              {group.category_name}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="" disabled>
+                            No categories available for this organisation
+                          </option>
+                        )}
+                      </select>
+                    ) : (
+                      <select
+                        id="category"
+                        name="category"
+                        disabled
+                        className="border rounded-lg p-2 w-full text-sm bg-gray-50 text-gray-400"
+                      >
+                        <option value="">Select an organisation first</option>
+                      </select>
+                    )}
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-3 border-t">
-                    {modalMode === "view" ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleEdit(
-                              categories.find(
-                                (cat) => cat.category_id === selectedCategoryId
-                              )
-                            )
-                          }
-                          className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowCategoryModal(false)}
-                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
-                        >
-                          Close
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setShowCategoryModal(false)}
-                          className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
-                          disabled={loading}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors flex items-center gap-1"
-                          disabled={loading}
-                        >
-                          {loading && (
-                            <svg
-                              className="animate-spin h-3 w-3 text-white"
-                              xmlns="http://www.w3.org/2000/svg"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                              ></circle>
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                              ></path>
-                            </svg>
-                          )}
-                          {loading
-                            ? modalMode === "add"
-                              ? "Adding..."
-                              : "Updating..."
-                            : modalMode === "add"
-                            ? "Add Category"
-                            : "Update Category"}
-                        </button>
-                      </>
+                  <div className="flex items-center">
+                    <div className="relative inline-block w-10 mr-2 align-middle">
+                      <input
+                        type="checkbox"
+                        id="isActive"
+                        name="isActive"
+                        className="sr-only"
+                        checked={formData.isActive}
+                        onChange={handleToggleActive}
+                        disabled={modalMode === "view"}
+                      />
+                      <label
+                        htmlFor="isActive"
+                        className={`block overflow-hidden h-6 rounded-full cursor-pointer transition-colors duration-200 ease-in-out ${
+                          formData.isActive ? "bg-blue-600" : "bg-gray-300"
+                        } ${
+                          modalMode === "view"
+                            ? "opacity-70 cursor-not-allowed"
+                            : "cursor-pointer"
+                        }`}
+                      >
+                        <span
+                          className={`block h-5 w-5 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                            formData.isActive
+                              ? "translate-x-5"
+                              : "translate-x-0"
+                          }`}
+                        ></span>
+                      </label>
+                    </div>
+                    <span className="text-sm text-gray-700">
+                      {formData.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-end space-x-2 pt-2 border-t">
+                    <button
+                      type="button"
+                      onClick={() => setShowSolutionGroupModal(false)}
+                      className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm"
+                    >
+                      {modalMode === "view" ? "Close" : "Cancel"}
+                    </button>
+                    {modalMode !== "view" && (
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1 text-sm"
+                      >
+                        {loading && (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        )}
+                        {modalMode === "add"
+                          ? "Add Solution Group"
+                          : "Update Solution Group"}
+                      </button>
                     )}
                   </div>
                 </form>

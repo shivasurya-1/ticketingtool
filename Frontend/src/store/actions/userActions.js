@@ -10,7 +10,6 @@ export const fetchUserDetails = createAsyncThunk(
     try {
       const decoded = jwtDecode(accessToken);
       const userId = decoded?.user_id;
-      console.log(decoded);
       if (!userId) throw new Error("Invalid token payload");
 
       const response = await axiosInstance.get("/details/my_profile/", {
@@ -18,7 +17,28 @@ export const fetchUserDetails = createAsyncThunk(
           Authorization: `Bearer ${accessToken}`,
         },
       });
-      console.log("User details response:", response.data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+// Add this new thunk for updating the profile
+export const updateUserProfile = createAsyncThunk(
+  "user/updateUserProfile",
+  async ({ formData, accessToken }, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.put('/details/my_profile/', formData, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          "Content-Type": "multipart/form-data",
+        }
+      });
+      
+      // After successful update, fetch the latest user data
+      dispatch(fetchUserDetails(accessToken));
+      
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
