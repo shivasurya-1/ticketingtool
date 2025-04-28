@@ -46,6 +46,7 @@ import ResolveIssue from "./pages/ResolveIssue";
 import Projects from "./pages/Admin/Projects";
 import GroupTickets from "./pages/GroupTickets";
 import CreateIssue from "./pages/CreateIssue/CreateIssue";
+import IssueCategory from "./pages/Admin/IssueCategory";
 
 const App = () => {
  const dispatch= useDispatch() 
@@ -171,6 +172,7 @@ const App = () => {
             <Route path="/solutionGrp" element={<SolutionGroup />} />
             <Route path="/tickets" element={<ListAllTickets />} />
             <Route path="/dispatcher" element={<DispatcherPage />} />
+            <Route path="/issue-category" element={<IssueCategory />} />
             <Route path="*" element={<Home />} />
           </Route>
         </Routes>

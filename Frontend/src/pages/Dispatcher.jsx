@@ -321,7 +321,7 @@ export default function DispatcherPage() {
             </div>
             <button
               onClick={fetchUnassignedTickets}
-              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 transition-colors"
               disabled={loading}
             >
               <FiRefreshCw size={16} className={loading ? "animate-spin" : ""} />
@@ -398,7 +398,7 @@ export default function DispatcherPage() {
                 </p>
                 <button
                   onClick={fetchUnassignedTickets}
-                  className="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded-lg flex items-center gap-1 mx-auto text-sm"
+                  className="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1 mx-auto text-sm"
                 >
                   <FiRefreshCw size={16} />
                   Refresh Tickets

@@ -6,7 +6,7 @@ from roles_creation.models import UserRole
 
 class Organisation(models.Model):
     organisation_id = models.BigAutoField(primary_key=True) 
-    organisation_name = models.CharField(max_length=255)
+    organisation_name = models.CharField(max_length=255,unique=True)  # Ensuring unique organisation name
     organisation_mail = models.EmailField(unique=True)  # Ensuring unique email
     is_active = models.BooleanField(default=True)  # Soft deletion flag
     created_at = models.DateTimeField(auto_now_add=True)

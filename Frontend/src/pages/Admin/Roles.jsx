@@ -92,6 +92,7 @@ export default function Role() {
         },
       });
       if (response.status === 200) {
+        console.log("Roles fetched successfully:", response.data);
         setRoles(response.data);
         // Reset to first page when data changes significantly
         setCurrentPage(0);
@@ -163,7 +164,7 @@ export default function Role() {
         }
       } else if (modalMode === "edit") {
         response = await axiosInstance.put(
-          `/roles/create/${selectedRoleId}/`,
+          `/roles/${selectedRoleId}/`,
           parsedData,
           {
             headers: {

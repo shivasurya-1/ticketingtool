@@ -6,6 +6,7 @@ import Button from "../../components/common/Button";
 import ReactPaginate from "react-paginate";
 import { ToastContainer, toast } from "react-toastify";
 import { axiosInstance } from "../../utils/axiosInstance";
+const { formatDate } = require("../../utils/formatDate");
 
 export default function Organisations() {
   const [loading, setLoading] = useState(true);
@@ -108,14 +109,11 @@ export default function Organisations() {
           is_active: org.is_active !== undefined ? org.is_active : true,
         }));
         setOrganisations(processedOrganisations);
+       
         // Reset to first page when data changes significantly
         setCurrentPage(0);
       }
     } catch (error) {
-      console.log(
-        "Organisations fetched failed:",
-        error.response.data.organisation_mail[0]
-      );
       toast.error(
         error.response?.data?.error || "Failed to fetch organisations"
       );
@@ -384,7 +382,16 @@ export default function Organisations() {
                         Status
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                        Created At
+                        Created at
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Created by
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Updated at
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Updated by
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Actions
@@ -418,8 +425,18 @@ export default function Organisations() {
                           </span>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
-                          {new Date(org.created_at).toLocaleDateString()}
+                          {formatDate(org.created_at) || "-"}
                         </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {org.created_by || "-"}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {formatDate(org.modified_at) || "-"}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                        {org.modified_by ? org.modified_by : "-"}
+                        </td>
+
                         <td className="px-3 py-2 whitespace-nowrap text-xs font-medium">
                           <div className="flex space-x-1">
                             <button

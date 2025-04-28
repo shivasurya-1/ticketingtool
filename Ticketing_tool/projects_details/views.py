@@ -64,7 +64,7 @@ class ProjectDetailsAPI(APIView):
             final_data=[{'data':serializer.data}]
             result = [{"name": k, "projects": [d["project_name_name"] for d in v]} for k, v in itertools.groupby(sorted(project_members_serializer.data, key=lambda x: x["project_asignee_username"]), key=lambda x: x["project_asignee_username"])]
             final_data.append({'projects':result})
-            final_data.append({'requestor_ids':[ i for i in ids]})
+            final_data.append({'reporter_ids':[ i for i in ids]})
             return Response(final_data)
         except Organisation.DoesNotExist:
             return Response({"error": "Organisation not found."}, status=status.HTTP_404_NOT_FOUND)

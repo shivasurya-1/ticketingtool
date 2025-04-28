@@ -89,7 +89,7 @@ const Navbar = ({ isLoading = false }) => {
         </div>
       )}
       
-      <header className="w-full shadow-sm bg-white rounded-lg">
+      <header className="w-full shadow-sm bg-white">
         <div className="container mx-auto">
           <nav className="px-4 py-2">
             <div className="flex items-center justify-between">

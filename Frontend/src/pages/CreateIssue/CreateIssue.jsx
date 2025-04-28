@@ -1310,6 +1310,7 @@ export default function CreateIssue() {
                     onFocus={() => handleFocus("description")}
                     onBlur={handleBlur}
                     error={formErrors.description}
+                    
                     className={`text-xs border rounded bg-white max-h-40 ${
                       focusedField === "description"
                         ? "ring-2 ring-blue-100 border-blue-600"

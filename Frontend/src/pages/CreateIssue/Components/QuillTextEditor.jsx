@@ -135,23 +135,6 @@ const QuillTextEditor = ({
         />
       )}
 
-      {/* PDF Upload Section */}
-      {/* {allowPdf && (
-        <div className="mt-4 space-y-2">
-          <label className="block font-medium">Attach PDF (optional):</label>
-          <input
-            type="file"
-            accept="application/pdf"
-            onChange={handlePdfChange}
-            className="block w-full text-sm file:mr-4 file:py-2 file:px-4
-                       file:rounded-md file:border-0 file:text-sm file:font-semibold
-                       file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-          />
-          {pdfFile && (
-            <div className="text-sm text-gray-600">Selected: {pdfFile.name}</div>
-          )}
-        </div>
-      )} */}
     </div>
   );
 };

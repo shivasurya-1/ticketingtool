@@ -4,6 +4,14 @@ class Role(models.Model):
     """User roles (Admin, Developer, Support, etc.)"""
     role_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=50, unique=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,related_name='role_created')
+    modified_at = models.DateTimeField(auto_now=True)
+    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,related_name='role_modified')
+    # def __str__(self):
+        # return f"{self.name} ({'Active' if self.is_active else 'Inactive'})"
+    
     def __str__(self):
         return self.name
 class Permission(models.Model):
@@ -16,10 +24,13 @@ class RolePermission(models.Model):
     role_permission_id = models.AutoField(primary_key=True)
     role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name="role_permissions")
     # permission = models.ManyToManyField(Permission, on_delete=models.CASCADE, related_name='role_permissions')
+    is_active = models.BooleanField(default=True)
     permission = models.ManyToManyField(Permission, blank=True) 
     # permission = models.ForeignKey(Permission, on_delete=models.CASCADE, related_name="roles")
     created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,related_name='role_permission_created')
+    modified_at = models.DateTimeField(auto_now=True)
+    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,related_name='role_permission_modified')
     # def __str__(self):
         # return f"{self.role.name} - {self.permission.name}"
     
@@ -35,6 +46,10 @@ class UserRole(models.Model):
     role = models.ForeignKey("roles_creation.Role", on_delete=models.CASCADE, related_name="user_roles")
     is_active = models.BooleanField(default=True)  
     assigned_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,related_name='user_role_created')
+    modified_at = models.DateTimeField(auto_now=True)
+    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,related_name='user_role_modified')
+    created_at = models.DateTimeField(auto_now_add=True)
     # expires_at = models.DateTimeField(null=True, blank=True)  # Optional expiration
 
     class Meta:

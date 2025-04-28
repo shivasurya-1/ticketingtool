@@ -24,7 +24,7 @@ class OrganisationAPI(APIView):
         self.permission_required = "view_organization"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
         print("done")
 
         logger.info("OrganizationList view was called")
@@ -49,7 +49,7 @@ class OrganisationAPI(APIView):
         self.permission_required = "create_users"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
 
        
         serializer = OrganisationSerializer(data=request.data)
@@ -67,7 +67,7 @@ class OrganisationAPI(APIView):
         self.permission_required = "update_organization"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
         try:
             organisation = Organisation.objects.get(organisation_id=organisation_id)
         except Organisation.DoesNotExist:
@@ -84,7 +84,7 @@ class OrganisationAPI(APIView):
         self.permission_required = "delete_organization"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
         try:
             organisation = Organisation.objects.get(organisation_id=organisation_id)
             organisation.delete()

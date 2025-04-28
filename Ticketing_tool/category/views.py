@@ -22,7 +22,7 @@ class CategoryAPIView(APIView):
         self.permission_required = "view_category"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
 
         logger.info("CategoryList view was called")
 
@@ -43,7 +43,7 @@ class CategoryAPIView(APIView):
         self.permission_required = "create_category"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
 
         data = request.data
         category_name = data.get('category_name')
@@ -52,7 +52,7 @@ class CategoryAPIView(APIView):
         # Check if the category already exists for the organization
         if organisation and Category.objects.filter(category_name=category_name, organisation=organisation).exists():
             return Response(
-                {"category_name": "Category with this name already exists for the organization."},
+                {"error": "Category with this name already exists for the organization."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -86,12 +86,12 @@ class CategoryAPIView(APIView):
         self.permission_required = "delete_category"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
         
         try:
             category = Category.objects.get(pk=id)
             category.delete()
-            return Response({"message": "Category deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+            return Response({"error": "Category deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
         except Category.DoesNotExist:
             return Response({"error": "Category not found"}, status=status.HTTP_404_NOT_FOUND)
 

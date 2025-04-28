@@ -6,6 +6,7 @@ import Button from "../../components/common/Button";
 import ReactPaginate from "react-paginate";
 import { ToastContainer, toast } from "react-toastify";
 import { axiosInstance } from "../../utils/axiosInstance";
+import { formatDate } from "../../utils/formatDate";
 
 export default function Category() {
   const [loading, setLoading] = useState(true);
@@ -115,6 +116,7 @@ export default function Category() {
             category.is_active !== undefined ? category.is_active : true,
         }));
         setCategories(processedCategories);
+        console.log("Fetched categories:", processedCategories);
         // Reset to first page when data changes significantly
         setCurrentPage(0);
       }
@@ -439,6 +441,18 @@ export default function Category() {
                         Status
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Created at
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Created by
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Updated at
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Updated by
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Actions
                       </th>
                     </tr>
@@ -477,6 +491,19 @@ export default function Category() {
                             {category.is_active ? "Active" : "Inactive"}
                           </span>
                         </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {formatDate(category.created_at) || "-"}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {category.created_by || "-"}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {formatDate(category.modified_at) || "-"}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {category.modified_by || "-"}
+                        </td>
+
                         <td className="px-3 py-2 whitespace-nowrap text-xs font-medium">
                           <div className="flex space-x-1">
                             <button
