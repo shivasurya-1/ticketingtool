@@ -1,32 +1,32 @@
-import { configureStore } from '@reduxjs/toolkit';
-import { persistStore, persistReducer } from 'redux-persist';
-import storage from 'redux-persist/lib/storage'; // defaults to localStorage
-import { combineReducers } from 'redux';
+import { configureStore } from "@reduxjs/toolkit";
+import { persistStore, persistReducer } from "redux-persist";
+import storage from "redux-persist/lib/storage"; // defaults to localStorage
+import { combineReducers } from "redux";
 
 // Import your reducers
-import inputsReducer from './reducers';
+import inputsReducer from "./reducers";
 // import navReducer from '../features/nav/NavSlice';
-import uiSlice from './Slices/uiSlice';
+import uiSlice from "./Slices/uiSlice";
 // import filesReducer from '../features/nav/files/filesSlice';
 // import optionsReducer from './Slices/selectOptionSlice';
-import formReducer from './Slices/formSlice';
-import navbarReducer from './navbarSlice';
-import searchReducer from './Slices/searchSlice';
-import ticketsReducer from './ticketSlice';
-import authReducer from '../features/auth/authSlice';
-import authenticationReducer from './Slices/auth/authenticationSlice';
-import buttonReducer from './Slices/buttonSlice';
-import forgotPasswordReducer from './Slices/forgotpasswordSlice';
-import itemsSlice from './Slices/itemsSlice';
-import ticketCreationSlice from '../features/auth/ticketCreationSlice';
-import profileReducer from './Slices/profileSlice';
-import userProfileReducer from './Slices/userProfileSlice';
-import issueSelectionReducer from './Slices/issueSelectionSlice';
+import formReducer from "./Slices/formSlice";
+import navbarReducer from "./navbarSlice";
+import searchReducer from "./Slices/searchSlice";
+import ticketsReducer from "./ticketSlice";
+import authReducer from "../features/auth/authSlice";
+import authenticationReducer from "./Slices/auth/authenticationSlice";
+import buttonReducer from "./Slices/buttonSlice";
+import forgotPasswordReducer from "./Slices/forgotpasswordSlice";
+import itemsSlice from "./Slices/itemsSlice";
+import ticketCreationSlice from "../features/auth/ticketCreationSlice";
+import profileReducer from "./Slices/profileSlice";
+import userProfileReducer from "./Slices/userProfileSlice";
+import serviceDomainReducer from "./Slices/serviceDomainSlice";
 // Configure persistence for specific reducers
 const persistConfig = {
-  key: 'root',
+  key: "root",
   storage,
-  whitelist: ['profile', 'auth', "authentication", "issueSelection"], // Add the reducers you want to persist here
+  whitelist: ["profile", "auth", "authentication", "serviceDomainSelection"], // Add the reducers you want to persist here
 };
 
 // Combine all reducers
@@ -39,8 +39,8 @@ const rootReducer = combineReducers({
   form: formReducer,
   navbar: navbarReducer,
   search: searchReducer,
-  tickets: ticketsReducer,   
-  auth: authReducer, 
+  tickets: ticketsReducer,
+  auth: authReducer,
   authentication: authenticationReducer,
   button: buttonReducer,
   forgotPassword: forgotPasswordReducer,
@@ -48,7 +48,7 @@ const rootReducer = combineReducers({
   ticketCreation: ticketCreationSlice,
   profile: profileReducer,
   userProfile: userProfileReducer,
-  issueSelection: issueSelectionReducer,
+  serviceDomainSelection: serviceDomainReducer,
 });
 
 // Create persisted reducer
@@ -60,7 +60,7 @@ const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
+        ignoredActions: ["persist/PERSIST", "persist/REHYDRATE"],
       },
     }),
 });
@@ -71,6 +71,5 @@ export const persistor = persistStore(store);
 export const clearPersistedState = () => {
   persistor.purge(); // This clears all persisted state
 };
-
 
 export default store;

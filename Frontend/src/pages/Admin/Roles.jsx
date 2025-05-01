@@ -6,6 +6,7 @@ import Button from "../../components/common/Button";
 import ReactPaginate from "react-paginate";
 import { ToastContainer, toast } from "react-toastify";
 import { axiosInstance } from "../../utils/axiosInstance";
+import { formatDate } from "../../utils/formatDate";
 
 export default function Role() {
   const [loading, setLoading] = useState(true);
@@ -14,6 +15,7 @@ export default function Role() {
   const [currentPage, setCurrentPage] = useState(0);
   const [formData, setFormData] = useState({
     roleName: "",
+    isActive: true,
   });
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [totalEntries, setTotalEntries] = useState(0);
@@ -92,14 +94,13 @@ export default function Role() {
         },
       });
       if (response.status === 200) {
-        console.log("Roles fetched successfully:", response.data);
         setRoles(response.data);
         // Reset to first page when data changes significantly
         setCurrentPage(0);
       }
     } catch (error) {
       console.error("Error fetching roles:", error);
-      toast.error("Failed to load roles");
+      toast.error(error?.response?.data?.error || "Failed to fetch roles");
       setRoles([]);
     } finally {
       setLoading(false);
@@ -111,10 +112,17 @@ export default function Role() {
   };
 
   const handleFormChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData({
       ...formData,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
+    });
+  };
+
+  const handleToggleActive = () => {
+    setFormData({
+      ...formData,
+      isActive: !formData.isActive,
     });
   };
 
@@ -146,6 +154,7 @@ export default function Role() {
 
     const parseFormData = (data) => ({
       name: data.roleName,
+      is_active: data.isActive,
     });
 
     try {
@@ -164,7 +173,7 @@ export default function Role() {
         }
       } else if (modalMode === "edit") {
         response = await axiosInstance.put(
-          `/roles/${selectedRoleId}/`,
+          `/roles/role/${selectedRoleId}/`,
           parsedData,
           {
             headers: {
@@ -198,6 +207,7 @@ export default function Role() {
     setSelectedRoleId(role.role_id);
     setFormData({
       roleName: role.name,
+      isActive: role.is_active,
     });
     setModalMode("view");
     setShowRoleModal(true);
@@ -207,6 +217,7 @@ export default function Role() {
     setSelectedRoleId(role.role_id);
     setFormData({
       roleName: role.name,
+      isActive: role.is_active,
     });
     setModalMode("edit");
     setShowRoleModal(true);
@@ -221,10 +232,10 @@ export default function Role() {
   const resetForm = () => {
     setFormData({
       roleName: "",
+      isActive: true,
     });
     setSelectedRoleId(null);
   };
-  console.log("Roles:", filteredRoles);
 
   return (
     <div className="flex w-full h-screen bg-gray-50">
@@ -234,9 +245,7 @@ export default function Role() {
           {/* Condensed Header */}
           <div className="flex justify-between items-center mb-3">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">
-                Roles
-              </h1>
+              <h1 className="text-2xl font-bold text-gray-800">Roles</h1>
               <p className="text-gray-500 text-sm">
                 Add, search, and manage your roles
               </p>
@@ -293,9 +302,7 @@ export default function Role() {
             {loading ? (
               <div className="p-4 text-center">
                 <div className="inline-block animate-spin rounded-full h-6 w-6 border-3 border-blue-500 border-t-transparent"></div>
-                <p className="mt-2 text-gray-600 text-sm">
-                  Loading roles...
-                </p>
+                <p className="mt-2 text-gray-600 text-sm">Loading roles...</p>
               </div>
             ) : !filteredRoles.length ? (
               <div className="p-6 text-center">
@@ -313,9 +320,7 @@ export default function Role() {
                   </svg>
                 </div>
                 <p className="text-gray-500 text-sm">
-                  {searchTerm
-                    ? "No matching roles found"
-                    : "No roles found"}
+                  {searchTerm ? "No matching roles found" : "No roles found"}
                 </p>
                 <button
                   onClick={openAddModal}
@@ -337,7 +342,19 @@ export default function Role() {
                         Role Name
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                        Created At
+                        Status
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Created at
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Created by
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Updated at
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Updated by
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Actions
@@ -356,8 +373,30 @@ export default function Role() {
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-800">
                           {role.name}
                         </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              role.is_active
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {role.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
-                          {role.created_at ? new Date(role.created_at).toLocaleDateString() : "-"}
+                          {role.created_at
+                            ? new Date(role.created_at).toLocaleDateString()
+                            : "-"}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {role.created_by || "-"}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {formatDate(role.modified_at || "-")}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {role.modified_by || "-"}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs font-medium">
                           <div className="flex space-x-1">
@@ -387,7 +426,7 @@ export default function Role() {
 
           {/* Compact Pagination Controls */}
           {filteredRoles.length > 0 && (
-            <div className="mt-2 flex justify-end items-center">
+            <div className="mt-2 flex justify-start items-center">
               <ReactPaginate
                 previousLabel={
                   <span className="flex items-center">
@@ -495,6 +534,41 @@ export default function Role() {
                         modalMode === "view" ? "bg-gray-50 text-gray-500" : ""
                       }`}
                     />
+                  </div>
+
+                  <div className="flex items-center">
+                    <div
+                      onClick={modalMode !== "view" ? handleToggleActive : undefined}
+                      className={`relative inline-block w-10 h-5 rounded-full transition-colors ${
+                        modalMode === "view"
+                          ? "opacity-70 pointer-events-none"
+                          : "cursor-pointer"
+                      } ${formData.isActive ? "bg-blue-500" : "bg-gray-300"}`}
+                    >
+                      <span
+                        className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white transition-transform transform ${
+                          formData.isActive ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                      <input
+                        id="isActive"
+                        name="isActive"
+                        type="checkbox"
+                        checked={formData.isActive}
+                        onChange={handleFormChange}
+                        className="sr-only"
+                        disabled={modalMode === "view"}
+                      />
+                    </div>
+                    <label
+                      htmlFor="isActive"
+                      className={`text-xs font-medium text-gray-700 ml-2 ${
+                        modalMode !== "view" ? "cursor-pointer" : ""
+                      }`}
+                      onClick={modalMode !== "view" ? handleToggleActive : undefined}
+                    >
+                      {formData.isActive ? "Active" : "Inactive"}
+                    </label>
                   </div>
 
                   <div className="flex justify-end gap-2 pt-3 border-t">

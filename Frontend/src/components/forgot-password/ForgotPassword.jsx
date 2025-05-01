@@ -6,6 +6,7 @@ import { enableButton } from "../../store/Slices/buttonSlice";
 import { useNavigate } from "react-router-dom";
 import { axiosInstance } from "../../utils/axiosInstance";
 import { ToastContainer, toast } from "react-toastify";
+import { Eye, EyeOff } from "lucide-react";
 
 const ForgotPassword = () => {
   const dispatch = useDispatch();
@@ -13,10 +14,10 @@ const ForgotPassword = () => {
   const email = useSelector((state) => state.inputs.email || "");
   const otp = useSelector((state) => state.inputs.otp || "");
   const new_password = useSelector((state) => state.inputs.new_password || "");
+  const confirm_password = useSelector((state) => state.inputs.confirm_password || "");
 
   const [isSubmitButtonVisible, setIsSubmitButtonVisible] = useState(true);
-  const [isSubmitOTPButtonVisible, setIsSubmitOTPButtonVisible] =
-    useState(true);
+  const [isSubmitOTPButtonVisible, setIsSubmitOTPButtonVisible] = useState(true);
   const [otpMessage, setOtpMessage] = useState("");
   const [otpVisible, setOtpVisible] = useState(false);
   const [error, setError] = useState("");
@@ -25,12 +26,13 @@ const ForgotPassword = () => {
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [resendEnabled, setResendEnabled] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const forgotpassword_url = process.env.REACT_APP_FORGOT_PASSWORD_API;
   const verifyotp_url = process.env.REACT_APP_VERIFY_OTP_API;
   const resetpassword_url = process.env.REACT_APP_RESET_PASSWORD_API;
 
-  // Handle email submission
   const handleEmailSubmit = async () => {
     setIsLoading(true);
     setError("");
@@ -41,13 +43,11 @@ const ForgotPassword = () => {
         setIsOtpSent(true);
         setResendEnabled(false);
         setResendTimer(30);
-        const successMessage =
-          response?.data?.message || "OTP sent to your email";
+        const successMessage = response?.data?.message || "OTP sent to your email";
         toast.success(successMessage);
       }
     } catch (error) {
-      const errorMessage =
-        error.response?.data?.error || "Error in sending OTP";
+      const errorMessage = error.response?.data?.error || "Error in sending OTP";
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -55,7 +55,6 @@ const ForgotPassword = () => {
     }
   };
 
-  // Handle OTP submission
   const handleOtpSubmit = async () => {
     setIsLoading(true);
     setError("");
@@ -64,13 +63,11 @@ const ForgotPassword = () => {
       if (response.status === 200) {
         setIsSubmitOTPButtonVisible(false);
         setOtpVerified(true);
-        const successMessage =
-          response?.data?.message || "OTP verified successfully";
+        const successMessage = response?.data?.message || "OTP verified successfully";
         toast.success(successMessage);
       }
     } catch (error) {
-      const errorMessage =
-        error.response?.data?.error || "Error in Verifying OTP";
+      const errorMessage = error.response?.data?.error || "Error in Verifying OTP";
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -78,10 +75,17 @@ const ForgotPassword = () => {
     }
   };
 
-  // Handle password reset
   const handlePasswordReset = async () => {
     setIsLoading(true);
     setError("");
+
+    if (new_password !== confirm_password) {
+      setError("New password and confirm password do not match");
+      setIsLoading(false);
+      dispatch(enableButton());
+      return;
+    }
+
     try {
       const response = await axiosInstance.post(resetpassword_url, {
         email,
@@ -107,7 +111,6 @@ const ForgotPassword = () => {
     }
   };
 
-  // Resend timer logic
   useEffect(() => {
     let interval;
     if (isOtpSent && !resendEnabled && resendTimer > 0) {
@@ -123,6 +126,13 @@ const ForgotPassword = () => {
     }
     return () => clearInterval(interval);
   }, [isOtpSent, resendEnabled, resendTimer]);
+
+  const toggleNewPasswordVisibility = () => {
+    setShowNewPassword(!showNewPassword);
+  };
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword);
+  };
 
   return (
     <div className="mt-6 bg-blue-50 p-8 md:p-12 rounded-3xl shadow-2xl w-full sm:w-10/12 md:w-8/12 lg:w-6/12 mx-auto">
@@ -208,12 +218,38 @@ const ForgotPassword = () => {
 
       {otpVerified && (
         <div className="mb-6">
-          <FieldsetInputField
-            label="Enter new password"
-            type="password"
-            name="new_password"
-            className="w-full border-gray-300 rounded-lg"
-          />
+          <div className="relative">
+            <FieldsetInputField
+              label="Enter new password"
+              type={showNewPassword ? "text" : "password"}
+              name="new_password"
+              className="w-full border-gray-300 rounded-lg"
+            />
+            <button
+              type="button"
+              onClick={toggleNewPasswordVisibility}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              aria-label={showNewPassword ? "Hide password" : "Show password"}
+            >
+              {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
+          <div className="relative">
+            <FieldsetInputField
+              label="Confirm new password"
+              type={showConfirmPassword ? "text" : "password"}
+              name="confirm_password"
+              className="w-full border-gray-300 rounded-lg mt-4"
+            />
+            <button
+              type="button"
+              onClick={toggleConfirmPasswordVisibility}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+            >
+              {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
           <Button
             label={isLoading ? "Resetting..." : "Reset Password"}
             onClick={handlePasswordReset}

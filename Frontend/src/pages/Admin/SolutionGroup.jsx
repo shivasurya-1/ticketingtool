@@ -645,7 +645,7 @@ export default function SolutionGroup() {
 
           {/* Compact Pagination Controls */}
           {filteredSolutionGroups.length > 0 && (
-            <div className="mt-2 flex justify-end items-center">
+            <div className="mt-2 flex justify-start items-center">
               <ReactPaginate
                 previousLabel={
                   <span className="flex items-center">
@@ -807,6 +807,7 @@ export default function SolutionGroup() {
                   </div>
 
                   {/* Category field */}
+                  {/* Category field */}
                   <div>
                     <label
                       htmlFor="category"
@@ -846,23 +847,30 @@ export default function SolutionGroup() {
                         }`}
                       >
                         <option value="">Select category</option>
-                        {filteredSolutionGroupsByOrg.length > 0
-                          ? filteredSolutionGroupsByOrg.map((cat) => (
-                              <option
-                                key={cat.category_id}
-                                value={cat.category_id}
-                              >
-                                {cat.category_name}
-                              </option>
-                            ))
-                          : categories.map((cat) => (
-                              <option
-                                key={cat.category_id}
-                                value={cat.category_id}
-                              >
-                                {cat.category_name}
-                              </option>
-                            ))}
+                        {formData.organisation &&
+                        filteredSolutionGroupsByOrg.length > 0 ? (
+                          filteredSolutionGroupsByOrg.map((cat) => (
+                            <option
+                              key={cat.category_id}
+                              value={cat.category_id}
+                            >
+                              {cat.category_name}
+                            </option>
+                          ))
+                        ) : formData.organisation ? (
+                          <option value="" disabled>
+                            No categories found for selected organisation
+                          </option>
+                        ) : (
+                          categories.map((cat) => (
+                            <option
+                              key={cat.category_id}
+                              value={cat.category_id}
+                            >
+                              {cat.category_name}
+                            </option>
+                          ))
+                        )}
                       </select>
                     )}
                     {modalMode !== "view" && !formData.organisation && (
@@ -870,48 +878,15 @@ export default function SolutionGroup() {
                         Please select an organisation first
                       </p>
                     )}
+                    {modalMode !== "view" &&
+                      formData.organisation &&
+                      filteredSolutionGroupsByOrg.length === 0 && (
+                        <p className="mt-1 text-xs text-orange-600">
+                          No categories found for the selected organisation
+                        </p>
+                      )}
                   </div>
 
-                  {/* Active status toggle */}
-
-                  {/* <div className="flex items-center">
-                    <div className="relative inline-block">
-                      <input
-                        id="isActive"
-                        name="isActive"
-                        type="checkbox"
-                        checked={formData.isActive}
-                        onChange={handleFormChange}
-                        className="sr-only"
-                        disabled={modalMode === "view"}
-                      />
-                      <div
-                        onClick={handleToggleActive}
-                        className={`w-7 h-4 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-300 ease-in-out ${
-                          formData.isActive ? "bg-blue-500" : "bg-gray-300"
-                        } ${
-                          modalMode === "view"
-                            ? "opacity-70 pointer-events-none"
-                            : ""
-                        }`}
-                      >
-                        <div
-                          className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${
-                            formData.isActive
-                              ? "translate-x-3"
-                              : "translate-x-0"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                    <label
-                      htmlFor="isActive"
-                      className="text-xs font-medium text-gray-700 ml-2 cursor-pointer"
-                      onClick={handleToggleActive}
-                    >
-                      {formData.isActive ? "Active" : "Inactive"}
-                    </label>
-                  </div> */}
                   <div className="flex items-center">
                     <div
                       onClick={handleToggleActive}

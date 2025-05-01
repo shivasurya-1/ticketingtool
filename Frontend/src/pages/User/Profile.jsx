@@ -1,8 +1,23 @@
 import { useState, useEffect } from "react";
 import ChatbotPopup from "../../components/ChatBot";
-import { User, Mail, MapPin, Calendar, FileText, Phone, Save, X, Upload, Edit2 } from "lucide-react";
+import { 
+  User, 
+  Mail, 
+  MapPin, 
+  Calendar, 
+  FileText, 
+  Phone, 
+  Save, 
+  X, 
+  Upload, 
+  Edit2, 
+  Briefcase, 
+  Users, 
+  ShieldCheck, 
+  AtSign,
+  Folder
+} from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
-import { axiosInstance } from "../../utils/axiosInstance";
 import { toast } from "react-hot-toast";
 import Navbar from "../../components/Navbar";
 import Sidebar from "../../components/Sidebar";
@@ -22,7 +37,7 @@ export default function Profile() {
   useEffect(() => {
     if (userProfile) {
       setEditedProfile({ ...userProfile });
-      setImagePreview(userProfile.profile_pic);
+      setImagePreview(userProfile.profile_pic_url || userProfile.profile_pic);
     }
   }, [userProfile]);
 
@@ -33,7 +48,7 @@ export default function Profile() {
   const handleEditToggle = () => {
     if (!isEditing) {
       setEditedProfile({ ...userProfile });
-      setImagePreview(userProfile.profile_pic);
+      setImagePreview(userProfile.profile_pic_url || userProfile.profile_pic);
       setProfileImage(null);
     }
     setIsEditing(!isEditing);
@@ -67,7 +82,9 @@ export default function Profile() {
       
       // Add all profile fields to formData
       Object.keys(editedProfile).forEach(key => {
-        if (key !== 'profile_pic' && editedProfile[key] !== null) {
+        // Skip fields that should not be edited and profile_pic which is handled separately
+        const nonEditableFields = ['email', 'organisation_name', 'assigned_projects', 'role', 'username', 'profile_pic', 'profile_pic_url'];
+        if (!nonEditableFields.includes(key) && editedProfile[key] !== null) {
           formData.append(key, editedProfile[key]);
         }
       });
@@ -100,6 +117,33 @@ export default function Profile() {
     }
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return "Not specified";
+    try {
+      const date = new Date(dateString);
+      // Only show date without time for date of birth
+      if (dateString === userProfile.date_of_birth) {
+        const options = { 
+          day: 'numeric', 
+          month: 'long', 
+          year: 'numeric'
+        };
+        return date.toLocaleDateString('en-US', options);
+      }
+      // Show date and time for other dates
+      const options = { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric',
+        hour: '2-digit', 
+        minute: '2-digit'
+      };
+      return date.toLocaleDateString('en-US', options);
+    } catch (error) {
+      return dateString;
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen">
       <div className="flex flex-1 overflow-hidden">
@@ -112,7 +156,7 @@ export default function Profile() {
                 <div className="relative">
                   <div className="h-16 w-16 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-white">
                     <img
-                      src={isEditing ? imagePreview : userProfile.profile_pic || "/api/placeholder/150/150"}
+                      src={isEditing ? imagePreview : (userProfile.profile_pic_url || userProfile.profile_pic || "/api/placeholder/150/150")}
                       alt="Profile"
                       className="object-cover w-full h-full"
                     />
@@ -187,7 +231,7 @@ export default function Profile() {
               </div>
             </div>
 
-            {/* Profile Content - Unified Layout */}
+            {/* Profile Content - Improved Organization */}
             <div className="flex-1 p-4 overflow-auto">
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="text-sm font-semibold mb-3 text-gray-800 flex items-center">
@@ -196,8 +240,10 @@ export default function Profile() {
                 </h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Account Information Column */}
+                  {/* Basic Information Column */}
                   <div className="space-y-3">
+                    <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Basic Information</h4>
+                    
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 bg-blue-100 rounded text-blue-600">
                         <User size={14} />
@@ -214,21 +260,13 @@ export default function Profile() {
                       </div>
                       <div className="flex-1">
                         <p className="text-xs text-gray-500">Email Address</p>
-                        {isEditing ? (
-                          <input
-                            type="email"
-                            name="email"
-                            value={editedProfile.email || ""}
-                            onChange={handleInputChange}
-                            className="w-full text-sm bg-white border border-blue-300 rounded px-2 py-1"
-                            placeholder="Email Address"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium break-all">{userProfile.email}</p>
+                        <p className="text-sm font-medium break-all">{userProfile.email}</p>
+                        {isEditing && (
+                          <p className="text-xs italic text-gray-400 mt-1">Email cannot be edited</p>
                         )}
                       </div>
                     </div>
-
+                    
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 bg-green-100 rounded text-green-600">
                         <Phone size={14} />
@@ -245,89 +283,7 @@ export default function Profile() {
                             placeholder="Phone Number"
                           />
                         ) : (
-                          <p className="text-sm font-medium">{userProfile.phone_number}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-indigo-100 rounded text-indigo-600">
-                        <FileText size={14} />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-500">Department</p>
-                        <p className="text-sm font-medium">{userProfile.department || "Not specified"}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Personal Details Column */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-yellow-100 rounded text-yellow-600">
-                        <MapPin size={14} />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-500">Address</p>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            name="address"
-                            value={editedProfile.address || ""}
-                            onChange={handleInputChange}
-                            className="w-full text-sm bg-white border border-blue-300 rounded px-2 py-1"
-                            placeholder="Address"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium">{userProfile.address}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-500">City</p>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            name="city"
-                            value={editedProfile.city || ""}
-                            onChange={handleInputChange}
-                            className="w-full text-sm bg-white border border-blue-300 rounded px-2 py-1"
-                            placeholder="City"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium">{userProfile.city}</p>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-500">State</p>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            name="state"
-                            value={editedProfile.state || ""}
-                            onChange={handleInputChange}
-                            className="w-full text-sm bg-white border border-blue-300 rounded px-2 py-1"
-                            placeholder="State"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium">{userProfile.state}</p>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-500">Country</p>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            name="country"
-                            value={editedProfile.country || ""}
-                            onChange={handleInputChange}
-                            className="w-full text-sm bg-white border border-blue-300 rounded px-2 py-1"
-                            placeholder="Country"
-                          />
-                        ) : (
-                          <p className="text-sm font-medium">{userProfile.country}</p>
+                          <p className="text-sm font-medium">{userProfile.phone_number || "Not specified"}</p>
                         )}
                       </div>
                     </div>
@@ -341,16 +297,220 @@ export default function Profile() {
                         {isEditing ? (
                           <input
                             type="date"
-                            name="dob"
-                            value={editedProfile.dob || ""}
+                            name="date_of_birth"
+                            value={editedProfile.date_of_birth || ""}
                             onChange={handleInputChange}
                             className="w-full text-sm bg-white border border-blue-300 rounded px-2 py-1"
                             placeholder="Date of Birth"
                           />
                         ) : (
-                          <p className="text-sm font-medium">{userProfile.dob || "Not specified"}</p>
+                          <p className="text-sm font-medium">{formatDate(userProfile.date_of_birth) || "Not specified"}</p>
                         )}
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Work Information Column */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Work Information</h4>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-indigo-100 rounded text-indigo-600">
+                        <FileText size={14} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500">Department</p>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            name="department"
+                            value={editedProfile.department || ""}
+                            onChange={handleInputChange}
+                            className="w-full text-sm bg-white border border-blue-300 rounded px-2 py-1"
+                            placeholder="Department"
+                          />
+                        ) : (
+                          <p className="text-sm font-medium">{userProfile.department || "Not specified"}</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-orange-100 rounded text-orange-600">
+                        <ShieldCheck size={14} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500">Role</p>
+                        <p className="text-sm font-medium">{userProfile.role || "Not specified"}</p>
+                        {isEditing && (
+                          <p className="text-xs italic text-gray-400 mt-1">Role cannot be edited</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-pink-100 rounded text-pink-600">
+                        <Briefcase size={14} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500">Organisation</p>
+                        <p className="text-sm font-medium">{userProfile.organisation_name || "Not specified"}</p>
+                        {isEditing && (
+                          <p className="text-xs italic text-gray-400 mt-1">Organisation cannot be edited</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Assigned Projects Section - NEW DEDICATED SECTION */}
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Assigned Projects</h4>
+                    <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full text-xs font-medium">
+                      {userProfile.assigned_projects?.length || 0} Projects
+                    </span>
+                  </div>
+                  
+                  {userProfile.assigned_projects && userProfile.assigned_projects.length > 0 ? (
+                    <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+                      <div className="grid grid-cols-12 px-4 py-2 bg-gray-50 text-xs font-medium text-gray-500 rounded-t-lg">
+                        <div className="col-span-5">Project Name</div>
+                        <div className="col-span-3">Project ID</div>
+                        <div className="col-span-2">Status</div>
+                        
+                      </div>
+                      
+                      {userProfile.assigned_projects.map((project, index) => (
+                        <div 
+                          key={index} 
+                          className={`grid grid-cols-12 px-4 py-3 text-sm items-center ${
+                            index !== userProfile.assigned_projects.length - 1 ? 'border-b border-gray-200' : ''
+                          }`}
+                        >
+                          <div className="col-span-5 flex items-center gap-2">
+                            <div className="p-1.5 bg-blue-100 rounded text-blue-600">
+                              <Folder size={14} />
+                            </div>
+                            <span className="font-medium">{project.project_name}</span>
+                          </div>
+                          <div className="col-span-3 text-gray-600">{project.project_id || "N/A"}</div>
+                          <div className="col-span-2">
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-50 text-green-600">
+                              {project.status || "Active"}
+                            </span>
+                          </div>
+                          
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-lg border border-gray-200 p-4 text-center text-gray-500">
+                      No projects are currently assigned to you.
+                    </div>
+                  )}
+                  
+                  {isEditing && (
+                    <p className="text-xs italic text-gray-400 mt-1">Projects cannot be edited from this section</p>
+                  )}
+                </div>
+                
+                {/* Address Information Section */}
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-3">Address Information</h4>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="p-1.5 bg-yellow-100 rounded text-yellow-600">
+                      <MapPin size={14} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500">Address</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          name="address"
+                          value={editedProfile.address || ""}
+                          onChange={handleInputChange}
+                          className="w-full text-sm bg-white border border-blue-300 rounded px-2 py-1"
+                          placeholder="Address"
+                        />
+                      ) : (
+                        <p className="text-sm font-medium">{userProfile.address || "Not specified"}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4 pl-8">
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500">City</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          name="city"
+                          value={editedProfile.city || ""}
+                          onChange={handleInputChange}
+                          className="w-full text-sm bg-white border border-blue-300 rounded px-2 py-1"
+                          placeholder="City"
+                        />
+                      ) : (
+                        <p className="text-sm font-medium">{userProfile.city || "Not specified"}</p>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500">State</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          name="state"
+                          value={editedProfile.state || ""}
+                          onChange={handleInputChange}
+                          className="w-full text-sm bg-white border border-blue-300 rounded px-2 py-1"
+                          placeholder="State"
+                        />
+                      ) : (
+                        <p className="text-sm font-medium">{userProfile.state || "Not specified"}</p>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500">Country</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          name="country"
+                          value={editedProfile.country || ""}
+                          onChange={handleInputChange}
+                          className="w-full text-sm bg-white border border-blue-300 rounded px-2 py-1"
+                          placeholder="Country"
+                        />
+                      ) : (
+                        <p className="text-sm font-medium">{userProfile.country || "Not specified"}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Account Information Section */}
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-3">Account Information</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-teal-100 rounded text-teal-600">
+                        <AtSign size={14} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500">Username</p>
+                        <p className="text-sm font-medium">{userProfile.username || "Not specified"}</p>
+                        {isEditing && (
+                          <p className="text-xs italic text-gray-400 mt-1">Username cannot be edited</p>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Created At</p>
+                      <p className="text-sm">{formatDate(userProfile.created_at)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Last Modified</p>
+                      <p className="text-sm">{formatDate(userProfile.modified_at)}</p>
                     </div>
                   </div>
                 </div>

@@ -7,6 +7,8 @@ import {
   FiPlus,
   FiDownload,
   FiX,
+  FiPaperclip,
+  FiTrash2,
 } from "react-icons/fi";
 import ChatbotPopup from "../../components/ChatBot";
 import Button from "../../components/common/Button";
@@ -17,6 +19,7 @@ import { formatDate } from "../../utils/formatDate";
 
 export default function Projects() {
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [pageSize, setPageSize] = useState(10);
   const [projects, setProjects] = useState([]);
   const [organisations, setOrganisations] = useState([]);
@@ -26,7 +29,7 @@ export default function Projects() {
     organisation: "",
     productMail: "",
     isActive: true,
-    file: null,
+    files: [],
   });
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [totalEntries, setTotalEntries] = useState(0);
@@ -37,8 +40,8 @@ export default function Projects() {
   const [searchTerm, setSearchTerm] = useState("");
   const [modalMode, setModalMode] = useState("add"); // "add", "edit", or "view"
   const [selectedProjectId, setSelectedProjectId] = useState(null);
-  const [projectMembers, setProjectMembers] = useState([]);
-  const [filePreview, setFilePreview] = useState(null);
+  const [filePreviews, setFilePreviews] = useState([]);
+  const [existingFiles, setExistingFiles] = useState([]);
 
   const searchInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -107,13 +110,23 @@ export default function Projects() {
         },
       });
       if (response.status === 200) {
-        setProjects(response.data);
-        console.log("Projects fetched successfully:", response.data);
+        // Map the attachments array to files property for compatibility with existing code
+        const projectsWithFiles = response.data.map((project) => ({
+          ...project,
+          files: project.attachments
+            ? project.attachments.map((attachment) => ({
+                id: attachment.id,
+                file: attachment.files,
+                file_name: attachment.files.split("/").pop(),
+                uploaded_at: attachment.uploaded_at,
+              }))
+            : [],
+        }));
+        setProjects(projectsWithFiles);
         setCurrentPage(0);
       }
     } catch (error) {
-      console.error("Error fetching projects:", error);
-      toast.error("Failed to load projects");
+      toast.error(error.response?.data?.error || "Failed to load projects");
       setProjects([]);
     } finally {
       setLoading(false);
@@ -135,8 +148,7 @@ export default function Projects() {
         setOrganisations(response.data);
       }
     } catch (error) {
-      console.error("Error fetching organisations:", error);
-      toast.error("Failed to load organisations");
+      toast.error(error.response?.data?.error || "Failed to load organisations");
     }
   };
 
@@ -149,21 +161,26 @@ export default function Projects() {
 
     if (type === "file") {
       if (files.length > 0) {
-        setFormData({
-          ...formData,
-          file: files[0],
-        });
+        const newFiles = Array.from(files);
 
-        // Create file preview
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setFilePreview({
-            name: files[0].name,
-            size: (files[0].size / 1024).toFixed(2), // Convert to KB
-            type: files[0].type,
-          });
-        };
-        reader.readAsDataURL(files[0]);
+        // Create file previews
+        const newPreviews = newFiles.map((file) => ({
+          name: file.name,
+          size: (file.size / 1024).toFixed(2), // Convert to KB
+          type: file.type,
+          file: file,
+          isNew: true,
+        }));
+
+        setFilePreviews((prev) => [...prev, ...newPreviews]);
+        setFormData((prev) => ({
+          ...prev,
+          files: [...prev.files, ...newFiles],
+        }));
+      }
+      // Clear the file input to allow selecting the same file again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
       }
     } else {
       setFormData({
@@ -195,11 +212,11 @@ export default function Projects() {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) {
       toast.error("Please log in to manage projects.");
-      setLoading(false);
+      setSubmitting(false);
       return;
     }
 
@@ -210,8 +227,16 @@ export default function Projects() {
     formDataToSend.append("product_mail", formData.productMail);
     formDataToSend.append("is_active", formData.isActive);
 
-    if (formData.file) {
-      formDataToSend.append("files", formData.file);
+    // Append all new files
+    formData.files.forEach((file) => {
+      formDataToSend.append("files", file);
+    });
+
+    // For edit mode, include existing files that weren't removed
+    if (modalMode === "edit" && existingFiles.length > 0) {
+      existingFiles.forEach((fileObj) => {
+        formDataToSend.append("existing_files", fileObj.id);
+      });
     }
 
     try {
@@ -230,7 +255,7 @@ export default function Projects() {
         );
 
         if (response.status === 201 || response.status === 200) {
-          toast.success("Project added successfully");
+          toast.success(response?.data?.message || "Project added successfully");
         }
       } else if (modalMode === "edit") {
         response = await axiosInstance.put(
@@ -245,7 +270,7 @@ export default function Projects() {
         );
 
         if (response.status === 200) {
-          toast.success("Project updated successfully");
+          toast.success(response?.data?.message || "Project updated successfully");
         }
       }
 
@@ -254,14 +279,12 @@ export default function Projects() {
       // Refresh the data after adding/editing project
       await fetchProjects();
     } catch (error) {
-      console.error("Error managing project:", error);
       const errorMessage =
-        error.response?.data?.message ||
         error.response?.data?.error ||
         `Failed to ${modalMode} project`;
       toast.error(errorMessage);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -271,9 +294,10 @@ export default function Projects() {
       organisation: "",
       productMail: "",
       isActive: true,
-      file: null,
+      files: [],
     });
-    setFilePreview(null);
+    setFilePreviews([]);
+    setExistingFiles([]);
     setSelectedProjectId(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -282,24 +306,35 @@ export default function Projects() {
 
   const handleView = (project) => {
     setSelectedProjectId(project.project_id);
+
+    // Find organization name from the ID
+    const orgName =
+      organisations.find((org) => org.organisation_id === project.organisation)
+        ?.organisation_name ||
+      project.org_name ||
+      "";
+
     setFormData({
       projectName: project.project_name,
-      organisation: project.org_name || "",
+      organisation: project.organisation || "",
       productMail: project.product_mail || "",
       isActive: project.is_active !== false,
-      file: null,
+      files: [],
     });
 
-    // If project has a file, set the preview
-    if (project.file) {
-      const fileName = project.file.split("/").pop();
-      setFilePreview({
-        name: fileName,
-        url: project.file,
+    // Reset file previews
+    setFilePreviews([]);
+    setExistingFiles([]);
+
+    // If project has files, set the previews
+    if (project.files && project.files.length > 0) {
+      const existingFilesData = project.files.map((file) => ({
+        id: file.id,
+        name: file.file_name || file.file.split("/").pop(),
+        url: file.file,
         isExisting: true,
-      });
-    } else {
-      setFilePreview(null);
+      }));
+      setExistingFiles(existingFilesData);
     }
 
     setModalMode("view");
@@ -308,24 +343,28 @@ export default function Projects() {
 
   const handleEdit = (project) => {
     setSelectedProjectId(project.project_id);
+
     setFormData({
       projectName: project.project_name,
-      organisation: project.org_name || "",
+      organisation: project.organisation || "",
       productMail: project.product_mail || "",
       isActive: project.is_active !== false,
-      file: null, // Can't set file directly for security reasons
+      files: [],
     });
 
-    // If project has a file, set the preview
-    if (project.file) {
-      const fileName = project.file.split("/").pop();
-      setFilePreview({
-        name: fileName,
-        url: project.file,
+    // Reset file previews
+    setFilePreviews([]);
+    setExistingFiles([]);
+
+    // If project has files, set the previews
+    if (project.files && project.files.length > 0) {
+      const existingFilesData = project.files.map((file) => ({
+        id: file.id,
+        name: file.file_name || file.file.split("/").pop(),
+        url: file.file,
         isExisting: true,
-      });
-    } else {
-      setFilePreview(null);
+      }));
+      setExistingFiles(existingFilesData);
     }
 
     setModalMode("edit");
@@ -338,24 +377,64 @@ export default function Projects() {
     setShowProjectModal(true);
   };
 
-  const clearFileSelection = () => {
-    setFormData({
-      ...formData,
-      file: null,
-    });
-    setFilePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+  const removeFilePreview = (index) => {
+    setFilePreviews((prev) => prev.filter((_, i) => i !== index));
+    setFormData((prev) => ({
+      ...prev,
+      files: prev.files.filter((_, i) => i !== index),
+    }));
+  };
+
+  const removeExistingFile = (index) => {
+    setExistingFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleToggleActive = () => {
+    if (modalMode !== "view") {
+      setFormData({
+        ...formData,
+        isActive: !formData.isActive,
+      });
     }
   };
 
-  const downloadFile = (fileUrl, fileName) => {
-    const link = document.createElement("a");
-    link.href = fileUrl;
-    link.download = fileName || "download";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadFile = async (fileUrl, fileName) => {
+    try {
+      // Check if fileUrl is valid
+      if (!fileUrl) {
+        toast.error("File URL is missing");
+        return;
+      }
+
+      // Create a temporary anchor element
+      const link = document.createElement("a");
+
+      // Try to fetch the file first to check if it exists
+      const response = await fetch(fileUrl, { method: "HEAD" });
+
+      if (!response.ok) {
+        toast.error(`File wasn't available on site: ${fileName}`);
+        return;
+      }
+
+      link.href = fileUrl;
+      link.download = fileName || "download";
+
+      // Append to body, trigger click, and remove
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      toast.error(`Failed to download ${fileName || "file"}`);
+    }
+  };
+
+  // Get the organization name for display in the table or form
+  const getOrganizationName = (orgId) => {
+    const org = organisations.find(
+      (o) => o.organisation_id === orgId || o.id === orgId
+    );
+    return org ? org.organisation_name : "-";
   };
 
   return (
@@ -476,6 +555,9 @@ export default function Projects() {
                         Status
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Files
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Created at
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
@@ -505,7 +587,9 @@ export default function Projects() {
                           {project.project_name}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-800">
-                          {project.org_name || "-"}
+                          {getOrganizationName(project.organisation) ||
+                            project.org_name ||
+                            "-"}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-800">
                           {project.product_mail || "-"}
@@ -524,17 +608,27 @@ export default function Projects() {
                           </span>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
-                                                {formatDate(project.created_at) || "-"}
-                                                </td>
-                                                <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
-                                                  {project.created_by || "-"}
-                                                </td>
-                                                <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
-                                                  {formatDate(project.modified_at || "-")}
-                                                </td>
-                                                <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
-                                                  {project.modified_by || "-"}
-                                                </td>
+                          {project.files && project.files.length > 0 ? (
+                            <span className="flex items-center">
+                              <FiPaperclip className="mr-1" size={12} />
+                              {project.files.length}
+                            </span>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {formatDate(project.created_at) || "-"}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {project.created_by || "-"}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {formatDate(project.modified_at) || "-"}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {project.modified_by || "-"}
+                        </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs font-medium">
                           <div className="flex space-x-1">
                             <button
@@ -551,20 +645,6 @@ export default function Projects() {
                             >
                               <FiEdit2 size={16} />
                             </button>
-                            {project.file && (
-                              <button
-                                onClick={() =>
-                                  downloadFile(
-                                    project.file,
-                                    project.file.split("/").pop()
-                                  )
-                                }
-                                className="text-indigo-600 hover:text-indigo-900 p-1 rounded hover:bg-indigo-50 transition-colors"
-                                title="Download File"
-                              >
-                                <FiDownload size={16} />
-                              </button>
-                            )}
                           </div>
                         </td>
                       </tr>
@@ -577,7 +657,7 @@ export default function Projects() {
 
           {/* Compact Pagination Controls */}
           {filteredProjects.length > 0 && (
-            <div className="mt-2 flex justify-end items-center">
+            <div className="mt-2 flex justify-start items-center">
               <ReactPaginate
                 previousLabel={
                   <span className="flex items-center">
@@ -697,27 +777,34 @@ export default function Projects() {
                         <span className="text-red-500">*</span>
                       )}
                     </label>
-                    <select
-                      id="organisation"
-                      name="organisation"
-                      value={formData.organisation}
-                      onChange={handleFormChange}
-                      required={modalMode !== "view"}
-                      disabled={modalMode === "view"}
-                      className={`border rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                        modalMode === "view" ? "bg-gray-50 text-gray-500" : ""
-                      }`}
-                    >
-                      <option value="">Select an organisation</option>
-                      {organisations.map((org) => (
-                        <option
-                          key={org.id || org.organisation_id}
-                          value={org.organisation_id}
-                        >
-                          {org.organisation_name}
-                        </option>
-                      ))}
-                    </select>
+                    {modalMode === "view" ? (
+                      <input
+                        type="text"
+                        value={getOrganizationName(formData.organisation)}
+                        disabled
+                        className="border border-gray-300 rounded-lg p-2 w-full bg-gray-50 text-gray-500 text-sm"
+                      />
+                    ) : (
+                      <select
+                        id="organisation"
+                        name="organisation"
+                        value={formData.organisation}
+                        onChange={handleFormChange}
+                        required={modalMode !== "view"}
+                        disabled={modalMode === "view"}
+                        className={`border rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500`}
+                      >
+                        <option value="">Select an organisation</option>
+                        {organisations.map((org) => (
+                          <option
+                            key={org.id || org.organisation_id}
+                            value={org.organisation_id || org.id}
+                          >
+                            {org.organisation_name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div>
@@ -744,161 +831,226 @@ export default function Projects() {
                     />
                   </div>
 
-                  <div>
-                    <label
-                      htmlFor="file"
-                      className="block text-xs font-medium text-gray-700 mb-1"
-                    >
-                      Project File
+                  <div className="flex items-center">
+                    <div className="flex items-center space-x-2">
+                      <div
+                        onClick={handleToggleActive}
+                        className={`relative ${
+                          modalMode === "view"
+                            ? "opacity-70 pointer-events-none"
+                            : "cursor-pointer"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          id="isActive"
+                          name="isActive"
+                          checked={formData.isActive}
+                          onChange={handleFormChange}
+                          disabled={modalMode === "view"}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-1 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                      </div>
+                      <label
+                        htmlFor="isActive"
+                        className={`text-xs font-medium ${
+                          formData.isActive ? "text-blue-700" : "text-gray-700"
+                        }`}
+                      >
+                        {formData.isActive ? "Active" : "Inactive"}
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* File Upload Section */}
+                  <div className="mt-4">
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      Attachments
                     </label>
 
+                    {/* Display existing files if in edit/view mode */}
+                    {existingFiles.length > 0 && (
+                      <div className="mb-3">
+                        <div className="text-xs text-gray-500 mb-1">
+                          {modalMode === "view"
+                            ? "Attached Files:"
+                            : "Current Files:"}
+                        </div>
+                        <div className="space-y-2">
+                          {existingFiles.map((file, index) => (
+                            <div
+                              key={`existing-${index}`}
+                              className="flex items-center justify-between text-sm px-3 py-2 bg-gray-50 border rounded-md"
+                            >
+                              <div className="flex items-center truncate">
+                                <FiPaperclip
+                                  className="text-gray-400 mr-2"
+                                  size={14}
+                                />
+                                <span
+                                  className="text-xs text-gray-700 truncate"
+                                  title={file.name}
+                                >
+                                  {file.name}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    downloadFile(file.url, file.name)
+                                  }
+                                  className="p-1 text-blue-600 hover:text-blue-800 rounded-full hover:bg-blue-50"
+                                  title="Download File"
+                                >
+                                  <FiDownload size={14} />
+                                </button>
+                                {modalMode === "edit" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeExistingFile(index)}
+                                    className="p-1 text-red-600 hover:text-red-800 rounded-full hover:bg-red-50"
+                                    title="Remove File"
+                                  >
+                                    <FiX size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Display newly added files in the current session */}
+                    {filePreviews.length > 0 && (
+                      <div className="mb-3">
+                        <div className="text-xs text-gray-500 mb-1">
+                          {modalMode === "add"
+                            ? "Files to Upload:"
+                            : "New Files to Upload:"}
+                        </div>
+                        <div className="space-y-2">
+                          {filePreviews.map((file, index) => (
+                            <div
+                              key={`preview-${index}`}
+                              className="flex items-center justify-between text-sm px-3 py-2 bg-blue-50 border border-blue-100 rounded-md"
+                            >
+                              <div className="flex items-center truncate">
+                                <FiPaperclip
+                                  className="text-blue-400 mr-2"
+                                  size={14}
+                                />
+                                <span
+                                  className="text-xs truncate"
+                                  title={file.name}
+                                >
+                                  {file.name}
+                                </span>
+                                <span className="text-xs text-gray-500 ml-1">
+                                  ({file.size} KB)
+                                </span>
+                              </div>
+                              {modalMode !== "view" && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeFilePreview(index)}
+                                  className="p-1 text-red-600 hover:text-red-800 rounded-full hover:bg-red-50"
+                                  title="Remove File"
+                                >
+                                  <FiX size={14} />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* File upload button */}
                     {modalMode !== "view" && (
                       <div className="mt-1">
                         <input
-                          id="file"
-                          name="file"
                           type="file"
+                          id="files"
+                          name="files"
+                          multiple
                           ref={fileInputRef}
                           onChange={handleFormChange}
-                          className={`border rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                            filePreview ? "hidden" : ""
-                          }`}
+                          className="hidden"
                         />
-                      </div>
-                    )}
-
-                    {filePreview && (
-                      <div className="mt-1 flex items-center p-2 bg-gray-50 border border-gray-200 rounded-lg">
-                        <div className="flex-1 truncate">
-                          <div className="flex items-center space-x-1">
-                            <svg
-                              className="h-4 w-4 text-gray-500"
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                              <polyline points="14 2 14 8 20 8"></polyline>
-                              <line x1="16" y1="13" x2="8" y2="13"></line>
-                              <line x1="16" y1="17" x2="8" y2="17"></line>
-                              <polyline points="10 9 9 9 8 9"></polyline>
-                            </svg>
-                            <span className="text-xs font-medium text-gray-700">
-                              {filePreview.name}
-                            </span>
-                          </div>
-                          {!filePreview.isExisting && filePreview.size && (
-                            <span className="block text-xs text-gray-500">
-                              {filePreview.size} KB
-                            </span>
-                          )}
-                        </div>
-
-                        {modalMode === "view" && filePreview.isExisting ? (
-                          <button
-                            type="button"
-                            className="ml-2 flex-shrink-0 text-blue-600 hover:text-blue-800 text-xs font-medium"
-                            onClick={() =>
-                              downloadFile(filePreview.url, filePreview.name)
-                            }
-                          >
-                            <FiDownload size={16} />
-                          </button>
-                        ) : (
-                          modalMode !== "view" && (
-                            <button
-                              type="button"
-                              className="ml-2 flex-shrink-0 text-red-600 hover:text-red-800"
-                              onClick={clearFileSelection}
-                            >
-                              <FiX size={16} />
-                            </button>
-                          )
-                        )}
-                      </div>
-                    )}
-
-                    {modalMode === "edit" && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        {filePreview
-                          ? "Replace file or remove current one"
-                          : "Upload a new file"}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center">
-                    <input
-                      id="isActive"
-                      name="isActive"
-                      type="checkbox"
-                      checked={formData.isActive}
-                      onChange={handleFormChange}
-                      disabled={modalMode === "view"}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label
-                      htmlFor="isActive"
-                      className="ml-2 block text-sm text-gray-700"
-                    >
-                      Active Status
-                    </label>
-                  </div>
-
-                  <div className="flex justify-end space-x-3 mt-6">
-                    <button
-                      type="button"
-                      onClick={() => setShowProjectModal(false)}
-                      className="py-2 px-4 border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                      disabled={loading}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="py-2 px-4 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                      disabled={loading}
-                    >
-                      {loading ? (
-                        <span className="flex items-center">
-                          <svg
-                            className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
-                          </svg>
-                          {modalMode === "add" ? "Adding..." : "Updating..."}
+                        <label
+                          htmlFor="files"
+                          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer"
+                        >
+                          <FiPaperclip className="mr-2 h-4 w-4" />
+                          Add Attachment
+                        </label>
+                        <span className="ml-2 text-xs text-gray-500">
+                          Attach relevant project files
                         </span>
-                      ) : modalMode === "add" ? (
-                        "Add Project"
-                      ) : (
-                        "Update Project"
-                      )}
-                    </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end space-x-2 pt-4 mt-4 border-t">
+                    <Button
+                      onClick={() => {
+                        setShowProjectModal(false);
+                        resetForm();
+                      }}
+                      label="Cancel"
+                      customClasses="text-sm px-4"
+                    />
+                    {modalMode !== "view" ? (
+                      <Button
+                        type="submit"
+                        label={
+                          modalMode === "add"
+                            ? "Create Project"
+                            : "Update Project"
+                        }
+                        blueBackground
+                        loading={submitting}
+                        loadingText={
+                          modalMode === "add" ? "Creating..." : "Updating..."
+                        }
+                        disabled={submitting}
+                        customClasses="text-sm px-4"
+                      />
+                    ) : (
+                      <Button
+                        onClick={() =>
+                          handleEdit({
+                            project_id: selectedProjectId,
+                            project_name: formData.projectName,
+                            organisation: formData.organisation,
+                            product_mail: formData.productMail,
+                            is_active: formData.isActive,
+                            files: existingFiles.map((file) => ({
+                              id: file.id,
+                              file: file.url,
+                              file_name: file.name,
+                            })),
+                          })
+                        }
+                        label="Edit Project"
+                        icon={<FiEdit2 size={16} />}
+                        blueBackground
+                        customClasses="text-sm px-4"
+                      />
+                    )}
                   </div>
                 </form>
               </div>
             </div>
           )}
 
+          {/* Chatbot component */}
           <ChatbotPopup />
+
+          {/* Toast notifications */}
           <ToastContainer
             autoClose={3000}
             hideProgressBar={false}

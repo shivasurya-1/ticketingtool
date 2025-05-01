@@ -3,268 +3,261 @@ import { ChevronRight, Search, X, FileQuestion, Layers } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useDispatch } from "react-redux";
+import { axiosInstance } from "../../utils/axiosInstance.js";
 import ChatbotPopup from "../../components/ChatBot";
-import { setActiveCategory, setSelectedService } from "../../store/Slices/issueSelectionSlice";
- 
 import {
-  appSupportImage,
-  itImage,
-  softwareLicenses,
-  itAssets,
-  payroll,
-  fieldServiceImage,
-  sapImage,
-  dataAnalyticsImage,
-  microsoftImage,
-  oracleImage,
-  hrmsImage,
-} from "../../assets/assets.js";
- 
+  setActiveServiceDomain,
+  setActiveServiceType,
+  clearSelection,
+} from "../../store/Slices/serviceDomainSlice";
+import { ToastContainer, toast } from "react-toastify";
+
 const RequestIssueCatalogPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
- 
+
+  const [categories, setCategories] = useState([]);
   const [activeCategory, setActiveCategoryState] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [highlightedItem, setHighlightedItem] = useState(null);
- 
-  const mainCategories = [
-    {
-      title: "Applications Support",
-      description:
-        "Issues with business applications such as login problems, errors, or functionality concerns.",
-      icon: (
-        <img src={appSupportImage} alt="Applications" className="w-6 h-6" />
-      ),
-      id: "app-support",
-      hasSubcategories: true,
-    },
-    {
-      title: "IT Infrastructure",
-      description:
-        "Issues related to servers, networks, VPN access, email services, or other IT infrastructure.",
-      icon: <img src={itImage} alt="IT" className="w-6 h-6" />,
-      id: "it-support",
-      hasSubcategories: false,
-    },
-    {
-      title: "Software Licenses",
-      description:
-        "Request new licenses, renew existing ones, or report license activation issues.",
-      icon: <img src={softwareLicenses} alt="Software" className="w-6 h-6" />,
-      id: "software-licenses",
-      hasSubcategories: false,
-    },
-    {
-      title: "IT Assets",
-      description:
-        "Request new IT hardware, report malfunctions, or request device upgrades.",
-      icon: <img src={itAssets} alt="Assets" className="w-6 h-6" />,
-      id: "it-assets",
-      hasSubcategories: false,
-    },
-    {
-      title: "Payroll",
-      description:
-        "Concerns regarding salary payments, tax deductions, payslips, or payroll discrepancies.",
-      icon: <img src={payroll} alt="Payroll" className="w-6 h-6" />,
-      id: "payroll",
-      hasSubcategories: false,
-    },
-    {
-      title: "Field Service Agent",
-      description:
-        "Request on-site IT support for hardware installations, maintenance, or troubleshooting.",
-      icon: (
-        <img src={fieldServiceImage} alt="Field Service" className="w-6 h-6" />
-      ),
-      id: "field-service",
-      hasSubcategories: false,
-    },
-  ];
- 
-  const appSupportItems = [
-    {
-      title: "SAP",
-      description:
-        "SAP-related issues including login problems, system errors, configuration support, or access requests.",
-      icon: <img src={sapImage} alt="SAP" className="w-6 h-6" />,
-      link: "/request-issue/application-support/sap/create-issue",
-      disabled: false,
-      id: "sap",
-    },
-    {
-      title: "Data Analytics",
-      description:
-        "Issues related to data visualization, reporting tools, dashboards, or data processing errors.",
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch categories and issue types from API
+  useEffect(() => {
+    const fetchCategoriesAndIssueTypes = async () => {
+      try {
+        setIsLoading(true);
+        const accessToken = localStorage.getItem("access_token");
+        if (!accessToken) {
+          toast.error("Please log in to access this page.");
+          setIsLoading(false);
+          return;
+        }
+        // Replace with your actual API endpoint
+        const response = await axiosInstance.get("/services/categories/", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        setCategories(response.data);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching categories:", err);
+        setError("Failed to load categories. Please try again later.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCategoriesAndIssueTypes();
+  }, []);
+
+  // Format categories for sidebar
+  const mainCategories = categories
+    .filter((category) => category.is_active)
+    .map((category) => ({
+      title: category.name,
+      description: category.description,
       icon: (
         <img
-          src={dataAnalyticsImage}
-          alt="Data Analytics"
+          src={category.icon_url}
+          alt={category.name}
           className="w-6 h-6"
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = "/placeholder-icon.png"; // Use a generic placeholder icon
+          }}
         />
       ),
-      link: "/data-analytics/create-issue",
-      disabled: true,
-      id: "data-analytics",
-    },
-    {
-      title: "Microsoft",
-      description:
-        "Support for Microsoft applications such as Office 365, Teams, Outlook, SharePoint, or Windows.",
-      icon: <img src={microsoftImage} alt="Microsoft" className="w-6 h-6" />,
-      link: "/microsoft/create-issue",
-      disabled: true,
-      id: "microsoft",
-    },
-    {
-      title: "Oracle",
-      description:
-        "Assistance for Oracle database issues, ERP solutions, access management, or troubleshooting.",
-      icon: <img src={oracleImage} alt="Oracle" className="w-6 h-6" />,
-      link: "/oracle/create-issue",
-      disabled: true,
-      id: "oracle",
-    },
-    {
-      title: "HRMS",
-      description:
-        "HRMS-related concerns, including employee records, leave management, payroll integration.",
-      icon: <img src={hrmsImage} alt="HRMS" className="w-6 h-6" />,
-      link: "/hrms/create-issue",
-      disabled: true,
-      id: "hrms",
-    },
-  ];
- 
+      id: `category-${category.issue_category_id}`,
+      hasSubcategories: category.issue_types && category.issue_types.length > 0,
+      originalId: category.issue_category_id,
+    }));
+
+  // Get issue types for the active category
+  const getServiceItems = () => {
+    if (!activeCategory) return [];
+
+    const activeCategoryId = activeCategory.replace("category-", "");
+    const selectedCategory = categories.find(
+      (cat) => cat.issue_category_id.toString() === activeCategoryId
+    );
+
+    if (!selectedCategory || !selectedCategory.issue_types) return [];
+
+    return selectedCategory.issue_types.map((type) => ({
+      title: type.name,
+      description: type.description,
+      icon: (
+        <img
+          src={type.icon_url}
+          alt={type.name}
+          className="w-6 h-6"
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = "/placeholder-icon.png"; // Use a generic placeholder icon
+          }}
+        />
+      ),
+      link: `/request-issue/application-support/${type.name.toLowerCase().replace(/\s+/g, '-')}/create-issue`,
+      disabled: !type.is_active,
+      id: `service-${type.issue_type_id}`,
+      originalId: type.issue_type_id,
+    }));
+  };
+
   // Create a flattened array of all searchable items
-  const allItems = [
-    ...mainCategories,
-    ...appSupportItems.map((item) => ({
-      ...item,
-      parentCategory: "app-support",
-      parentCategoryTitle: "Applications Support",
-    })),
-  ];
- 
-  // Search functionality - updated to filter by title only
+  const getAllSearchableItems = () => {
+    const allItems = [...mainCategories];
+
+    categories.forEach((category) => {
+      if (category.issue_types && category.issue_types.length > 0) {
+        category.issue_types.forEach((type) => {
+          allItems.push({
+            title: type.name,
+            description: type.description,
+            icon: (
+              <img
+                src={type.icon_url}
+                alt={type.name}
+                className="w-6 h-6"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "/placeholder-icon.png"; // Use a generic placeholder icon
+                }}
+              />
+            ),
+            parentCategory: `category-${category.issue_category_id}`,
+            parentCategoryTitle: category.name,
+            link: `/request-issue/application-support/${type.name.toLowerCase()}/create-issue`,
+            disabled: !type.is_active,
+            id: `service-${type.issue_type_id}`,
+          });
+        });
+      }
+    });
+
+    return allItems;
+  };
+
+  // Search functionality
   useEffect(() => {
     if (searchTerm.trim() === "") {
       setSearchResults([]);
       setShowSearchResults(false);
       return;
     }
- 
+
+    const allItems = getAllSearchableItems();
     const filteredResults = allItems.filter((item) =>
       item.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
- 
+
     setSearchResults(filteredResults);
     setShowSearchResults(true);
-  }, [searchTerm]);
- 
+  }, [searchTerm, categories]);
+
   const pageVariants = {
     initial: { opacity: 0 },
     animate: { opacity: 1, transition: { duration: 0.4 } },
     exit: { opacity: 0 },
   };
- 
+
   const breadcrumbVariants = {
     initial: { x: -20, opacity: 0 },
     animate: { x: 0, opacity: 1, transition: { duration: 0.4, delay: 0.1 } },
   };
- 
+
   const handleCategoryClick = (categoryId) => {
     const newActiveCategory = activeCategory === categoryId ? null : categoryId;
     setActiveCategoryState(newActiveCategory);
-   
+    
     // Find the category object for Redux store
     if (newActiveCategory) {
       const categoryObj = mainCategories.find(cat => cat.id === newActiveCategory);
       if (categoryObj) {
-        dispatch(setActiveCategory({
-          id: categoryObj.id,
+        dispatch(setActiveServiceDomain({
+          originalId: categoryObj.originalId,
           title: categoryObj.title
         }));
       }
     } else {
-      dispatch(setActiveCategory(null));
+      dispatch(setActiveServiceDomain(null));
     }
-   
+    
     setHighlightedItem(null);
   };
- 
+
   const handleItemClick = (link, disabled, itemId = null) => {
     if (!disabled) {
       if (itemId) {
         setHighlightedItem(itemId);
-       
+        
         // Find the item by ID for Redux store
-        const selectedItem = appSupportItems.find(item => item.id === itemId);
+        const selectedItem = getServiceItems().find(item => item.id === itemId);
         if (selectedItem) {
           // Store the active category and selected service in Redux
           const activeCategoryObj = mainCategories.find(cat => cat.id === activeCategory);
-         
+          
           if (activeCategoryObj) {
-            dispatch(setActiveCategory({
-              id: activeCategoryObj.id,
+            dispatch(setActiveServiceDomain({
+              originalId: activeCategoryObj.originalId,
               title: activeCategoryObj.title
             }));
           }
-         
-          dispatch(setSelectedService({
-            id: selectedItem.id,
-            title: selectedItem.title,
-            description: selectedItem.description
+          
+          dispatch(setActiveServiceType({
+            originalId: selectedItem.originalId,
+            title: selectedItem.title
           }));
         }
       }
       navigate(link);
     }
   };
- 
+
   const handleSearchItemClick = (item) => {
     if (item.parentCategory) {
       // It's a subcategory item
       setActiveCategoryState(item.parentCategory);
       setHighlightedItem(item.id);
-     
+      
       // Find the parent category object for Redux
       const parentCategoryObj = mainCategories.find(cat => cat.id === item.parentCategory);
       if (parentCategoryObj) {
-        dispatch(setActiveCategory({
-          id: parentCategoryObj.id,
+        dispatch(setActiveServiceDomain({
+          originalId: parentCategoryObj.originalId,
           title: parentCategoryObj.title
         }));
       }
-     
+      
       // Set the selected service if it's not disabled
       if (!item.disabled) {
-        dispatch(setSelectedService({
-          id: item.id,
-          title: item.title,
-          description: item.description
+        dispatch(setActiveServiceType({
+          originalId: item.originalId,
+          title: item.title
         }));
       }
     } else {
       // It's a main category
       setActiveCategoryState(item.id);
       setHighlightedItem(null);
-     
+      
       // Store category in Redux
-      dispatch(setActiveCategory({
-        id: item.id,
+      dispatch(setActiveServiceDomain({
+        originalId: item.originalId,
         title: item.title
       }));
-      dispatch(setSelectedService(null));
+      dispatch(setActiveServiceType(null));
     }
- 
+  
     setSearchTerm("");
     setShowSearchResults(false);
   };
- 
+
   // Get the title of the active category
   const getActiveCategoryTitle = () => {
     if (activeCategory) {
@@ -273,7 +266,54 @@ const RequestIssueCatalogPage = () => {
     }
     return "";
   };
- 
+
+  // Render loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1a4789] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading categories...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Render error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center p-6 bg-white rounded-lg shadow-md">
+          <div className="text-red-500 mb-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-12 w-12 mx-auto"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-800">{error}</h3>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-[#1a4789] text-white rounded-md hover:bg-[#0e3572] transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const serviceItems = getServiceItems();
+
   return (
     <motion.div
       variants={pageVariants}
@@ -315,7 +355,7 @@ const RequestIssueCatalogPage = () => {
           </ul>
         </div>
       </div>
- 
+
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Breadcrumb with reduced padding */}
@@ -350,7 +390,7 @@ const RequestIssueCatalogPage = () => {
               </>
             )}
           </div>
- 
+
           {/* Compact search field */}
           <div className="relative">
             <input
@@ -372,7 +412,7 @@ const RequestIssueCatalogPage = () => {
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
- 
+
             {/* Search Results Dropdown */}
             {showSearchResults && searchResults.length > 0 && (
               <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-56 overflow-auto">
@@ -401,20 +441,20 @@ const RequestIssueCatalogPage = () => {
             )}
           </div>
         </motion.nav>
- 
+
         {/* Content with optimized spacing */}
         <div className="flex-1 overflow-auto">
           <div className="p-4">
-            {activeCategory === "app-support" ? (
+            {activeCategory && serviceItems.length > 0 ? (
               <div>
                 {/* Category Title - more compact */}
                 <h1 className="font-bold text-xl text-gray-800 mb-3">
                   {getActiveCategoryTitle()}
                 </h1>
- 
+
                 {/* Grid with more columns on larger screens */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {appSupportItems.map((item, idx) => (
+                  {serviceItems.map((item, idx) => (
                     <div
                       key={idx}
                       id={item.id}
@@ -451,7 +491,11 @@ const RequestIssueCatalogPage = () => {
                               className="text-[#1a4789] font-medium hover:underline text-xs"
                               onClick={(e) => {
                                 e.stopPropagation(); // Prevent double firing with parent onClick
-                                handleItemClick(item.link, item.disabled, item.id);
+                                handleItemClick(
+                                  item.link,
+                                  item.disabled,
+                                  item.id
+                                );
                               }}
                             >
                               View Details
@@ -489,10 +533,19 @@ const RequestIssueCatalogPage = () => {
           </div>
         </div>
       </div>
- 
+
       <ChatbotPopup />
+      <ToastContainer
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </motion.div>
   );
 };
- 
+
 export default RequestIssueCatalogPage;

@@ -17,7 +17,7 @@ export default function IssueCategory() {
     name: "",
     description: "",
     icon_url: null,
-    isActive: true,
+    is_active: true, // Changed from isActive to is_active to match backend
   });
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [totalEntries, setTotalEntries] = useState(0);
@@ -41,12 +41,16 @@ export default function IssueCategory() {
     return (
       category.name.toLowerCase().includes(searchTermLower) ||
       category.issue_category_id.toString().includes(searchTermLower) ||
-      (category.description && category.description.toLowerCase().includes(searchTermLower))
+      (category.description &&
+        category.description.toLowerCase().includes(searchTermLower))
     );
   });
 
   // Calculate pagination values
-  const pageCount = Math.max(1, Math.ceil(filteredCategories.length / pageSize));
+  const pageCount = Math.max(
+    1,
+    Math.ceil(filteredCategories.length / pageSize)
+  );
   const offset = currentPage * pageSize;
   const currentItems = filteredCategories.slice(offset, offset + pageSize);
 
@@ -70,7 +74,11 @@ export default function IssueCategory() {
 
   // Ensure currentPage is never out of bounds
   useEffect(() => {
-    if (currentPage >= pageCount && pageCount > 0 && filteredCategories.length > 0) {
+    if (
+      currentPage >= pageCount &&
+      pageCount > 0 &&
+      filteredCategories.length > 0
+    ) {
       setCurrentPage(Math.max(0, pageCount - 1));
     }
   }, [filteredCategories.length, pageCount, currentPage]);
@@ -102,7 +110,8 @@ export default function IssueCategory() {
         // Process categories with default is_active if not provided
         const processedCategories = response.data.map((category) => ({
           ...category,
-          is_active: category.is_active !== undefined ? category.is_active : true,
+          is_active:
+            category.is_active !== undefined ? category.is_active : true,
         }));
         setCategories(processedCategories);
         // Reset to first page when data changes significantly
@@ -134,7 +143,7 @@ export default function IssueCategory() {
     if (modalMode !== "view") {
       setFormData({
         ...formData,
-        isActive: !formData.isActive,
+        is_active: !formData.is_active, // Changed from isActive to is_active
       });
     }
   };
@@ -169,8 +178,8 @@ export default function IssueCategory() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.description) {
-      toast.error("Please fill in all required fields");
+    if (!formData.name) {
+      toast.error("Category name is required");
       return;
     }
 
@@ -186,26 +195,47 @@ export default function IssueCategory() {
       // Create FormData object for file upload
       const formDataToSend = new FormData();
       formDataToSend.append("name", formData.name);
-      formDataToSend.append("description", formData.description);
-      formDataToSend.append("is_active", formData.isActive);
-      
-      if (formData.icon_url && typeof formData.icon_url !== 'string') {
+
+      // Only append description if it's not empty
+      if (formData.description) {
+        formDataToSend.append("description", formData.description);
+      } else {
+        formDataToSend.append("description", ""); // Send empty string for description if not provided
+      }
+
+      // Convert boolean to string 'true' or 'false' for is_active
+      formDataToSend.append("is_active", formData.is_active.toString());
+
+      // Only append icon_url if it's a File object
+      if (formData.icon_url && formData.icon_url instanceof File) {
         formDataToSend.append("icon_url", formData.icon_url);
       }
 
+      console.log("FormData to send:", Object.fromEntries(formDataToSend));
+
       let response;
       if (modalMode === "add") {
-        response = await axiosInstance.post("/services/categories/", formDataToSend, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "multipart/form-data",
-          },
-        });
+        response = await axiosInstance.post(
+          "/services/categories/",
+          formDataToSend,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
 
         if (response.status === 201 || response.status === 200) {
-          toast.success(response?.data?.message || "Category added successfully");
+          toast.success(
+            response?.data?.message || "Category added successfully"
+          );
+          setShowCategoryModal(false);
+          resetForm();
+          await fetchCategories();
         }
       } else if (modalMode === "edit") {
+        console.log("Form Data To Send", formDataToSend);
         response = await axiosInstance.put(
           `/services/categories/${selectedCategoryId}/`,
           formDataToSend,
@@ -218,19 +248,20 @@ export default function IssueCategory() {
         );
 
         if (response.status === 200) {
-          toast.success(response?.data?.message || "Category updated successfully");
+          toast.success(
+            response?.data?.message || "Category updated successfully"
+          );
+          setShowCategoryModal(false);
+          resetForm();
+          await fetchCategories();
         }
       }
-
-      setShowCategoryModal(false);
-      resetForm();
-      // Refresh the data after adding/editing category
-      await fetchCategories();
     } catch (error) {
       console.error("Error managing category:", error);
       const errorMessage =
         error.response?.data?.error ||
         error.response?.data?.name?.[0] ||
+        error.response?.data?.detail ||
         `Failed to ${modalMode} category`;
       toast.error(errorMessage);
     } finally {
@@ -244,7 +275,7 @@ export default function IssueCategory() {
       name: category.name,
       description: category.description || "",
       icon_url: category.icon_url || null,
-      isActive: category.is_active !== undefined ? category.is_active : true,
+      is_active: category.is_active !== undefined ? category.is_active : true, // Changed from isActive to is_active
     });
     setIconPreview(category.icon_url);
     setModalMode("view");
@@ -257,7 +288,7 @@ export default function IssueCategory() {
       name: category.name,
       description: category.description || "",
       icon_url: category.icon_url || null,
-      isActive: category.is_active !== undefined ? category.is_active : true,
+      is_active: category.is_active !== undefined ? category.is_active : true, // Changed from isActive to is_active
     });
     setIconPreview(category.icon_url);
     setModalMode("edit");
@@ -275,7 +306,7 @@ export default function IssueCategory() {
       name: "",
       description: "",
       icon_url: null,
-      isActive: true,
+      is_active: true, // Changed from isActive to is_active
     });
     setIconPreview(null);
     setSelectedCategoryId(null);
@@ -494,7 +525,7 @@ export default function IssueCategory() {
 
           {/* Compact Pagination Controls */}
           {filteredCategories.length > 0 && (
-            <div className="mt-2 flex justify-end items-center">
+            <div className="mt-2 flex justify-start items-center">
               <ReactPaginate
                 previousLabel={
                   <span className="flex items-center">
@@ -609,17 +640,13 @@ export default function IssueCategory() {
                       htmlFor="description"
                       className="block text-xs font-medium text-gray-700 mb-1"
                     >
-                      Description{" "}
-                      {modalMode !== "view" && (
-                        <span className="text-red-500">*</span>
-                      )}
+                      Description
                     </label>
                     <textarea
                       id="description"
                       name="description"
                       value={formData.description}
                       onChange={handleFormChange}
-                      required={modalMode !== "view"}
                       disabled={modalMode === "view"}
                       rows="3"
                       className={`border rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
@@ -663,29 +690,29 @@ export default function IssueCategory() {
                         modalMode === "view"
                           ? "opacity-70 pointer-events-none"
                           : ""
-                      } ${formData.isActive ? "bg-blue-500" : "bg-gray-300"}`}
+                      } ${formData.is_active ? "bg-blue-500" : "bg-gray-300"}`}
                     >
                       <span
                         className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white transition-transform transform ${
-                          formData.isActive ? "translate-x-5" : "translate-x-0"
+                          formData.is_active ? "translate-x-5" : "translate-x-0"
                         }`}
                       />
                       <input
-                        id="isActive"
-                        name="isActive"
+                        id="is_active"
+                        name="is_active"
                         type="checkbox"
-                        checked={formData.isActive}
+                        checked={formData.is_active}
                         onChange={handleFormChange}
                         className="sr-only"
                         disabled={modalMode === "view"}
                       />
                     </div>
                     <label
-                      htmlFor="isActive"
+                      htmlFor="is_active"
                       className="text-xs font-medium text-gray-700 ml-2 cursor-pointer"
                       onClick={handleToggleActive}
                     >
-                      {formData.isActive ? "Active" : "Inactive"}
+                      {formData.is_active ? "Active" : "Inactive"}
                     </label>
                   </div>
 
@@ -697,7 +724,9 @@ export default function IssueCategory() {
                           onClick={() =>
                             handleEdit(
                               categories.find(
-                                (category) => category.issue_category_id === selectedCategoryId
+                                (category) =>
+                                  category.issue_category_id ===
+                                  selectedCategoryId
                               )
                             )
                           }
@@ -750,13 +779,9 @@ export default function IssueCategory() {
                               ></path>
                             </svg>
                           )}
-                          {loading
-                            ? modalMode === "add"
-                              ? "Adding..."
-                              : "Updating..."
-                            : modalMode === "add"
+                          {modalMode === "add"
                             ? "Add Category"
-                            : "Update Category"}
+                            : "Save Changes"}
                         </button>
                       </>
                     )}
@@ -765,10 +790,12 @@ export default function IssueCategory() {
               </div>
             </div>
           )}
-        </div>
-      </main>
-      <ChatbotPopup />
-      <ToastContainer
+
+          {/* Chat Bot */}
+          <ChatbotPopup />
+
+          {/* Toast Container */}
+          <ToastContainer
         autoClose={3000}
         hideProgressBar={false}
         newestOnTop={false}
@@ -777,6 +804,8 @@ export default function IssueCategory() {
         draggable
         pauseOnHover
       />
+        </div>
+      </main>
     </div>
   );
 }

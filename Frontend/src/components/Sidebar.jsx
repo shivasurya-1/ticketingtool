@@ -10,7 +10,6 @@ import {
   Activity,
   List,
   FileText,
-
   Bug,
   Link as LinkIcon,
   Download,
@@ -26,7 +25,10 @@ import {
   UserIcon,
   Cog,
   MonitorCheck,
-  Ticket
+  Ticket,
+  ListFilter,
+  Flag,
+  FolderTree
 } from "lucide-react";
 
 function Sidebar() {
@@ -35,48 +37,44 @@ function Sidebar() {
   
   // Track open sections
   const [openSections, setOpenSections] = useState({
-    overview: true,
+    dashboard: true,
     incidents: true,
-    activities: false,
-    problems: false,
-    references: false,
-    management: false,
-    admin: true
+    configuration: false,
+    resources: false,
+    admin: false
   });
 
   // Configure which links are disabled (all enabled by default)
   const [disabledLinks, setDisabledLinks] = useState({
     // Set to true to disable specific links
-    //menu false
     dashboard: false,
     incidents: false,
     createIncident: false,
     myTickets: false,
     assignedToMe: false,
+    grouptickets: false,
     projects: false,
-
-    openActivity: true,
-    allActivity: true,
-    problemTickets: true,
-    createProblemTickets: true,
-    knowledgeArticle: false,
+    allActivities: false,
+    knowledgeBase: false,
+    
+    // Configuration items
+    priority: false,
+    serviceDomain: false,
+    serviceType: false,
+    category: false,
+    solutionGroup: false,
+    projectAssignment: false,
+    
+    // Disabled items
     linkIncidentToSR: true,
     downloadSRForm: true,
     linkIncidentsToPBI: true,
     resolvedPBI: true,
-    employee: false,
+    problemTickets: true,
+    createProblemTickets: true,
     escalation: true,
     support: true
   });
-
-  // Example function to toggle link disabled state (for demonstration)
-  // In a real application, you might call this from a settings panel or admin area
-  const toggleLinkState = (linkId, isDisabled) => {
-    setDisabledLinks(prev => ({
-      ...prev,
-      [linkId]: isDisabled
-    }));
-  };
 
   // Toggle section visibility
   const toggleSection = (section) => {
@@ -89,36 +87,30 @@ function Sidebar() {
   // Organize sidebar items into logical groups with corresponding disabled state keys
   const sidebarGroups = [
     {
-      id: "overview",
-      title: "Overview",
+      id: "dashboard",
+      title: "Dashboard",
       items: [
         { 
           id: "dashboard",
           name: "Dashboard", 
           route: "/request-issue/application-support/request-issue/application-support/Dashborad", 
           icon: <LayoutDashboard size={16} /> 
-        },
-        { 
-          id: "grouptickets",
-          name: "grouptickets", 
-          route: "/request-issue/application-support/request-issue/application-support/grouptickets", 
-          icon: <Ticket size={16} /> 
-        },
+        }
       ]
     },
     {
       id: "incidents",
-      title: "Incidents",
+      title: "Ticket Management",
       items: [
         { 
           id: "incidents",
-          name: "Incidents", 
+          name: "All Tickets", 
           route: "/request-issue/application-support/request-issue/application-support/list-of-incidents", 
           icon: <AlertTriangle size={16} /> 
         },
         { 
           id: "createIncident",
-          name: "Create Incident", 
+          name: "Create Ticket", 
           route: "http://localhost:3000/request-issue/application-support/sap/create-issue", 
           icon: <PlusCircle size={16} /> 
         },
@@ -135,55 +127,17 @@ function Sidebar() {
           icon: <User size={16} /> 
         },
         { 
-          id: "projects",
-          name: "Projects", 
-          route: "/projects", 
-          icon: <LayoutDashboard size={16} /> 
+          id: "grouptickets",
+          name: "Group Tickets", 
+          route: "/request-issue/application-support/request-issue/application-support/grouptickets", 
+          icon: <Ticket size={16} /> 
         },
-        
-
-        // { 
-        //   id: "openIncident",
-        //   name: "Open Incident", 
-        //   route: "/planned-exception", 
-        //   icon: <AlertOctagon size={16} /> 
-        // },
-        // { 
-        //   id: "resolvedIncidents",
-        //   name: "Resolved", 
-        //   route: "/incident-location", 
-        //   icon: <CheckSquare size={16} /> 
-        // },
-        // { 
-        //   id: "escalatedIncidents",
-        //   name: "Escalated", 
-        //   route: "/change-tickets", 
-        //   icon: <ArrowUpRight size={16} /> 
-        // },
-      ]
-    },
-    {
-      id: "activities",
-      title: "Activities",
-      items: [
-        // { 
-        //   id: "openActivity",
-        //   name: "Open Activity", 
-        //   route: "/request-issue/application-support/request-issue/application-support/solution", 
-        //   icon: <Activity size={16} /> 
-        // },
         { 
-          id: "allActivity",
-          name: "All Activities", 
+          id: "allActivities",
+          name: "Activities Log", 
           route: "/request-issue/application-support/request-issue/application-support/list-of-incidents", 
-          icon: <List size={16} /> 
+          icon: <Activity size={16} /> 
         },
-      ]
-    },
-    {
-      id: "problems",
-      title: "Problems",
-      items: [
         { 
           id: "problemTickets",
           name: "Problem Tickets", 
@@ -192,63 +146,91 @@ function Sidebar() {
         },
         { 
           id: "createProblemTickets",
-          name: "Create Problem", 
+          name: "Create Problem Ticket", 
           route: "/support-pm", 
           icon: <PlusCircle size={16} /> 
-        },
+        }
       ]
     },
     {
-      id: "Oganization",
-      title: "Organization",
+      id: "projects",
+      title: "Projects",
       items: [
         { 
-          id: "employee",
-          name: "Employee", 
-          route: "/employee", 
-          icon: <Users size={16} /> 
+          id: "projects",
+          name: "Projects Dashboard", 
+          route: "/projects", 
+          icon: <Briefcase size={16} /> 
         },
         { 
-          id: "Solution",
-          name: "Solution-Group", 
+          id: "projectAssignment",
+          name: "Project Assignment", 
+          route: "/project-assignment", 
+          icon: <UserCheck size={16} /> 
+        }
+      ]
+    },
+    {
+      id: "configuration",
+      title: "Configuration",
+      items: [
+        { 
+          id: "priority",
+          name: "Priority Levels", 
+          route: "/priority", 
+          icon: <Flag size={16} /> 
+        },
+        { 
+          id: "serviceDomain",
+          name: "Service Domains", 
+          route: "/service-domain", 
+          icon: <FolderTree size={16} /> 
+        },
+        { 
+          id: "serviceType",
+          name: "Service Types", 
+          route: "/service-type", 
+          icon: <ListFilter size={16} /> 
+        },
+        { 
+          id: "category",
+          name: "Categories", 
+          route: "/category", 
+          icon: <List size={16} /> 
+        },
+        { 
+          id: "solutionGroup",
+          name: "Solution Groups", 
           route: "/solutionGrp", 
           icon: <Users size={16} /> 
         },
-
         { 
-          id: "organization",
-          name: "Organization",
+          id: "organizations",
+          name: "Organizations",
           route: "/organisations",
-          icon: <ArrowUp size={16} /> 
+          icon: <Briefcase size={16} /> 
         },
         { 
           id: "organizationTree",
-          name: "organizationTree",
+          name: "Organization Structure",
           route: "/orgtree",
-          icon: <ArrowUp size={16} /> 
-        },
-
-        { 
-          id: "Category",
-          name: "Category", 
-          route: "/category", 
-          icon: <HelpCircle size={16} /> 
-        },
+          icon: <FolderTree size={16} /> 
+        }
       ]
     },
     {
-      id: "references",
+      id: "resources",
       title: "Resources",
       items: [
         { 
-          id: "knowledgeArticle",
+          id: "knowledgeBase",
           name: "Knowledge Base", 
           route: "/request-issue/application-support/request-issue/application-support/knowledge-article", 
           icon: <FileText size={16} /> 
         },
         { 
           id: "linkIncidentToSR",
-          name: "Link to SR", 
+          name: "Link to Service Request", 
           route: "/link-incident-to-sr", 
           icon: <LinkIcon size={16} /> 
         },
@@ -269,70 +251,69 @@ function Sidebar() {
           name: "Resolved PBI", 
           route: "/resolved-pbi", 
           icon: <CheckCircle size={16} /> 
-        },
+        }
       ]
     },
     {
-      id: "management",
-      title: "Management",
+      id: "admin",
+      title: "Administration",
       items: [
         { 
           id: "employee",
-          name: "Employee", 
+          name: "Employee Management", 
           route: "/employee", 
           icon: <Users size={16} /> 
         },
+        {
+          id: "register",
+          name: "User Registration",
+          route: "/register",
+          icon: <UserIcon size={16} />
+        },
+        { 
+          id: "userRole",
+          name: "User Role Assignment",
+          route: "/user-role",
+          icon: <RollerCoaster size={16} /> 
+        },
+        { 
+          id: "roles",
+          name: "Role Management",
+          route: "/roles",
+          icon: <UserIcon size={16} /> 
+        },
+        {
+          id: "rolePermissions",
+          name: "Role Permissions",
+          route: "/role-permissions",
+          icon: <Lock size={16} />
+        },
+        { 
+          id: "permission",
+          name: "Permission Settings",
+          route: "/permission",
+          icon: <Cog size={16} /> 
+        },
+        { 
+          id: "dispatcher",
+          name: "Dispatcher Settings",
+          route: "/dispatcher",
+          icon: <MonitorCheck size={16} /> 
+        },
         { 
           id: "escalation",
-          name: "Escalation", 
+          name: "Escalation Matrix", 
           route: "/escalation", 
           icon: <ArrowUp size={16} /> 
         },
         { 
           id: "support",
-          name: "Support", 
+          name: "Support Levels", 
           route: "/support", 
           icon: <HelpCircle size={16} /> 
-        },
+        }
       ]
-    },
-    {
-      id: "admin",
-      title: "admin",
-      items: [
-        // { 
-        //   id: "Role Management",
-        //   name: "Role Management", 
-        //   route: "/manage-role", 
-        //   icon: <Users size={16} /> 
-        // },
-        { 
-          id: "User Role",
-          name: "User Role",
-          route: "/user-role",
-          icon: <RollerCoaster size={16} /> 
-        },
-        { 
-          id: "Roles",
-          name: "Roles",
-          route: "/roles",
-          icon: <UserIcon size={16} /> 
-        },
-        { 
-          id: "Permission",
-          name: "Permission",
-          route: "/permission",
-          icon: <Cog size={16} /> 
-        },
-        { 
-          id: "Dispatcher",
-          name: "Dispatcher",
-          route: "/dispatcher",
-          icon: <MonitorCheck size={16} /> 
-        },
-      ]
-    },
-   
+    }
   ];
 
   // Check if current route is in a section to auto-expand it
@@ -425,7 +406,7 @@ function Sidebar() {
               {/* Collapsible content */}
               <div 
                 className={`overflow-hidden transition-all duration-300 ${
-                  openSections[group.id] ? "max-h-64 opacity-100" : "max-h-0 opacity-0"
+                  openSections[group.id] ? "max-h-screen opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
                 <div className="space-y-0.5 pl-2 pr-1 pb-1">

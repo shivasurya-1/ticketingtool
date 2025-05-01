@@ -18,6 +18,7 @@ export default function Priority() {
     description: "",
     responseTargetTime: "",
     isActive: true,
+    organisation: "", // Added organisation field
   });
   const [showPriorityModal, setShowPriorityModal] = useState(false);
   const [totalEntries, setTotalEntries] = useState(0);
@@ -28,6 +29,7 @@ export default function Priority() {
   const [searchTerm, setSearchTerm] = useState("");
   const [modalMode, setModalMode] = useState("add"); // "add" or "edit" or "view"
   const [selectedPriorityId, setSelectedPriorityId] = useState(null);
+  const [organisations, setOrganisations] = useState([]); // Added organisations state
 
   const searchInputRef = useRef(null);
   const formRef = useRef(null);
@@ -42,6 +44,8 @@ export default function Priority() {
       (priority.description &&
         priority.description.toLowerCase().includes(searchTermLower)) ||
       priority.priority_id.toString().includes(searchTermLower) ||
+      (priority.organisation &&
+        priority.organisation.toLowerCase().includes(searchTermLower)) ||
       (priority.response_target_time &&
         priority.response_target_time.toString().includes(searchTermLower))
     );
@@ -55,9 +59,10 @@ export default function Priority() {
   const offset = currentPage * pageSize;
   const currentItems = filteredPriorities.slice(offset, offset + pageSize);
 
-  // Fetch priorities on component mount
+  // Fetch priorities and organisations on component mount
   useEffect(() => {
     fetchPriorities();
+    fetchOrganisations();
   }, []);
 
   // Update current entries information when filteredPriorities changes
@@ -122,6 +127,26 @@ export default function Priority() {
     }
   };
 
+  const fetchOrganisations = async () => {
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) return;
+
+    try {
+      const response = await axiosInstance.get("/org/organisation/", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (response.status === 200) {
+        setOrganisations(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching organisations:", error);
+      toast.error("Failed to load organisations");
+    }
+  };
+
   const handlePageClick = ({ selected }) => {
     setCurrentPage(selected);
   };
@@ -154,101 +179,14 @@ export default function Priority() {
     setCurrentPage(0);
   };
 
-  // Time conversion functions
-  const isBackendFormat = (timeStr) => {
-    if (!timeStr) return false;
-    // Match pattern like: "4 20:10:20" (days hours:minutes:seconds) or "0days 02:00:00"
-    const backendFormatRegex =
-      /^(\d+)(?:\s|\s?days\s)(\d{1,2}:\d{1,2}:\d{1,2})$/;
-    return backendFormatRegex.test(timeStr);
-  };
+  // Validate time format (Days Hours:Minutes:Seconds)
+  const validateTimeFormat = (timeStr) => {
+    if (!timeStr) return true;
 
-  const normalizeBackendFormat = (timeStr) => {
-    if (!timeStr) return "0 00:00:00";
-
-    // If it's in the format "0days 02:00:00", convert to "0 02:00:00"
-    if (timeStr.includes("days")) {
-      const match = timeStr.match(/^(\d+)days\s+(\d{2}:\d{2}:\d{2})$/);
-      if (match) {
-        return `${match[1]} ${match[2]}`;
-      }
-    }
-
-    // Return as is if already in correct format
-    if (isBackendFormat(timeStr)) {
-      return timeStr;
-    }
-
-    return timeStr;
-  };
-
-  const convertTimeToBackendFormat = (timeStr) => {
-    if (!timeStr || timeStr.trim() === "") return "0 00:00:00";
-
-    // Normalize the format if it's already in backend format
-    if (isBackendFormat(timeStr) || timeStr.includes("days")) {
-      return normalizeBackendFormat(timeStr);
-    }
-
-    // Handle direct numeric input (assume hours)
-    if (!isNaN(timeStr) && timeStr !== "") {
-      const hours = parseFloat(timeStr);
-      const days = Math.floor(hours / 24);
-      const remainingHours = Math.floor(hours % 24);
-      const minutes = Math.floor((hours * 60) % 60);
-      const seconds = Math.floor((hours * 3600) % 60);
-
-      return `${days} ${String(remainingHours).padStart(2, "0")}:${String(
-        minutes
-      ).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-    }
-
-    // Handle HH:MM:SS format (assume hours:minutes:seconds, no days)
-    if (timeStr.includes(":")) {
-      const parts = timeStr.split(":");
-
-      // If we have exactly three parts, assume it's HH:MM:SS (no days)
-      if (parts.length === 3) {
-        const hours = parseInt(parts[0]) || 0;
-        const days = Math.floor(hours / 24);
-        const remainingHours = hours % 24;
-
-        return `${days} ${String(remainingHours).padStart(2, "0")}:${String(
-          parseInt(parts[1]) || 0
-        ).padStart(2, "0")}:${String(parseInt(parts[2]) || 0).padStart(
-          2,
-          "0"
-        )}`;
-      }
-      // If we have two parts, assume it's HH:MM (no days, no seconds)
-      else if (parts.length === 2) {
-        const hours = parseInt(parts[0]) || 0;
-        const days = Math.floor(hours / 24);
-        const remainingHours = hours % 24;
-
-        return `${days} ${String(remainingHours).padStart(2, "0")}:${String(
-          parseInt(parts[1]) || 0
-        ).padStart(2, "0")}:00`;
-      }
-    }
-
-    // Handle "X hours" format
-    if (timeStr.toLowerCase().includes("hour")) {
-      const match = timeStr.match(/(\d+(\.\d+)?)/);
-      if (match) {
-        const hours = parseFloat(match[1]);
-        const days = Math.floor(hours / 24);
-        const remainingHours = Math.floor(hours % 24);
-        const minutes = Math.floor((hours * 60) % 60);
-        const seconds = Math.floor((hours * 3600) % 60);
-
-        return `${days} ${String(remainingHours).padStart(2, "0")}:${String(
-          minutes
-        ).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-      }
-    }
-
-    return "0 00:00:00"; // Default if cannot parse
+    // Check time format using regex - must follow the format [DD] [HH:[MM:]]ss[.uuuuuu]
+    // This allows formats like "5 08:30:00", "5 08:30:00.000", etc.
+    const timeFormatRegex = /^(\d+)\s+(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/;
+    return timeFormatRegex.test(timeStr);
   };
 
   // Format the target time for display
@@ -258,11 +196,8 @@ export default function Priority() {
     try {
       // First normalize the format if it contains "days"
       let normalizedValue = timeValue;
-      if (timeValue.includes("days")) {
-        const match = timeValue.match(/^(\d+)days\s+(\d{2}:\d{2}:\d{2})$/);
-        if (match) {
-          normalizedValue = `${match[1]} ${match[2]}`;
-        }
+      if (timeValue.includes(".")) {
+        normalizedValue = timeValue.split(".")[0];
       }
 
       // Expected format: "D HH:MM:SS"
@@ -310,8 +245,17 @@ export default function Priority() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.urgencyName) {
-      toast.error("Please fill in the required fields");
+    if (!formData.urgencyName || !formData.organisation) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    // Validate time format if provided
+    if (
+      formData.responseTargetTime &&
+      !validateTimeFormat(formData.responseTargetTime)
+    ) {
+      toast.error("Response target time must be in format 'Xdays HH:MM:SS'");
       return;
     }
 
@@ -323,16 +267,12 @@ export default function Priority() {
       return;
     }
 
-    // Convert the target time to the backend format
-    const formattedTargetTime = convertTimeToBackendFormat(
-      formData.responseTargetTime
-    );
-
     const parseFormData = (data) => ({
       urgency_name: data.urgencyName,
-      description: data.description,
-      input_response_target_time: formattedTargetTime,
+      description: data.description || "",
+      input_response_target_time: data.responseTargetTime || "0 00:00:00",
       is_active: data.isActive,
+      organisation_id: parseInt(data.organisation), // Add organisation ID
     });
 
     try {
@@ -374,6 +314,7 @@ export default function Priority() {
       // Refresh the data after adding/editing priority
       await fetchPriorities();
     } catch (error) {
+      console.error("Error submitting form:", error.response.data);
       toast.error(
         error.response?.data?.error ||
           error.response?.data?.urgency_name?.[0] ||
@@ -386,11 +327,36 @@ export default function Priority() {
 
   const handleView = (priority) => {
     setSelectedPriorityId(priority.priority_id);
+
+    // Find organisation ID based on name
+    const organisationObj = organisations.find(
+      (org) => org.organisation_name === priority.organisation
+    );
+
+    // Format the response_target_time to match expected input format (DD HH:MM:SS)
+    let formattedTime = priority.response_target_time || "";
+
+    // If time is in old format with "days", convert it
+    if (formattedTime.includes("days")) {
+      const match = formattedTime.match(/^(\d+)days\s+(\d{2}:\d{2}:\d{2})$/);
+      if (match) {
+        formattedTime = `${match[1]} ${match[2]}`;
+      }
+    }
+
+    // If there are microseconds, remove them
+    if (formattedTime.includes(".")) {
+      formattedTime = formattedTime.split(".")[0];
+    }
+
     setFormData({
       urgencyName: priority.urgency_name,
       description: priority.description || "",
-      responseTargetTime: priority.response_target_time || "",
+      responseTargetTime: formattedTime,
       isActive: priority.is_active,
+      organisation: organisationObj
+        ? organisationObj.organisation_id.toString()
+        : "",
     });
     setModalMode("view");
     setShowPriorityModal(true);
@@ -398,11 +364,36 @@ export default function Priority() {
 
   const handleEdit = (priority) => {
     setSelectedPriorityId(priority.priority_id);
+
+    // Find organisation ID based on name
+    const organisationObj = organisations.find(
+      (org) => org.organisation_name === priority.organisation
+    );
+
+    // Format the response_target_time to match expected input format (DD HH:MM:SS)
+    let formattedTime = priority.response_target_time || "";
+
+    // If time is in old format with "days", convert it
+    if (formattedTime.includes("days")) {
+      const match = formattedTime.match(/^(\d+)days\s+(\d{2}:\d{2}:\d{2})$/);
+      if (match) {
+        formattedTime = `${match[1]} ${match[2]}`;
+      }
+    }
+
+    // If there are microseconds, remove them
+    if (formattedTime.includes(".")) {
+      formattedTime = formattedTime.split(".")[0];
+    }
+
     setFormData({
       urgencyName: priority.urgency_name,
       description: priority.description || "",
-      responseTargetTime: priority.response_target_time || "",
+      responseTargetTime: formattedTime,
       isActive: priority.is_active,
+      organisation: organisationObj
+        ? organisationObj.organisation_id.toString()
+        : "",
     });
     setModalMode("edit");
     setShowPriorityModal(true);
@@ -420,6 +411,7 @@ export default function Priority() {
       description: "",
       responseTargetTime: "",
       isActive: true,
+      organisation: "",
     });
     setSelectedPriorityId(null);
   };
@@ -533,6 +525,9 @@ export default function Priority() {
                         Urgency Name
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Organisation
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Description
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
@@ -570,6 +565,9 @@ export default function Priority() {
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-800">
                           {priority.urgency_name}
                         </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-800">
+                          {priority.organisation || "-"}
+                        </td>
                         <td className="px-3 py-2 text-xs text-gray-600 max-w-xs truncate">
                           {priority.description || "-"}
                         </td>
@@ -588,7 +586,7 @@ export default function Priority() {
                           </span>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
-                        {formatDate(priority.created_at) || "-"}
+                          {formatDate(priority.created_at) || "-"}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
                           {priority.created_by || "-"}
@@ -627,7 +625,7 @@ export default function Priority() {
 
           {/* Compact Pagination Controls */}
           {filteredPriorities.length > 0 && (
-            <div className="mt-2 flex justify-end items-center">
+            <div className="mt-2 flex justify-start items-center">
               <ReactPaginate
                 previousLabel={
                   <span className="flex items-center">
@@ -679,7 +677,7 @@ export default function Priority() {
           {/* Priority Modal */}
           {showPriorityModal && (
             <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50">
-              <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-xl">
                 <div className="border-b border-gray-200 p-3 flex justify-between items-center">
                   <h2 className="text-lg font-semibold text-gray-800">
                     {modalMode === "add"
@@ -696,11 +694,7 @@ export default function Priority() {
                   </button>
                 </div>
 
-                <form
-                  ref={formRef}
-                  onSubmit={handleSubmit}
-                  className="p-4 space-y-4"
-                >
+                <form onSubmit={handleSubmit} className="p-4 space-y-3">
                   {(modalMode === "edit" || modalMode === "view") && (
                     <div>
                       <label
@@ -717,6 +711,40 @@ export default function Priority() {
                       />
                     </div>
                   )}
+
+                  {/* Organisation Selection */}
+                  <div>
+                    <label
+                      htmlFor="organisation"
+                      className="block text-xs font-medium text-gray-700 mb-1"
+                    >
+                      Organisation{" "}
+                      {modalMode !== "view" && (
+                        <span className="text-red-500">*</span>
+                      )}
+                    </label>
+                    <select
+                      id="organisation"
+                      name="organisation"
+                      value={formData.organisation}
+                      onChange={handleFormChange}
+                      required={modalMode !== "view"}
+                      disabled={modalMode === "view"}
+                      className={`border rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
+                        modalMode === "view" ? "bg-gray-50 text-gray-500" : ""
+                      }`}
+                    >
+                      <option value="">Select an organisation</option>
+                      {organisations.map((org) => (
+                        <option
+                          key={org.organisation_id}
+                          value={org.organisation_id}
+                        >
+                          {org.organisation_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
                   <div>
                     <label
@@ -750,9 +778,7 @@ export default function Priority() {
                     </label>
                     {modalMode !== "view" && (
                       <p className="text-xs text-gray-500 mb-1">
-                        Enter time in any format: "4 20:10:20" (4 days, 20
-                        hours, 10 minutes, 20 seconds), "24" (24 hours), or
-                        "3:30" (3 hours, 30 minutes)
+                        Enter time in format: "DD HH:MM:SS" (e.g. "5 08:30:00")
                       </p>
                     )}
                     <input
@@ -761,7 +787,9 @@ export default function Priority() {
                       type="text"
                       value={formData.responseTargetTime}
                       onChange={handleFormChange}
-                      placeholder="e.g., 4 20:10:20 or 24 or 3:30"
+                      placeholder="e.g., 5 08:30:00"
+                      pattern="^\d+\s+\d{2}:\d{2}:\d{2}$"
+                      title="Format must be: DD HH:MM:SS (e.g. 5 08:30:00)"
                       disabled={modalMode === "view"}
                       className={`border rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
                         modalMode === "view" ? "bg-gray-50 text-gray-500" : ""
@@ -781,13 +809,12 @@ export default function Priority() {
                       name="description"
                       value={formData.description}
                       onChange={handleFormChange}
-                      placeholder="Enter a detailed description for this priority level"
                       disabled={modalMode === "view"}
+                      rows={2}
                       className={`border rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
                         modalMode === "view" ? "bg-gray-50 text-gray-500" : ""
                       }`}
-                      rows="3"
-                    />
+                    ></textarea>
                   </div>
 
                   <div className="flex items-center">
@@ -823,24 +850,36 @@ export default function Priority() {
                     </label>
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-3 border-t">
+                  <div className="flex justify-end gap-2 pt-3 mt-4 border-t">
                     {modalMode === "view" ? (
                       <>
                         <button
                           type="button"
-                          onClick={() => setShowPriorityModal(false)}
-                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm transition-colors"
+                          onClick={() =>
+                            handleEdit({
+                              priority_id: selectedPriorityId,
+                              urgency_name: formData.urgencyName,
+                              description: formData.description,
+                              response_target_time: formData.responseTargetTime,
+                              is_active: formData.isActive,
+                              organisation:
+                                organisations.find(
+                                  (org) =>
+                                    org.organisation_id.toString() ===
+                                    formData.organisation
+                                )?.organisation_name || "",
+                            })
+                          }
+                          className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
                         >
-                          Close
+                          Edit
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            setModalMode("edit");
-                          }}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                          onClick={() => setShowPriorityModal(false)}
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
                         >
-                          Edit
+                          Close
                         </button>
                       </>
                     ) : (
@@ -848,15 +887,43 @@ export default function Priority() {
                         <button
                           type="button"
                           onClick={() => setShowPriorityModal(false)}
-                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm transition-colors"
+                          className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
+                          disabled={loading}
                         >
                           Cancel
                         </button>
                         <button
                           type="submit"
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors flex items-center gap-1"
+                          disabled={loading}
                         >
-                          {modalMode === "add"
+                          {loading && (
+                            <svg
+                              className="animate-spin h-3 w-3 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
+                            </svg>
+                          )}
+                          {loading
+                            ? modalMode === "add"
+                              ? "Adding..."
+                              : "Updating..."
+                            : modalMode === "add"
                             ? "Add Priority"
                             : "Update Priority"}
                         </button>
@@ -870,10 +937,12 @@ export default function Priority() {
 
           <ChatbotPopup />
           <ToastContainer
+            position="bottom-right"
             autoClose={3000}
             hideProgressBar={false}
-            newestOnTop={false}
+            newestOnTop
             closeOnClick
+            rtl={false}
             pauseOnFocusLoss
             draggable
             pauseOnHover

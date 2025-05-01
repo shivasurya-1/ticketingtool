@@ -47,6 +47,9 @@ import Projects from "./pages/Admin/Projects";
 import GroupTickets from "./pages/GroupTickets";
 import CreateIssue from "./pages/CreateIssue/CreateIssue";
 import IssueCategory from "./pages/Admin/IssueCategory";
+import IssueTypes from "./pages/Admin/IssueTypes";
+import RolePermissions from "./pages/Admin/RolePermissions";
+import ProjectAssignment from "./pages/Admin/ProjectAssignment.jsx";
 
 const App = () => {
  const dispatch= useDispatch() 
@@ -115,7 +118,7 @@ const App = () => {
             <Route path="/request-issue" element={<Catalog />} />
             
             <Route
-              path="/request-issue/application-support/sap/create-issue"
+              path="/request-issue/application-support/:serviceType/create-issue"
               element={<CreateIssue />}
             />
             <Route
@@ -172,7 +175,10 @@ const App = () => {
             <Route path="/solutionGrp" element={<SolutionGroup />} />
             <Route path="/tickets" element={<ListAllTickets />} />
             <Route path="/dispatcher" element={<DispatcherPage />} />
-            <Route path="/issue-category" element={<IssueCategory />} />
+            <Route path="/service-domain" element={<IssueCategory />} />
+            <Route path="/service-type" element={<IssueTypes />} />
+            <Route path="/role-permissions" element={<RolePermissions />} />
+            <Route path="/project-assignment" element={<ProjectAssignment />} />
             <Route path="*" element={<Home />} />
           </Route>
         </Routes>

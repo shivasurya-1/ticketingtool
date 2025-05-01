@@ -16,7 +16,7 @@ export default function DispatcherPage() {
   const [availableSolutionGroups, setAvailableSolutionGroups] = useState([]);
   const [currentEntries, setCurrentEntries] = useState({
     start: 0,
-    end: 0
+    end: 0,
   });
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -29,7 +29,7 @@ export default function DispatcherPage() {
   const [assignmentData, setAssignmentData] = useState({
     assigneeId: "",
     supportOrgId: "",
-    solutionGroupId: ""
+    solutionGroupId: "",
   });
   const [assignLoading, setAssignLoading] = useState(false);
   const accessToken = localStorage.getItem("access_token");
@@ -43,7 +43,7 @@ export default function DispatcherPage() {
   }, []);
 
   // Handle filtering and pagination
-  const filteredTickets = unassignedTickets.filter(ticket => {
+  const filteredTickets = unassignedTickets.filter((ticket) => {
     if (!searchTerm.trim()) return true;
 
     const searchTermLower = searchTerm.toLowerCase().trim();
@@ -76,7 +76,11 @@ export default function DispatcherPage() {
 
   // Ensure currentPage is never out of bounds
   useEffect(() => {
-    if (currentPage >= pageCount && pageCount > 0 && filteredTickets.length > 0) {
+    if (
+      currentPage >= pageCount &&
+      pageCount > 0 &&
+      filteredTickets.length > 0
+    ) {
       setCurrentPage(Math.max(0, pageCount - 1));
     }
   }, [filteredTickets.length, pageCount, currentPage]);
@@ -94,12 +98,15 @@ export default function DispatcherPage() {
     setLoading(true);
 
     try {
-      const response = await axiosInstance.get('/ticket/dispatcher/', {
+      const response = await axiosInstance.get("/ticket/dispatcher/", {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
       });
-      const allTickets = response.data.results?.all_tickets || response.data.results?.all_ticket || [];
+      const allTickets =
+        response.data.results?.all_tickets ||
+        response.data.results?.all_ticket ||
+        [];
       setUnassignedTickets(allTickets);
       setCurrentPage(0);
     } catch (error) {
@@ -114,15 +121,15 @@ export default function DispatcherPage() {
   const fetchSupportData = async () => {
     try {
       const [staffRes, orgsRes, solutionsRes] = await Promise.all([
-        axiosInstance.get('user/api/assignee/', {
+        axiosInstance.get("user/api/assignee/", {
           headers: { Authorization: `Bearer ${accessToken}` },
         }),
-        axiosInstance.get('org/autoAssignee/', {
+        axiosInstance.get("org/autoAssignee/", {
           headers: { Authorization: `Bearer ${accessToken}` },
         }),
-        axiosInstance.get('/solution_grp/tickets/', {
+        axiosInstance.get("/solution_grp/tickets/", {
           headers: { Authorization: `Bearer ${accessToken}` },
-        })
+        }),
       ]);
 
       setSupportStaff(staffRes.data);
@@ -130,7 +137,7 @@ export default function DispatcherPage() {
       const cleanedOrgData = orgsRes.data.map((item) => ({
         username: item.username,
         organisation_name: item.organisation_name,
-        solutiongroup: item.solutiongroup
+        solutiongroup: item.solutiongroup,
       }));
       setSupportOrganizations(cleanedOrgData);
 
@@ -160,38 +167,42 @@ export default function DispatcherPage() {
 
   const handleSolutionGroupChange = (e) => {
     const solutionGroupId = e.target.value;
-    setAssignmentData(prev => ({ ...prev, solutionGroupId }));
+    setAssignmentData((prev) => ({ ...prev, solutionGroupId }));
   };
 
   const openAssignmentModal = (ticket) => {
     setSelectedTicket(ticket);
-    setAssignmentData({ assigneeId: "", supportOrgId: "", solutionGroupId: "" });
+    setAssignmentData({
+      assigneeId: "",
+      supportOrgId: "",
+      solutionGroupId: "",
+    });
     setShowAssignmentModal(true);
   };
 
   const handleAssigneeChange = (e) => {
     const assigneeId = e.target.value;
 
-    setAssignmentData(prev => ({ ...prev, assigneeId }));
+    setAssignmentData((prev) => ({ ...prev, assigneeId }));
 
     // Find the selected staff member
-    const selectedStaff = supportStaff.find(staff =>
-      staff.id?.toString() === assigneeId
+    const selectedStaff = supportStaff.find(
+      (staff) => staff.id?.toString() === assigneeId
     );
 
     if (selectedStaff) {
       // Find matching organization data
-      const staffOrg = supportOrganizations.find(org =>
-        org.username === selectedStaff.username
+      const staffOrg = supportOrganizations.find(
+        (org) => org.username === selectedStaff.username
       );
 
       if (staffOrg) {
         // Set organization
-        setAssignmentData(prev => ({
+        setAssignmentData((prev) => ({
           ...prev,
           assignee: selectedStaff.username,
           supportOrgId: staffOrg.organisation_name,
-          solutionGroupId: "" // Reset solution group selection
+          solutionGroupId: "", // Reset solution group selection
         }));
 
         // Set available solution groups for dropdown
@@ -206,10 +217,10 @@ export default function DispatcherPage() {
     } else {
       // Reset if no staff selected
       setAvailableSolutionGroups([]);
-      setAssignmentData(prev => ({
+      setAssignmentData((prev) => ({
         ...prev,
         supportOrgId: "",
-        solutionGroupId: ""
+        solutionGroupId: "",
       }));
     }
   };
@@ -246,10 +257,14 @@ export default function DispatcherPage() {
           },
         }
       );
-      const updatedTickets = unassignedTickets.filter(ticket => ticket.ticket_id !== selectedTicket.ticket_id);
+      const updatedTickets = unassignedTickets.filter(
+        (ticket) => ticket.ticket_id !== selectedTicket.ticket_id
+      );
 
       setUnassignedTickets(updatedTickets);
-      toast.success(`Ticket #${selectedTicket.ticket_id} assigned successfully`);
+      toast.success(
+        `Ticket #${selectedTicket.ticket_id} assigned successfully`
+      );
 
       setShowAssignmentModal(false);
     } catch (error) {
@@ -264,14 +279,15 @@ export default function DispatcherPage() {
     if (!orgId) return "Not assigned";
 
     // If orgId is already a name
-    if (typeof orgId === 'string') {
+    if (typeof orgId === "string") {
       return orgId;
     }
 
     // Otherwise try to find by ID
-    const org = supportOrganizations.find(org =>
-      org.organisation_id?.toString() === orgId.toString() ||
-      org.id?.toString() === orgId.toString()
+    const org = supportOrganizations.find(
+      (org) =>
+        org.organisation_id?.toString() === orgId.toString() ||
+        org.id?.toString() === orgId.toString()
     );
 
     return org ? org.organisation_name : "Unknown Organization";
@@ -280,12 +296,12 @@ export default function DispatcherPage() {
   // Format date for display
   const formatDate = (dateString) => {
     try {
-      return new Date(dateString).toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+      return new Date(dateString).toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
     } catch (e) {
       return dateString;
@@ -299,8 +315,7 @@ export default function DispatcherPage() {
     const priorityLower = priority.toLowerCase();
     if (priorityLower === "high" || priorityLower === "critical")
       return "bg-red-100 text-red-800";
-    if (priorityLower === "medium")
-      return "bg-yellow-100 text-yellow-800";
+    if (priorityLower === "medium") return "bg-yellow-100 text-yellow-800";
     return "bg-green-100 text-green-800";
   };
 
@@ -324,7 +339,10 @@ export default function DispatcherPage() {
               className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 transition-colors"
               disabled={loading}
             >
-              <FiRefreshCw size={16} className={loading ? "animate-spin" : ""} />
+              <FiRefreshCw
+                size={16}
+                className={loading ? "animate-spin" : ""}
+              />
               {loading ? "Loading..." : "Refresh"}
             </button>
           </div>
@@ -372,9 +390,7 @@ export default function DispatcherPage() {
             {loading ? (
               <div className="p-4 text-center">
                 <div className="inline-block animate-spin rounded-full h-6 w-6 border-3 border-blue-500 border-t-transparent"></div>
-                <p className="mt-2 text-gray-600 text-sm">
-                  Loading tickets...
-                </p>
+                <p className="mt-2 text-gray-600 text-sm">Loading tickets...</p>
               </div>
             ) : !filteredTickets.length ? (
               <div className="p-6 text-center">
@@ -448,7 +464,11 @@ export default function DispatcherPage() {
                           {ticket.issue_type}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
-                          <span className={`px-2 py-0.5 rounded-full text-xs ${getPriorityBadgeClass(ticket.priority)}`}>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs ${getPriorityBadgeClass(
+                              ticket.priority
+                            )}`}
+                          >
                             {ticket.priority}
                           </span>
                         </td>
@@ -476,7 +496,7 @@ export default function DispatcherPage() {
 
           {/* Compact Pagination Controls */}
           {filteredTickets.length > 0 && (
-            <div className="mt-2 flex justify-end items-center">
+            <div className="mt-2 flex justify-start items-center">
               <ReactPaginate
                 previousLabel={
                   <span className="flex items-center">
@@ -543,20 +563,38 @@ export default function DispatcherPage() {
 
                 <div className="p-3 bg-gray-50 border-b">
                   <div className="space-y-1 text-sm">
-                    <p><span className="font-medium">Summary:</span> {selectedTicket.summary}</p>
-                    <p><span className="font-medium">Issue Type:</span> {selectedTicket.issue_type}</p>
-                    <p><span className="font-medium">Requested by:</span> {selectedTicket.created_by} ({selectedTicket.requester_email})</p>
+                    <p>
+                      <span className="font-medium">Summary:</span>{" "}
+                      {selectedTicket.summary}
+                    </p>
+                    <p>
+                      <span className="font-medium">Issue Type:</span>{" "}
+                      {selectedTicket.issue_type}
+                    </p>
+                    <p>
+                      <span className="font-medium">Requested by:</span>{" "}
+                      {selectedTicket.created_by} (
+                      {selectedTicket.requester_email})
+                    </p>
                     <p>
                       <span className="font-medium">Priority:</span>
-                      <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${getPriorityBadgeClass(selectedTicket.priority)}`}>
+                      <span
+                        className={`ml-2 px-2 py-0.5 rounded-full text-xs ${getPriorityBadgeClass(
+                          selectedTicket.priority
+                        )}`}
+                      >
                         {selectedTicket.priority}
                       </span>
                     </p>
                     {selectedTicket.description && (
                       <div>
                         <p className="font-medium">Description:</p>
-                        <div className="text-xs mt-1 p-2 bg-white rounded border border-gray-200 max-h-28 overflow-y-auto"
-                          dangerouslySetInnerHTML={{ __html: selectedTicket.description }} />
+                        <div
+                          className="text-xs mt-1 p-2 bg-white rounded border border-gray-200 max-h-28 overflow-y-auto"
+                          dangerouslySetInnerHTML={{
+                            __html: selectedTicket.description,
+                          }}
+                        />
                       </div>
                     )}
                   </div>
@@ -564,7 +602,10 @@ export default function DispatcherPage() {
 
                 <form onSubmit={handleAssignTicket} className="p-4 space-y-4">
                   <div>
-                    <label htmlFor="assignee" className="block text-xs font-medium text-gray-700 mb-1">
+                    <label
+                      htmlFor="assignee"
+                      className="block text-xs font-medium text-gray-700 mb-1"
+                    >
                       Assignee <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -575,7 +616,7 @@ export default function DispatcherPage() {
                       className="border border-gray-300 rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select an assignee</option>
-                      {supportStaff.map(staff => (
+                      {supportStaff.map((staff) => (
                         <option key={staff.id} value={staff.id?.toString()}>
                           {staff.username}
                         </option>
@@ -584,7 +625,10 @@ export default function DispatcherPage() {
                   </div>
 
                   <div>
-                    <label htmlFor="supportOrg" className="block text-xs font-medium text-gray-700 mb-1">
+                    <label
+                      htmlFor="supportOrg"
+                      className="block text-xs font-medium text-gray-700 mb-1"
+                    >
                       Support Organization
                     </label>
                     <input
@@ -596,7 +640,10 @@ export default function DispatcherPage() {
                   </div>
 
                   <div>
-                    <label htmlFor="solutionGroup" className="block text-xs font-medium text-gray-700 mb-1">
+                    <label
+                      htmlFor="solutionGroup"
+                      className="block text-xs font-medium text-gray-700 mb-1"
+                    >
                       Solution Group
                     </label>
                     {availableSolutionGroups.length > 0 ? (

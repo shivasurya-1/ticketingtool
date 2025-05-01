@@ -532,7 +532,7 @@ export default function Category() {
 
           {/* Compact Pagination Controls */}
           {filteredCategories.length > 0 && (
-            <div className="mt-2 flex justify-end items-center">
+            <div className="mt-2 flex justify-start items-center">
               <ReactPaginate
                 previousLabel={
                   <span className="flex items-center">

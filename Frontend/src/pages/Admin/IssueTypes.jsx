@@ -8,17 +8,21 @@ import { ToastContainer, toast } from "react-toastify";
 import { axiosInstance } from "../../utils/axiosInstance";
 const { formatDate } = require("../../utils/formatDate");
 
-export default function Organisations() {
+export default function IssueTypes() {
   const [loading, setLoading] = useState(true);
-  const [pageSize, setPageSize] = useState(10); // Increased default page size
-  const [organisations, setOrganisations] = useState([]);
+  const [pageSize, setPageSize] = useState(10);
+  const [issueTypes, setIssueTypes] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const [formData, setFormData] = useState({
-    organizationName: "",
-    organizationMail: "",
+    name: "",
+    description: "",
+    icon_url: null,
     isActive: true,
+    category: "", // Add category field
   });
-  const [showOrganizationModal, setShowOrganizationModal] = useState(false);
+  const [showIssueTypeModal, setShowIssueTypeModal] = useState(false);
   const [totalEntries, setTotalEntries] = useState(0);
   const [currentEntries, setCurrentEntries] = useState({
     start: 0,
@@ -26,42 +30,46 @@ export default function Organisations() {
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [modalMode, setModalMode] = useState("add"); // "add" or "edit" or "view"
-  const [selectedOrganizationId, setSelectedOrganizationId] = useState(null);
+  const [selectedIssueTypeId, setSelectedIssueTypeId] = useState(null);
+  const [iconPreview, setIconPreview] = useState(null);
 
   const searchInputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
-  // Filter organisations based on search term
-  const filteredOrganisations = organisations.filter((org) => {
+  // Filter issue types based on search term
+  const filteredIssueTypes = issueTypes.filter((issueType) => {
     if (!searchTerm.trim()) return true;
 
     const searchTermLower = searchTerm.toLowerCase().trim();
     return (
-      org.organisation_name.toLowerCase().includes(searchTermLower) ||
-      org.organisation_mail.toLowerCase().includes(searchTermLower) ||
-      org.organisation_id.toString().includes(searchTermLower)
+      issueType.name.toLowerCase().includes(searchTermLower) ||
+      issueType.issue_type_id.toString().includes(searchTermLower) ||
+      (issueType.description &&
+        issueType.description.toLowerCase().includes(searchTermLower))
     );
   });
 
   // Calculate pagination values
   const pageCount = Math.max(
     1,
-    Math.ceil(filteredOrganisations.length / pageSize)
+    Math.ceil(filteredIssueTypes.length / pageSize)
   );
   const offset = currentPage * pageSize;
-  const currentItems = filteredOrganisations.slice(offset, offset + pageSize);
+  const currentItems = filteredIssueTypes.slice(offset, offset + pageSize);
 
-  // Fetch organisations on component mount
+  // Fetch issue types and categories on component mount
   useEffect(() => {
-    fetchOrganisations();
+    fetchIssueTypes();
+    fetchCategories();
   }, []);
 
-  // Update current entries information when filteredOrganisations changes
+  // Update current entries information when filteredIssueTypes changes
   useEffect(() => {
-    const start = filteredOrganisations.length > 0 ? offset + 1 : 0;
-    const end = Math.min(offset + pageSize, filteredOrganisations.length);
+    const start = filteredIssueTypes.length > 0 ? offset + 1 : 0;
+    const end = Math.min(offset + pageSize, filteredIssueTypes.length);
     setCurrentEntries({ start, end });
-    setTotalEntries(filteredOrganisations.length);
-  }, [filteredOrganisations.length, offset, pageSize]);
+    setTotalEntries(filteredIssueTypes.length);
+  }, [filteredIssueTypes.length, offset, pageSize]);
 
   // Reset to first page when search term changes
   useEffect(() => {
@@ -73,11 +81,11 @@ export default function Organisations() {
     if (
       currentPage >= pageCount &&
       pageCount > 0 &&
-      filteredOrganisations.length > 0
+      filteredIssueTypes.length > 0
     ) {
       setCurrentPage(Math.max(0, pageCount - 1));
     }
-  }, [filteredOrganisations.length, pageCount, currentPage]);
+  }, [filteredIssueTypes.length, pageCount, currentPage]);
 
   // Scroll to top when changing to the last page with fewer items
   useEffect(() => {
@@ -88,7 +96,38 @@ export default function Organisations() {
     }
   }, [currentPage, pageCount, currentItems.length, pageSize]);
 
-  const fetchOrganisations = async () => {
+  // Fetch categories from the API
+  const fetchCategories = async () => {
+    setCategoriesLoading(true);
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) {
+      toast.error("Please log in to access this page.");
+      setCategoriesLoading(false);
+      return;
+    }
+    try {
+      const response = await axiosInstance.get("/services/categories/", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      if (response.status === 200) {
+        // Filter only active categories
+        const activeCategories = response.data.filter(
+          (category) => category.is_active
+        );
+        setCategories(activeCategories);
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      toast.error(error.response?.data?.error || "Failed to fetch categories");
+      setCategories([]);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  const fetchIssueTypes = async () => {
     setLoading(true);
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) {
@@ -97,27 +136,26 @@ export default function Organisations() {
       return;
     }
     try {
-      const response = await axiosInstance.get("/org/organisation/", {
+      const response = await axiosInstance.get("/services/issue-types/", {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
       });
       if (response.status === 200) {
-        // Process organisations with default is_active if not provided
-        const processedOrganisations = response.data.map((org) => ({
-          ...org,
-          is_active: org.is_active !== undefined ? org.is_active : true,
+        // Process issue types with default is_active if not provided
+        const processedIssueTypes = response.data.map((issueType) => ({
+          ...issueType,
+          is_active:
+            issueType.is_active !== undefined ? issueType.is_active : true,
         }));
-        setOrganisations(processedOrganisations);
-
+        setIssueTypes(processedIssueTypes);
         // Reset to first page when data changes significantly
         setCurrentPage(0);
       }
     } catch (error) {
-      toast.error(
-        error.response?.data?.error || "Failed to fetch organisations"
-      );
-      setOrganisations([]);
+      console.error("Error fetching issue types:", error);
+      toast.error(error.response?.data?.error || "Failed to fetch issue types");
+      setIssueTypes([]);
     } finally {
       setLoading(false);
     }
@@ -145,6 +183,23 @@ export default function Organisations() {
     }
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFormData({
+        ...formData,
+        icon_url: file,
+      });
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setIconPreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSearchInputChange = (e) => {
     setSearchTerm(e.target.value);
   };
@@ -158,7 +213,7 @@ export default function Organisations() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.organizationName || !formData.organizationMail) {
+    if (!formData.name || !formData.description || !formData.category) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -166,103 +221,126 @@ export default function Organisations() {
     setLoading(true);
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) {
-      toast.error("Please log in to manage organisations.");
+      toast.error("Please log in to manage issue types.");
       setLoading(false);
       return;
     }
 
-    const parseFormData = (data) => ({
-      organisation_name: data.organizationName,
-      organisation_mail: data.organizationMail,
-      is_active: data.isActive,
-    });
-
     try {
-      const parsedData = parseFormData(formData);
-      let response;
+      // Create FormData object for file upload
+      const formDataToSend = new FormData();
+      formDataToSend.append("name", formData.name);
+      formDataToSend.append("description", formData.description);
+      formDataToSend.append("is_active", formData.isActive);
+      formDataToSend.append("category", formData.category);
 
+      if (formData.icon_url && typeof formData.icon_url !== "string") {
+        formDataToSend.append("icon_url", formData.icon_url);
+      }
+
+      let response;
       if (modalMode === "add") {
-        response = await axiosInstance.post("/org/organisation/", parsedData, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
+        response = await axiosInstance.post(
+          "/services/issue-types/",
+          formDataToSend,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
 
         if (response.status === 201 || response.status === 200) {
           toast.success(
-            response?.data?.message || "Organisation added successfully"
+            response?.data?.message || "Issue type added successfully"
           );
         }
       } else if (modalMode === "edit") {
         response = await axiosInstance.put(
-          `/org/organisation/${selectedOrganizationId}/`,
-          parsedData,
+          `/services/issue-types/${selectedIssueTypeId}/`,
+          formDataToSend,
           {
             headers: {
               Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "multipart/form-data",
             },
           }
         );
 
         if (response.status === 200) {
           toast.success(
-            response?.data?.message || "Organisation updated successfully"
+            response?.data?.message || "Issue type updated successfully"
           );
         }
       }
 
-      setShowOrganizationModal(false);
+      setShowIssueTypeModal(false);
       resetForm();
-      // Refresh the data after adding/editing organisation
-      await fetchOrganisations();
+      // Refresh the data after adding/editing issue type
+      await fetchIssueTypes();
     } catch (error) {
-      console.error("Error managing organisation:", error);
+      console.error("Error managing issue type:", error);
       const errorMessage =
         error.response?.data?.error ||
-        error.response?.data?.organisation_name?.[0] ||
-        error.response?.data?.organisation_mail?.[0] ||
-        `Failed to ${modalMode} organisation`;
+        error.response?.data?.name?.[0] ||
+        `Failed to ${modalMode} issue type`;
       toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleView = (org) => {
-    setSelectedOrganizationId(org.organisation_id);
+  const handleView = (issueType) => {
+    setSelectedIssueTypeId(issueType.issue_type_id);
     setFormData({
-      organizationName: org.organisation_name,
-      organizationMail: org.organisation_mail || "",
-      isActive: org.is_active !== undefined ? org.is_active : true,
+      name: issueType.name,
+      description: issueType.description || "",
+      icon_url: issueType.icon_url || null,
+      isActive: issueType.is_active !== undefined ? issueType.is_active : true,
+      category: issueType.category || "",
     });
+    setIconPreview(issueType.icon_url);
     setModalMode("view");
-    setShowOrganizationModal(true);
+    setShowIssueTypeModal(true);
   };
 
-  const handleEdit = (org) => {
-    setSelectedOrganizationId(org.organisation_id);
+  const handleEdit = (issueType) => {
+    setSelectedIssueTypeId(issueType.issue_type_id);
     setFormData({
-      organizationName: org.organisation_name,
-      organizationMail: org.organisation_mail || "",
-      isActive: org.is_active !== undefined ? org.is_active : true,
+      name: issueType.name,
+      description: issueType.description || "",
+      icon_url: issueType.icon_url || null,
+      isActive: issueType.is_active !== undefined ? issueType.is_active : true,
+      category: issueType.category || "",
     });
+    setIconPreview(issueType.icon_url);
     setModalMode("edit");
-    setShowOrganizationModal(true);
+    setShowIssueTypeModal(true);
   };
 
   const openAddModal = () => {
     resetForm();
     setModalMode("add");
-    setShowOrganizationModal(true);
+    setShowIssueTypeModal(true);
   };
 
   const resetForm = () => {
     setFormData({
-      organizationName: "",
-      organizationMail: "",
+      name: "",
+      description: "",
+      icon_url: null,
       isActive: true,
+      category: "",
     });
-    setSelectedOrganizationId(null);
+    setIconPreview(null);
+    setSelectedIssueTypeId(null);
+  };
+
+  // Find category name by id
+  const getCategoryNameById = (categoryId) => {
+    const category = categories.find((c) => c.issue_category_id === categoryId);
+    return category ? category.name : "Unknown";
   };
 
   return (
@@ -273,17 +351,15 @@ export default function Organisations() {
           {/* Condensed Header */}
           <div className="flex justify-between items-center mb-3">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">
-                Organisations
-              </h1>
+              <h1 className="text-2xl font-bold text-gray-800">Issue Types</h1>
               <p className="text-gray-500 text-sm">
-                Add, search, and manage your organisations
+                Add, search, and manage your support issue types
               </p>
             </div>
             <Button
               blueBackground
               onClick={openAddModal}
-              label="Add Organisation"
+              label="Add Issue Type"
               icon={<FiPlus size={16} />}
               primary={true}
             />
@@ -296,7 +372,7 @@ export default function Organisations() {
                 ref={searchInputRef}
                 type="text"
                 className="border border-gray-300 rounded-lg pl-8 pr-2 py-1.5 w-full focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-                placeholder="Search organisations..."
+                placeholder="Search issue types..."
                 value={searchTerm}
                 onChange={handleSearchInputChange}
               />
@@ -327,16 +403,16 @@ export default function Organisations() {
             </div>
           </div>
 
-          {/* Organisations Table - More compact */}
+          {/* Issue Types Table */}
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden h-fit">
             {loading ? (
               <div className="p-4 text-center">
                 <div className="inline-block animate-spin rounded-full h-6 w-6 border-3 border-blue-500 border-t-transparent"></div>
                 <p className="mt-2 text-gray-600 text-sm">
-                  Loading organisations...
+                  Loading issue types...
                 </p>
               </div>
-            ) : !filteredOrganisations.length ? (
+            ) : !filteredIssueTypes.length ? (
               <div className="p-6 text-center">
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-3">
                   <svg
@@ -353,15 +429,15 @@ export default function Organisations() {
                 </div>
                 <p className="text-gray-500 text-sm">
                   {searchTerm
-                    ? "No matching organisations found"
-                    : "No organisations found"}
+                    ? "No matching issue types found"
+                    : "No issue types found"}
                 </p>
                 <button
                   onClick={openAddModal}
                   className="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded-lg flex items-center gap-1 mx-auto text-sm"
                 >
                   <FiPlus size={16} />
-                  Add Organisation
+                  Add Issue Type
                 </button>
               </div>
             ) : (
@@ -373,10 +449,16 @@ export default function Organisations() {
                         ID
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Icon
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Name
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                        Email
+                        Description
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Category
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Status
@@ -399,57 +481,70 @@ export default function Organisations() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {currentItems.map((org, index) => (
+                    {currentItems.map((issueType, index) => (
                       <tr
                         key={index}
                         className="hover:bg-gray-50 transition-colors duration-150"
                       >
                         <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
-                          {org.organisation_id}
+                          {issueType.issue_type_id}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-800">
-                          {org.organisation_name}
+                          {issueType.icon_url ? (
+                            <img
+                              src={issueType.icon_url}
+                              alt={issueType.name}
+                              className="h-6 w-6 object-contain"
+                            />
+                          ) : (
+                            <div className="h-6 w-6 bg-gray-200 rounded"></div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-800">
+                          {issueType.name}
                         </td>
                         <td className="px-3 py-2 text-xs text-gray-600 max-w-xs truncate">
-                          {org.organisation_mail || "-"}
+                          {issueType.description || "-"}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-800">
+                          {getCategoryNameById(issueType.category) || "-"}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
                           <span
                             className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                              org.is_active
+                              issueType.is_active
                                 ? "bg-green-100 text-green-800"
                                 : "bg-red-100 text-red-800"
                             }`}
                           >
-                            {org.is_active ? "Active" : "Inactive"}
+                            {issueType.is_active ? "Active" : "Inactive"}
                           </span>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
-                          {formatDate(org.created_at) || "-"}
+                          {formatDate(issueType.created_at) || "-"}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
-                          {org.created_by || "-"}
+                          {issueType.created_by || "-"}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
-                          {formatDate(org.modified_at) || "-"}
+                          {formatDate(issueType.modified_at) || "-"}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
-                          {org.modified_by ? org.modified_by : "-"}
+                          {issueType.modified_by || "-"}
                         </td>
-
                         <td className="px-3 py-2 whitespace-nowrap text-xs font-medium">
                           <div className="flex space-x-1">
                             <button
-                              onClick={() => handleView(org)}
+                              onClick={() => handleView(issueType)}
                               className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
                               title="View Details"
                             >
                               <FiEye size={16} />
                             </button>
                             <button
-                              onClick={() => handleEdit(org)}
+                              onClick={() => handleEdit(issueType)}
                               className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
-                              title="Edit Organisation"
+                              title="Edit Issue Type"
                             >
                               <FiEdit2 size={16} />
                             </button>
@@ -463,8 +558,8 @@ export default function Organisations() {
             )}
           </div>
 
-          {/* Compact Pagination Controls */}
-          {filteredOrganisations.length > 0 && (
+          {/* Pagination */}
+          {filteredIssueTypes.length > 0 && (
             <div className="mt-2 flex justify-start items-center">
               <ReactPaginate
                 previousLabel={
@@ -514,20 +609,20 @@ export default function Organisations() {
             </div>
           )}
 
-          {/* Organisation Modal - More compact with fixed toggle switch */}
-          {showOrganizationModal && (
+          {/* Issue Type Modal */}
+          {showIssueTypeModal && (
             <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50">
               <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-y-auto">
                 <div className="border-b border-gray-200 p-3 flex justify-between items-center">
                   <h2 className="text-lg font-semibold text-gray-800">
                     {modalMode === "add"
-                      ? "Add New Organisation"
+                      ? "Add New Issue Type"
                       : modalMode === "edit"
-                      ? "Edit Organisation"
-                      : "Organisation Details"}
+                      ? "Edit Issue Type"
+                      : "Issue Type Details"}
                   </h2>
                   <button
-                    onClick={() => setShowOrganizationModal(false)}
+                    onClick={() => setShowIssueTypeModal(false)}
                     className="text-gray-500 hover:text-gray-700"
                   >
                     ✕
@@ -538,14 +633,14 @@ export default function Organisations() {
                   {(modalMode === "edit" || modalMode === "view") && (
                     <div>
                       <label
-                        htmlFor="organizationId"
+                        htmlFor="issueTypeId"
                         className="block text-xs font-medium text-gray-700 mb-1"
                       >
-                        Organisation ID
+                        Issue Type ID
                       </label>
                       <input
-                        id="organizationId"
-                        value={selectedOrganizationId || ""}
+                        id="issueTypeId"
+                        value={selectedIssueTypeId || ""}
                         disabled
                         className="border border-gray-300 rounded-lg p-2 w-full bg-gray-50 text-gray-500 text-sm"
                       />
@@ -554,18 +649,18 @@ export default function Organisations() {
 
                   <div>
                     <label
-                      htmlFor="organizationName"
+                      htmlFor="name"
                       className="block text-xs font-medium text-gray-700 mb-1"
                     >
-                      Organisation Name{" "}
+                      Issue Type Name{" "}
                       {modalMode !== "view" && (
                         <span className="text-red-500">*</span>
                       )}
                     </label>
                     <input
-                      id="organizationName"
-                      name="organizationName"
-                      value={formData.organizationName}
+                      id="name"
+                      name="name"
+                      value={formData.name}
                       onChange={handleFormChange}
                       required={modalMode !== "view"}
                       disabled={modalMode === "view"}
@@ -573,157 +668,169 @@ export default function Organisations() {
                         modalMode === "view" ? "bg-gray-50 text-gray-500" : ""
                       }`}
                     />
+                  </div>
+
+                  {/* Category Dropdown */}
+                  <div>
+                    <label
+                      htmlFor="category"
+                      className="block text-xs font-medium text-gray-700 mb-1"
+                    >
+                      Category{" "}
+                      {modalMode !== "view" && (
+                        <span className="text-red-500">*</span>
+                      )}
+                    </label>
+                    {categoriesLoading ? (
+                      <div className="flex items-center text-sm text-gray-500">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent mr-2"></div>
+                        Loading categories...
+                      </div>
+                    ) : (
+                      <select
+                        id="category"
+                        name="category"
+                        value={formData.category}
+                        onChange={handleFormChange}
+                        required={modalMode !== "view"}
+                        disabled={modalMode === "view"}
+                        className={`border rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
+                          modalMode === "view" ? "bg-gray-50 text-gray-500" : ""
+                        }`}
+                      >
+                        <option value="">Select a category</option>
+                        {categories.map((category) => (
+                          <option
+                            key={category.issue_category_id}
+                            value={category.issue_category_id}
+                          >
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div>
                     <label
-                      htmlFor="organizationMail"
+                      htmlFor="description"
                       className="block text-xs font-medium text-gray-700 mb-1"
                     >
-                      Organisation Mail{" "}
+                      Description{" "}
                       {modalMode !== "view" && (
                         <span className="text-red-500">*</span>
                       )}
                     </label>
-                    <p className="text-xs text-gray-500 mb-1">
-                      Enter organisation mail separated by a space. For example,
-                      "acme.com ajax.com".
-                    </p>
-                    <input
-                      id="organizationMail"
-                      name="organizationMail"
-                      value={formData.organizationMail}
+                    <textarea
+                      id="description"
+                      name="description"
+                      value={formData.description}
                       onChange={handleFormChange}
                       required={modalMode !== "view"}
                       disabled={modalMode === "view"}
+                      rows="3"
                       className={`border rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
                         modalMode === "view" ? "bg-gray-50 text-gray-500" : ""
                       }`}
-                    />
+                    ></textarea>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="icon"
+                      className="block text-xs font-medium text-gray-700 mb-1"
+                    >
+                      Icon
+                    </label>
+                    {modalMode !== "view" && (
+                      <input
+                        id="icon"
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept="image/*"
+                        className="text-sm p-1"
+                      />
+                    )}
+                    {iconPreview && (
+                      <div className="mt-2">
+                        <img
+                          src={iconPreview}
+                          alt="Icon Preview"
+                          className="h-16 w-16 object-contain border rounded p-1"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center">
-                    <div
-                      onClick={handleToggleActive}
-                      className={`relative inline-block w-10 h-5 rounded-full transition-colors cursor-pointer ${
-                        modalMode === "view"
-                          ? "opacity-70 pointer-events-none"
-                          : ""
-                      } ${formData.isActive ? "bg-blue-500" : "bg-gray-300"}`}
-                    >
-                      <span
-                        className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white transition-transform transform ${
-                          formData.isActive ? "translate-x-5" : "translate-x-0"
-                        }`}
-                      />
-                      <input
-                        id="isActive"
-                        name="isActive"
-                        type="checkbox"
-                        checked={formData.isActive}
-                        onChange={handleFormChange}
-                        className="sr-only"
-                        disabled={modalMode === "view"}
-                      />
+                    <div className="flex items-center mr-4">
+                      <label className="inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={formData.isActive}
+                          onChange={handleToggleActive}
+                          disabled={modalMode === "view"}
+                          name="isActive"
+                        />
+                        <div
+                          className={`relative w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 ${
+                            modalMode === "view" ? "opacity-70" : ""
+                          }`}
+                        ></div>
+                        <span className="ml-2 text-sm font-medium text-gray-900">
+                          {formData.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </label>
                     </div>
-                    <label
-                      htmlFor="isActive"
-                      className="text-xs font-medium text-gray-700 ml-2 cursor-pointer"
-                      onClick={handleToggleActive}
-                    >
-                      {formData.isActive ? "Active" : "Inactive"}
-                    </label>
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-3 border-t">
-                    {modalMode === "view" ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleEdit(
-                              organisations.find(
-                                (org) =>
-                                  org.organisation_id === selectedOrganizationId
-                              )
-                            )
-                          }
-                          className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowOrganizationModal(false)}
-                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
-                        >
-                          Close
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setShowOrganizationModal(false)}
-                          className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
-                          disabled={loading}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors flex items-center gap-1"
-                          disabled={loading}
-                        >
-                          {loading && (
-                            <svg
-                              className="animate-spin h-3 w-3 text-white"
-                              xmlns="http://www.w3.org/2000/svg"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                              ></circle>
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                              ></path>
-                            </svg>
-                          )}
-                          {loading
-                            ? modalMode === "add"
-                              ? "Adding..."
-                              : "Updating..."
-                            : modalMode === "add"
-                            ? "Add Organisation"
-                            : "Update Organisation"}
-                        </button>
-                      </>
+                  <div className="flex justify-end pt-4 border-t mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowIssueTypeModal(false)}
+                      className="mr-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                      {modalMode === "view" ? "Close" : "Cancel"}
+                    </button>
+                    {modalMode !== "view" && (
+                      <button
+                        type="submit"
+                        className={`px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                          loading ? "opacity-70 cursor-not-allowed" : ""
+                        }`}
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <div className="flex items-center">
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                            <span>
+                              {modalMode === "add"
+                                ? "Adding..."
+                                : "Updating..."}
+                            </span>
+                          </div>
+                        ) : modalMode === "add" ? (
+                          "Add Issue Type"
+                        ) : (
+                          "Update Issue Type"
+                        )}
+                      </button>
                     )}
                   </div>
                 </form>
               </div>
             </div>
           )}
+
+          {/* Chat Support */}
+          <ChatbotPopup />
+
+          {/* Toast Container */}
+          <ToastContainer position="top-right" autoClose={3000} />
         </div>
       </main>
-      <ChatbotPopup />
-      <ToastContainer
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
     </div>
   );
 }

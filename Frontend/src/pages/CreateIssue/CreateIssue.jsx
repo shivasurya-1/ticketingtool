@@ -12,6 +12,10 @@ import { axiosInstance } from "../../utils/axiosInstance";
 import SearchableField from "./Components/SearchableField";
 import { ChevronLeft, Paperclip, Image, Send } from "lucide-react";
 import ResolutionPopup from "../../components/ResolutionPopup";
+import {
+  selectActiveServiceDomain,
+  selectActiveServiceType,
+} from "../../store/Slices/serviceDomainSlice";
 
 export default function CreateIssue() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -54,12 +58,12 @@ export default function CreateIssue() {
 
   // acttive category and selected service from redux
 
-  const activeCategory = useSelector(
-    (state) => state.issueSelection.activeCategory
-  );
-  const selectedService = useSelector(
-    (state) => state.issueSelection.selectedService
-  );
+  // Selectors
+  const activeServiceDomain = useSelector(selectActiveServiceDomain);
+  const activeServiceType = useSelector(selectActiveServiceType);
+
+  console.log("activeServiceDomain", activeServiceDomain);
+  console.log("activeServiceType", activeServiceType);
 
   // This is used to highlight the field when it is focused
   const [focusedField, setFocusedField] = useState(null);
@@ -69,7 +73,6 @@ export default function CreateIssue() {
   };
 
   const handleBlur = () => {
-    setExpandEditor(false);
     setFocusedField(null);
   };
 
@@ -83,8 +86,8 @@ export default function CreateIssue() {
     referenceTicket: [],
     description: "",
     summary: "",
-    issueCategory: "",
-    issueType: "",
+    serviceDomain: "",
+    serviceType: "",
     impact: "",
     supportTeam: "",
     project: "",
@@ -100,7 +103,6 @@ export default function CreateIssue() {
   const [solutionGroupList, setSolutionGroupList] = useState([]);
   const [organizationsList, setOrganizationsList] = useState([]);
   const [supportTeamList, setSupportTeamList] = useState([]);
-  const [issueTypeList, setIssueTypeList] = useState([]);
   const [activeUsersList, setActiveUsersList] = useState([]);
   const [impactList, setImpactList] = useState([]);
   const [contactModeList, setContactModeList] = useState([]);
@@ -458,7 +460,6 @@ export default function CreateIssue() {
     // Function to handle clicks outside the editor
     const handleClickOutside = (event) => {
       if (editorRef.current && !editorRef.current.contains(event.target)) {
-        setExpandEditor(false);
         setFocusedField(null);
       }
     };
@@ -485,14 +486,14 @@ export default function CreateIssue() {
   }, [userProfile]);
 
   useEffect(() => {
-    if (activeCategory) {
+    if (activeServiceDomain) {
       setFormData((prev) => ({
         ...prev,
-        issueCategory: activeCategory.title,
-        issueType: selectedService.title,
+        serviceDomainObj: activeServiceDomain,
+        serviceTypeObj: activeServiceType,
       }));
     }
-  }, [activeCategory, selectedService]);
+  }, [activeServiceDomain, activeServiceType]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -526,16 +527,14 @@ export default function CreateIssue() {
           axiosInstance.get("project/details/", authHeaders),
           axiosInstance.get("org/autoAssignee/", authHeaders),
         ]);
-        console.log("activeUsersList", activeUsersList);
         setSolutionGroupList(subGroupsList.data);
         setOrganizationsList(orgList.data);
-        setIssueTypeList(choicesList.data.issue_type_choices);
+        console.log("orgList", orgList.data);
         setActiveUsersList(activeUsersList.data);
+        console.log("activeUsersList", activeUsersList.data);
         setSupportTeamList(choicesList.data.support_team_choices);
-
         setImpactList(choicesList.data.impact_choices);
         setContactModeList(choicesList.data.contact_mode_choices);
-        console.log("priorityList", priorityList.data);
         setPriorityList(priorityList.data);
         setUsersListWithOrganisations(usersListWithOrganisations.data);
 
@@ -600,15 +599,6 @@ export default function CreateIssue() {
             setProjectsPerRequestor(projectMapping);
           }
         }
-        console.log(
-          "usersListWithOrganisations",
-          usersListWithOrganisations.data
-        );
-        // const enrichedUsers = activeUsersList.data.map(user => ({
-        //   ...user,
-        //   organisation_id: orgList.data[Math.floor(Math.random() * orgList.data.length)].organisation_id // Mock association
-        // }));
-        // setActiveUsersList(enrichedUsers);
         const ticketNumber = nextTicketId.data;
         setFormData((prev) => ({
           ...prev,
@@ -669,26 +659,17 @@ export default function CreateIssue() {
       // Auto assignee-organization connection
 
       if (name === "assignee" && activeUsersList.length) {
-        // const selectedStaff = activeUsersList.find((staff) => {
-        //   return staff.id === value;
-        // });
-        console.log(value);
+
         const selectedStaff = activeUsersList.find(
           (staff) => staff.username?.toString() === value
         );
 
-        console.log("Selected Staff --- ", selectedStaff);
-
         if (selectedStaff) {
-          console.log("inside if");
           const staffOrg = usersListWithOrganisations.find(
             (org) => org.username === selectedStaff.username
           );
-          console.log("Staff Org:", staffOrg);
           if (staffOrg) {
             updatedData.developerOrganization = staffOrg.organisation_name;
-            console.log(updatedData.developerOrganization);
-            console.log(staffOrg);
           }
         }
       }
@@ -706,8 +687,8 @@ export default function CreateIssue() {
       assignee: data.assignee,
       summary: data.summary,
       description: data.description,
-      // issue_type: data.issueType,
-      issue_type: "F",
+      service_domain: data.serviceDomainObj?.originalId,
+      service_type: data.serviceTypeObj?.originalId,
       solution_grp: data.solutionGroup,
       reference_tickets: data.referenceTicket,
       impact: data.impact,
@@ -769,7 +750,8 @@ export default function CreateIssue() {
   ]);
 
   const requiredFields = [
-    "issueType",
+    "serviceDomain",
+    "serviceType",
     "summary",
     "description",
     "impact",
@@ -835,7 +817,6 @@ export default function CreateIssue() {
         referenceTicket: [],
         description: "",
         summary: "",
-        issueType: "",
         impact: "",
         supportTeam: "",
         project: "",
@@ -854,9 +835,7 @@ export default function CreateIssue() {
       setExpandEditor(false);
       setFormErrors({});
 
-      // }, 2100);
     } catch (error) {
-      console.error("issue error:", error);
       toast.error("There was an error creating the issue.");
     } finally {
       setIsLoading(false);
@@ -1012,32 +991,32 @@ export default function CreateIssue() {
                 )}
               </div>
               <div className="flex items-center ">
-                <label className="w-44 text-gray-600">Solution</label>
+                <label className="w-44 text-gray-600">Service Domain</label>
                 <input
-                  type="text"
-                  name="issueCategory"
-                  value={formData.issueCategory}
+                  // type="text"
+                  name="serviceDomain"
+                  value={formData.serviceDomainObj?.title || ""}
                   readOnly
                   className={`bg-gray-100 border rounded px-2 py-1 w-64 cursor-not-allowed outline-none  ${
                     formErrors.product ? "border-red-500" : ""
                   }`}
                 />
-                {formErrors.issueCategory && (
+                {formErrors.serviceDomain && (
                   <span className="text-red-500 text-xs ml-1">*</span>
                 )}
               </div>
               <div className="flex items-center">
-                <label className="w-44 text-gray-600">Product</label>
+                <label className="w-44 text-gray-600">Service Type</label>
                 <input
                   type="text"
-                  name="issueType"
-                  value={formData.issueType}
+                  name="serviceType"
+                  value={formData.serviceTypeObj?.title || ""}
                   readOnly
                   className={` bg-gray-100 border rounded px-2 py-1 w-64 cursor-not-allowed outline-none  ${
                     formErrors.product ? "border-red-500" : ""
                   }`}
                 />
-                {formErrors.issueType && (
+                {formErrors.serviceType && (
                   <span className="text-red-500 text-xs ml-1">*</span>
                 )}
               </div>
@@ -1087,10 +1066,10 @@ export default function CreateIssue() {
                   name="impact"
                   value={formData.impact}
                   onChange={handleChange}
-                  onFocus={() => handleFocus("issueType")}
+                  onFocus={() => handleFocus("impact")}
                   onBlur={handleBlur}
                   className={`border rounded px-2 py-1 w-64 outline-none ${
-                    focusedField === "issueType"
+                    focusedField === "impact"
                       ? "ring-2 ring-blue-100 border-blue-600"
                       : "border-gray-300"
                   } ${formErrors.impact ? "border-red-500" : ""}`}
@@ -1261,22 +1240,19 @@ export default function CreateIssue() {
                 onChange={handleChange}
                 onFocus={() => handleFocus("summary")}
                 onBlur={handleBlur}
-                className={`border w-[69%] rounded px-2 py-1 outline-none ${
+                className={`border w-[71.6%] rounded px-2 py-1 outline-none ${
                   focusedField === "summary"
                     ? "ring-2 ring-blue-100 border-blue-600"
                     : "border-gray-300"
                 } ${formErrors.summary ? "border-red-500" : ""}`}
               />
-              <button type="button" className="ml-1 bg-gray-100 p-1 rounded">
-                💡
-              </button>
               {formErrors.summary && (
                 <span className="text-red-500 text-xs ml-1">*</span>
               )}
             </div>
             <div className="flex items-center mt-4">
               <label className="w-44 text-gray-600">Description</label>
-              <div className="w-[69%]" ref={editorRef}>
+              <div className="w-[71.6%]">
                 {!expandEditor ? (
                   <input
                     type="text"
@@ -1284,9 +1260,7 @@ export default function CreateIssue() {
                     value={formData.description}
                     onFocus={() => {
                       setExpandEditor(true);
-                      handleFocus("description");
                     }}
-                    onBlur={handleBlur}
                     onChange={(e) =>
                       handleChange({
                         target: {
@@ -1295,11 +1269,9 @@ export default function CreateIssue() {
                         },
                       })
                     }
-                    className={`border w-full rounded px-2 py-1 outline-none ${
-                      focusedField === "description"
-                        ? "ring-2 ring-blue-100 border-blue-600"
-                        : "border-gray-300"
-                    } ${formErrors.description ? "border-red-500" : ""}`}
+                    className={`border w-full rounded px-2 py-1 outline-none  ${
+                      formErrors.description ? "border-red-500" : ""
+                    }`}
                     placeholder="Describe your issue here..."
                   />
                 ) : (
@@ -1310,12 +1282,7 @@ export default function CreateIssue() {
                     onFocus={() => handleFocus("description")}
                     onBlur={handleBlur}
                     error={formErrors.description}
-                    
-                    className={`text-xs border rounded bg-white max-h-40 ${
-                      focusedField === "description"
-                        ? "ring-2 ring-blue-100 border-blue-600"
-                        : "border-gray-300"
-                    }`}
+                    className="bg-white"
                   />
                 )}
               </div>
@@ -1325,13 +1292,6 @@ export default function CreateIssue() {
               )}
             </div>
 
-            {/* Related Search Results */}
-            <div className="mt-4 flex justify-center">
-              {/* <button className="border rounded px-4 py-1 flex items-center text-blue-600">
-            Related Search Results
-            <ChevronRight size={16} />
-          </button> */}
-            </div>
             <div className="flex items-center">
               <button
                 onClick={handleFileAttachment}

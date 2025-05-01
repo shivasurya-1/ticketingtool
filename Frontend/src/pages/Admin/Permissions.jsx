@@ -32,7 +32,10 @@ export default function Permissions() {
   });
 
   // Calculate pagination values
-  const pageCount = Math.max(1, Math.ceil(filteredPermissions.length / pageSize));
+  const pageCount = Math.max(
+    1,
+    Math.ceil(filteredPermissions.length / pageSize)
+  );
   const offset = currentPage * pageSize;
   const currentItems = filteredPermissions.slice(offset, offset + pageSize);
 
@@ -56,7 +59,11 @@ export default function Permissions() {
 
   // Ensure currentPage is never out of bounds
   useEffect(() => {
-    if (currentPage >= pageCount && pageCount > 0 && filteredPermissions.length > 0) {
+    if (
+      currentPage >= pageCount &&
+      pageCount > 0 &&
+      filteredPermissions.length > 0
+    ) {
       setCurrentPage(Math.max(0, pageCount - 1));
     }
   }, [filteredPermissions.length, pageCount, currentPage]);
@@ -89,6 +96,7 @@ export default function Permissions() {
         // Reset to first page when data changes significantly
         setCurrentPage(0);
       }
+      console.log("Permissions fetched successfully:", response.data);
     } catch (error) {
       console.error("Error fetching permissions:", error);
       toast.error("Failed to load permissions");
@@ -120,9 +128,7 @@ export default function Permissions() {
           {/* Condensed Header */}
           <div className="flex justify-between items-center mb-3">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">
-                Permissions
-              </h1>
+              <h1 className="text-2xl font-bold text-gray-800">Permissions</h1>
               <p className="text-gray-500 text-sm">
                 View and search system permissions
               </p>
@@ -208,7 +214,6 @@ export default function Permissions() {
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Permission Name
                       </th>
-                     
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -223,7 +228,6 @@ export default function Permissions() {
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-800">
                           {permission.name}
                         </td>
-                       
                       </tr>
                     ))}
                   </tbody>
@@ -234,7 +238,7 @@ export default function Permissions() {
 
           {/* Compact Pagination Controls */}
           {filteredPermissions.length > 0 && (
-            <div className="mt-2 flex justify-end items-center">
+            <div className="mt-2 flex justify-start items-center">
               <ReactPaginate
                 previousLabel={
                   <span className="flex items-center">
