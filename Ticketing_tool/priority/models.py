@@ -16,9 +16,9 @@ class Priority(models.Model):
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    modified_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(User,on_delete=models.SET_NULL,null=True, related_name="priorities")
-    updated_by = models.ForeignKey(User,on_delete=models.SET_NULL,null=True,related_name="updated_priorities")
+    modified_by = models.ForeignKey(User,on_delete=models.SET_NULL,null=True,related_name="updated_priorities")
     # response_target_time = models.FloatField(help_text="Response time target in hours", default=0.0)
     response_target_time = models.DurationField()
  

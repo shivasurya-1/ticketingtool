@@ -27,6 +27,11 @@ import string
 from .tasks import send_registration_email
 from django.contrib.auth import update_session_auth_hash
 from .serializers import ChangePasswordSerializer
+from .tasks import async_setup_user_related_records 
+import logging
+from django.contrib.auth import get_user_model
+logger = logging.getLogger(__name__)
+User = get_user_model()
 
 class RegisterUserAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -37,7 +42,7 @@ class RegisterUserAPIView(APIView):
         self.permission_required = "create_users"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
 
         serializer = RegistrationUserSerializer(data=request.data)
  
@@ -66,7 +71,7 @@ class RegisterGetAPIVIEW(APIView):
         self.permission_required = "view_users"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
 
         register = User.objects.all()
         serializer = RegistrationUserSerializer(register, many=True)
@@ -94,34 +99,99 @@ class RegisterGetAPIVIEW(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 
+# class LoginUserAPIView(APIView):
+#     permission_classes = [AllowAny]
+
+#     def post(self, request):
+#         email = request.data.get('email')
+#         password = request.data.get('password')
+
+#         if not email or not password:
+#             return Response({'error': 'Email and password are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+#         try:
+#             user_obj = User.objects.get(email=email)
+#         except User.DoesNotExist:
+#             return Response({'error': 'User with this email does not exist.'}, status=status.HTTP_404_NOT_FOUND)
+
+#         user = authenticate(username=user_obj.username, password=password)
+#         if user:
+#             refresh = RefreshToken.for_user(user)
+#             return Response({
+#                 'message': 'Login successful.',
+#                 'access': str(refresh.access_token),
+#                 'refresh': str(refresh),
+#             }, status=status.HTTP_200_OK)
+
+#         return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+
 class LoginUserAPIView(APIView):
-    permission_classes = [AllowAny]
+    """Handles user login with proper validation, authentication, and error handling."""
 
     def post(self, request):
-        email = request.data.get('email')
-        password = request.data.get('password')
-
-        if not email or not password:
-            return Response({'error': 'Email and password are required.'}, status=status.HTTP_400_BAD_REQUEST)
-
         try:
-            user_obj = User.objects.get(email=email)
-        except User.DoesNotExist:
-            return Response({'error': 'User with this email does not exist.'}, status=status.HTTP_404_NOT_FOUND)
+            email = request.data.get("email")
+            password = request.data.get("password")
 
-        user = authenticate(username=user_obj.username, password=password)
-        if user:
+            if not email or not password:
+                logger.warning(f"Login attempt with missing email or password: {request.data}")
+                return Response(
+                    {"error": "Email and password are required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            try:
+                user_obj = User.objects.get(email=email)
+            except User.DoesNotExist:
+                logger.warning(f"Login failed: User with email '{email}' not found.")
+                return Response(
+                    {"error": "Invalid email or password."},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            user = authenticate(username=user_obj.username, password=password)
+
+            if user is None:
+                logger.warning(f"Login failed: Invalid password for user '{email}'.")
+                return Response(
+                    {"error": "Invalid email or password."},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            if not user.is_active:
+                logger.warning(f"Login failed: Inactive user '{email}'.")
+                return Response(
+                    {"error": "Account is disabled. Please contact support."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
             refresh = RefreshToken.for_user(user)
-            return Response({
-                'message': 'Login successful.',
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
-            }, status=status.HTTP_200_OK)
 
-        return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
+            # Trigger background task
+            async_setup_user_related_records.delay(user.id)
+
+            logger.info(f"Login successful for user '{email}'.")
+
+            return Response(
+                {
+                    "message": "Login successful.",
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            logger.error(f"Unexpected error during login: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "An unexpected error occurred. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
  
 
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated 
 
 class SomeProtectedView(APIView):
     permission_classes = [IsAuthenticated]

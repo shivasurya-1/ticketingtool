@@ -140,7 +140,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 
 @shared_task
-def send_ticket_creation_email(ticket_id, engineer_email, requester_email):
+def send_ticket_creation_email(ticket_id, engineer_email, requester_email,org_email):
     try:
         Ticket = apps.get_model('timer', 'Ticket')
     except LookupError:
@@ -171,15 +171,14 @@ def send_ticket_creation_email(ticket_id, engineer_email, requester_email):
             fail_silently=False
         )
 
-    # 🏢 Email to Developer Organization
-    developer_org = ticket.developer_organization
-    if developer_org and getattr(developer_org, 'email', None):
+
+    if org_email :
         org_msg = "A new ticket has been assigned to your organization.\n\n" + body
         send_mail(
             subject,
             org_msg,
             settings.EMAIL_HOST_USER,
-            [developer_org.email],
+            [org_email],
             fail_silently=False
         )
     else:

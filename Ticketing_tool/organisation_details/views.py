@@ -46,7 +46,7 @@ class OrganisationAPI(APIView):
 
     # POST: Create a new organisation 
     def post(self, request):
-        self.permission_required = "create_users"
+        self.permission_required = "create_organization"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
          return Response({'error': 'Permission denied.'}, status=403)
@@ -54,7 +54,7 @@ class OrganisationAPI(APIView):
        
         serializer = OrganisationSerializer(data=request.data)
         if serializer.is_valid():
-            organisation = serializer.save(created_by=request.user, modified_by=request.user)
+            organisation = serializer.save(created_by=request.user)
             send_organisation_creation_email.delay(
                 organisation.organisation_name,
                 organisation.organisation_mail
@@ -71,11 +71,14 @@ class OrganisationAPI(APIView):
         try:
             organisation = Organisation.objects.get(organisation_id=organisation_id)
         except Organisation.DoesNotExist:
+
+
+            
             return Response({"error": "Organisation not found."}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = OrganisationSerializer(organisation, data=request.data)
         if serializer.is_valid():
-            organisation = serializer.save(created_by=request.user, modified_by=request.user)
+            organisation = serializer.save(modified_by=request.user)
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -98,10 +101,13 @@ class TreeEmployeeAPI(APIView):
     authentication_classes = [JWTAuthentication]
 
     def get(self, request, organisation_id=None, employee_id=None):
-        # self.permission_required = "view_employee"  
-        # HasRolePermission.has_permission(self,request,self.permission_required)
+        self.permission_required = "view_employee_tree"
+    
+        if not HasRolePermission().has_permission(request, self.permission_required):
+            return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
 
-        organisation_id= request.user.organization_id
+
+        organisation_id= request.user.organisation
         if organisation_id:
             print(organisation_id)
             employees = Employee.objects.filter(organisation_id=organisation_id)
@@ -144,7 +150,7 @@ class EmployeeAPI(APIView):
         # self.permission_required = "view_employee"  
         # HasRolePermission.has_permission(self,request,self.permission_required)
         """Handles fetching employees for a specific organisation or a single employee"""
-        organisation_id = request.user.organization
+        organisation_id = request.user.organisation
         if organisation_id:
             employees = Employee.objects.filter(organisation_id=organisation_id)
             serializer = EmployeeSerializer(employees, many=True)
@@ -174,7 +180,7 @@ class EmployeeAPI(APIView):
 
         serializer = EmployeeSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(created_by=request.user, modified_by=request.data)
+            serializer.save(created_by=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

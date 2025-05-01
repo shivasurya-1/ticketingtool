@@ -85,7 +85,7 @@ from django.contrib import admin
 from .models import UserRole
 
 class UserRoleAdmin(admin.ModelAdmin):
-    list_display = ("user", "role")  # Ensure these fields exist in your model
+    list_display = ("user", "role",'user_role_id')  # Ensure these fields exist in your model
     search_fields = ("user__username", "role__name")  # Use correct relationships
     list_filter = ("role",)  
 

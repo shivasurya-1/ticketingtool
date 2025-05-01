@@ -52,15 +52,16 @@ class Resolution(models.Model):
 
     resolution_description = models.TextField(blank=True, null=True)
     resolution_type = models.CharField(max_length=100, choices=resolution_choices)
+    is_active = models.BooleanField(default=True)
     incident_based_on = models.CharField(max_length=100, choices=incident_choices)
     incident_category = models.CharField(max_length=100, choices=incident_category_choices)
     ticket_id = models.ForeignKey('timer.Ticket', on_delete=models.SET_NULL, null=True, blank=True)
     attachment = models.FileField(upload_to='resolution_attachments/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    modified_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
         'login_details.User', on_delete=models.SET_NULL, null=True, blank=True, related_name="resolutions_created"
     )
-    updated_by = models.ForeignKey(
+    modified_by = models.ForeignKey(
         'login_details.User', on_delete=models.SET_NULL, null=True, blank=True, related_name="resolutions_updated"
     )

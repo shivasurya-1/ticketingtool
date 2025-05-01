@@ -8,7 +8,7 @@ class AnnouncementSerializer(serializers.ModelSerializer):
         model = Announcement
         fields = '__all__'
         created_by = serializers.ReadOnlyField(source='created_by.username')
-        updated_by = serializers.ReadOnlyField(source='updated_by.username')
+        modified_by = serializers.ReadOnlyField(source='updated_by.username')
  
  
 class AppreciationSerializer(serializers.ModelSerializer):
@@ -16,7 +16,7 @@ class AppreciationSerializer(serializers.ModelSerializer):
         model = Appreciation
         fields = '__all__'
         created_by = serializers.ReadOnlyField(source='created_by.username')
-        updated_by = serializers.ReadOnlyField(source='updated_by.username')
+        modified_by = serializers.ReadOnlyField(source='updated_by.username')
 
 
 class RecentItemSerializer(serializers.ModelSerializer):

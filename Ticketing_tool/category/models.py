@@ -24,9 +24,10 @@ class Category(models.Model):
         return self.category_name
 class Meta: 
         abstract = True 
-
 class Meta:
-    unique_together = ('category_name', 'organisation')
+        constraints = [
+            models.UniqueConstraint(fields=['category_name', 'organisation'], name='unique_category_per_organisation')
+        ]
 class Meta:
     constraints = [
         models.UniqueConstraint(

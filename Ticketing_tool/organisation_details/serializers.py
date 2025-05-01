@@ -5,13 +5,16 @@ from solution_groups.serializers import AssigneeTicketSerializer,SolutionSeriali
 from roles_creation.models import UserRole
 
 class OrganisationSerializer(serializers.ModelSerializer):
+    created_by = serializers.SlugRelatedField(read_only=True, slug_field='username')
+    modified_by = serializers.SlugRelatedField(read_only=True, slug_field='username')
     class Meta:
         model = Organisation
-        fields = ['organisation_name', 'organisation_mail', 'created_at', 'modified_at','organisation_id','created_by','modified_by','is_active']
-        extra_kwargs = {
-            'created_by': {'read_only': True},  
-            'modified_by': {'read_only': True},
-        }
+        # fields = ['organisation_name', 'organisation_mail', 'created_at', 'modified_at','organisation_id','created_by','modified_by','is_active']
+        fields = '__all__'
+        # extra_kwargs = {
+        #     'created_by': {'read_only': True},  
+        #     'modified_by': {'read_only': True},
+        # }
 
 class EmployeeSerializer(serializers.ModelSerializer): 
     user_role = serializers.PrimaryKeyRelatedField(queryset=UserRole.objects.all())

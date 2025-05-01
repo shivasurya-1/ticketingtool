@@ -6,7 +6,7 @@ from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from datetime import timedelta
 
-from organisation_details.models import Organisation
+from organisation_details.models import Employee, Organisation
 
 
 class User(AbstractUser):
@@ -21,7 +21,7 @@ class User(AbstractUser):
         related_name='custom_user_set',
         blank=True,
     )
-    organization = models.ForeignKey(Organisation, on_delete=models.SET_NULL, null=True,related_name='org_name'  )
+    # organization = models.ForeignKey(Organisation, on_delete=models.SET_NULL, null=True,related_name='org_name'  )
 
     user_permissions = models.ManyToManyField(
         'auth.Permission',
@@ -32,9 +32,15 @@ class User(AbstractUser):
     comments = models.TextField(blank=True, null=True)  
     imported_by = models.CharField(max_length=255, blank=True, null=True)  # Allow null values
     imported_at = models.DateTimeField(auto_now_add=True)
-
-    
-
+    @property
+    def organisation(self):
+        try:
+            user_role = self.user_roles.filter(is_active=True).first()
+            if user_role:
+                return user_role.employee.organisation
+            return None
+        except Employee.DoesNotExist:
+            return None
 
 
 class OTP(models.Model):

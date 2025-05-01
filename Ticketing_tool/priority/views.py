@@ -12,19 +12,55 @@ import re
 
 
 
+# class PriorityView(APIView):
+#     permission_classes = [IsAuthenticated]
+#     authentication_classes = [JWTAuthentication]
+    
+#     def get(self, request, pk=None, *args, **kwargs):
+#         self.permission_required = "view_priority"
+    
+#         if not HasRolePermission().has_permission(request, self.permission_required):
+#             return Response({'error': 'Permission denied.'}, status=403)
+#         print(request.user.organisation)
+#         print(request.user.organisation)
+#         print(request.user.organisation)
+#         print(request.user.organisation)
+#         print(request.user.organisation)
+#         print(request.user.organisation)
+#         print(request.user.organisation)
+        
+#         if pk:
+#             # Retrieve a single object by pk
+#             try:
+#                 priority = Priority.objects.get(pk=pk)
+#                 serializer = PrioritySerializer(priority)
+#                 return Response(serializer.data)
+#             except Priority.DoesNotExist:
+#                 return Response({'error': 'Priority not found'}, status=status.HTTP_404_NOT_FOUND)
+#         else:
+#             # Retrieve all objects
+#             priorities = Priority.objects.filter(organisation= request.user.organisation)
+#             print("Queryset:", priorities)
+
+#             if not priorities:
+#                 return Response({'error': 'No priorities found for your organisation.'}, status=status.HTTP_404_NOT_FOUND)
+            
+#             serializer = PrioritySerializer(priorities, many=True)
+#             return Response(serializer.data)
+    
 class PriorityView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-    
+
     def get(self, request, pk=None, *args, **kwargs):
         self.permission_required = "view_priority"
-    
+
         if not HasRolePermission().has_permission(request, self.permission_required):
-            return Response({'detail': 'Permission denied.'}, status=403)
-        print(pk)
+            return Response({'error': 'Permission denied.'}, status=403)
+
+        print("User's Organisation:", request.user.organisation)
 
         if pk:
-            # Retrieve a single object by pk
             try:
                 priority = Priority.objects.get(pk=pk)
                 serializer = PrioritySerializer(priority)
@@ -32,12 +68,21 @@ class PriorityView(APIView):
             except Priority.DoesNotExist:
                 return Response({'error': 'Priority not found'}, status=status.HTTP_404_NOT_FOUND)
         else:
-            # Retrieve all objects
-            priorities = Priority.objects.filter(organisation= request.user.organization_id)
+            # Check if the user's organisation is valid and associated with any priorities
+            organisation = request.user.organisation
+            # print(f"Organisation ID: {organisation.id}")  # Debugging
+
+            priorities = Priority.objects.filter(organisation=organisation)
+
+            # Debugging the fetched priorities
+            print("Fetched Priorities: ", priorities)
+
+            if not priorities:
+                return Response({'error': 'No priorities found for your organisation.'}, status=status.HTTP_404_NOT_FOUND)
+
             serializer = PrioritySerializer(priorities, many=True)
             return Response(serializer.data)
 
-    
 
 
     def parse_duration(self, value):
@@ -57,7 +102,7 @@ class PriorityView(APIView):
         self.permission_required = "create_priority"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
         data = request.data.copy()
         try:
             data['response_target_time'] = self.parse_duration(data.get("response_target_time", "0h"))
@@ -75,7 +120,7 @@ class PriorityView(APIView):
  
         serializer = PrioritySerializer(data=data, context={'request': request})
         if serializer.is_valid():
-            priority = serializer.save(created_by=request.user, updated_by=request.user)
+            priority = serializer.save(created_by=request.user)
             return Response(PrioritySerializer(priority).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
    
@@ -83,11 +128,11 @@ class PriorityView(APIView):
  
 
 
-    def put(self, request, pk, *args, **kwargs):
+    def put(self, request, pk):
         self.permission_required = "update_priority"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
         try:
             priority = Priority.objects.get(pk=pk)
         except Priority.DoesNotExist:
@@ -95,7 +140,7 @@ class PriorityView(APIView):
 
         serializer = PrioritySerializer(priority, data=request.data, partial=True)
         if serializer.is_valid():
-            priority=serializer.save(created_by=request.user, updated_by=request.user)
+            priority=serializer.save(updated_by=request.user)
             # return Response(serializer.data)
             return Response(serializer.data, status=status.HTTP_200_OK)
             # return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -108,7 +153,7 @@ class PriorityView(APIView):
         self.permission_required = "delete_priority"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
         try:
             priority = Priority.objects.get(pk=pk)
             priority.delete()

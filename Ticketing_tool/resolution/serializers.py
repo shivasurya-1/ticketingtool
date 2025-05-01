@@ -9,6 +9,6 @@ class ResolutionSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'ticket_id': {'required': True},
             'created_by': {'read_only': True},  
-            'updated_by': {'read_only': True},
+            'modified_by': {'read_only': True},
         }
             

@@ -8,8 +8,14 @@ from roles_creation.models import Role
 from django.core.mail import send_mail
 from django.db import IntegrityError
 from django.conf import settings
+# from django.contrib.auth import get_user_model
+# User = get_user_model()
+from django.contrib.auth import get_user_model
 
 User = get_user_model()
+
+
+# User = get_user_model()
 
 @shared_task
 def process_user_excel(file_path, uploaded_by):
@@ -125,3 +131,83 @@ def send_password_update_email(user_email, username):
         [user_email],
         fail_silently=False
     )
+
+
+from celery import shared_task
+import logging
+from django.db import transaction
+from roles_creation.models import UserRole, Role
+from organisation_details.models import Employee, Organisation
+from django.contrib.auth.models import User
+
+# logger = logging.getLogger(__name__)
+
+# @shared_task
+# def async_setup_user_related_records(user_id):
+#     """Create UserRole & Employee asynchronously after login."""
+
+#     try:
+#         user = User.objects.get(id=user_id)
+#     except User.DoesNotExist:
+#         logger.error(f"User with ID {user_id} does not exist.")
+#         return
+
+#     with transaction.atomic():
+#         user_role, created = UserRole.objects.get_or_create(
+#             user=user,
+#             defaults={
+#                 'role': Role.objects.filter(name="Employee").first(),
+#                 'is_active': True
+#             }
+#         )
+
+#         if created:
+#             logger.info(f"Created UserRole for user {user.email}")
+
+#         if not Employee.objects.filter(user_role=user_role).exists():
+#             default_org = Organisation.objects.first()
+#             if not default_org:
+#                 logger.error("No organisation found. Please create one.")
+#                 return
+
+#             Employee.objects.create(
+#                 user_role=user_role,
+#                 organisation=default_org
+#             )
+#             logger.info(f"Created Employee record for {user.email}")
+
+logger = logging.getLogger(__name__)
+User = get_user_model()
+
+@shared_task
+def async_setup_user_related_records(user_id):
+    """Create UserRole & Employee asynchronously after login."""
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        logger.error(f"User with ID {user_id} does not exist.")
+        return
+
+    with transaction.atomic():
+        user_role, created = UserRole.objects.get_or_create(
+            user=user,
+            defaults={
+                'role': Role.objects.filter(name="Employee").first(),
+                'is_active': True
+            }
+        )
+
+        if created:
+            logger.info(f"Created UserRole for user {user.email}")
+
+        if not Employee.objects.filter(user_role=user_role).exists():
+            default_org = Organisation.objects.first()
+            if not default_org:
+                logger.error("No organisation found. Please create one.")
+                return
+
+            Employee.objects.create(
+                user_role=user_role,
+                organisation=default_org
+            )
+            logger.info(f"Created Employee record for {user.email}")

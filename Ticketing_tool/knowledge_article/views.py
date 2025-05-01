@@ -10,14 +10,18 @@ from roles_creation.permissions import HasRolePermission
 
 
 class KnowledgeAPI(APIView):
-    # permission_classes= [IsAuthenticated,HasRolePermission]
+    permission_classes= [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+
     
 
 
     def get(self, request, article_id=None):
-        # self.required_permission = "view_knowledge_article"  
-        # self.check_permissions(request)  
+        self.permission_required = "create_knowledge_article"
+    
+        if not HasRolePermission().has_permission(request, self.permission_required):
+            return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+ 
         if article_id is not None:  # Checking if article_id is provided
             try:
                 # Retrieve the specific KnowledgeArticle
@@ -35,8 +39,11 @@ class KnowledgeAPI(APIView):
     
 
     def post(self, request):
-        # self.required_permission = "create_knowledge_article"  
-        # self.check_permissions(request) 
+        self.permission_required = "create_knowledge_article"
+    
+        if not HasRolePermission().has_permission(request, self.permission_required):
+            return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = KnowledgeArticleSerializer(data=request.data)
         if serializer.is_valid():
             article = serializer.save(created_by=request.user.id, modified_by=request.user.id)
@@ -46,8 +53,11 @@ class KnowledgeAPI(APIView):
 
 
     def put(self, request, article_id):
-        # self.required_permission = "update_knowledge_article"  
-        # self.check_permissions(request) 
+        self.permission_required = "update_knowledge_article"
+    
+        if not HasRolePermission().has_permission(request, self.permission_required):
+            return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+ 
         try:
             article = KnowledgeArticle.objects.get(article_id=article_id)
         except KnowledgeArticle.DoesNotExist:
@@ -60,8 +70,11 @@ class KnowledgeAPI(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, article_id):
-        # self.required_permission = "delete_knowledge_article"  
-        # self.check_permissions(request) 
+        self.permission_required = "delete_knowledge_article"
+    
+        if not HasRolePermission().has_permission(request, self.permission_required):
+            return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+
         try:
             article = KnowledgeArticle.objects.get(article_id=article_id)  
             article.delete()

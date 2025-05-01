@@ -28,6 +28,7 @@ class Organisation(models.Model):
 class Employee(MPTTModel):
     employee_id = models.BigAutoField(primary_key=True)  # Changed to BigAutoField for consistency
     user_role = models.OneToOneField(UserRole, on_delete=models.CASCADE, related_name='employee')
+    is_active = models.BooleanField(default=True)  # Soft deletion flag
     organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE, related_name='employees')
     position_name = models.CharField(max_length=255)
     level = models.PositiveIntegerField()  # Prevents negative values automatically

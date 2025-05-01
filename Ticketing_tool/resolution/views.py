@@ -19,7 +19,7 @@ class ResolutionAPIView(APIView):
     def get(self, request, pk=None):
        self.permission_required = "view_resolution"
        if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
        
        if pk:
             resolution = get_object_or_404(Resolution, pk=pk)
@@ -33,7 +33,7 @@ class ResolutionAPIView(APIView):
         self.permission_required = "create_resolution"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
         serializer = ResolutionSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(created_by=request.user, updated_by=request.user)
@@ -44,7 +44,7 @@ class ResolutionAPIView(APIView):
         self.permission_required = "update_resolution"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
         resolution = get_object_or_404(Resolution, pk=pk)
         serializer = ResolutionSerializer(resolution, data=request.data, partial=True)
         if serializer.is_valid():
@@ -56,7 +56,7 @@ class ResolutionAPIView(APIView):
         self.permission_required = "delete_resolution"
     
         if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'detail': 'Permission denied.'}, status=403)
+         return Response({'error': 'Permission denied.'}, status=403)
         resolution = get_object_or_404(Resolution, pk=pk)
         resolution.delete()
         return Response({"message": "Resolution deleted successfully"}, status=status.HTTP_204_NO_CONTENT)

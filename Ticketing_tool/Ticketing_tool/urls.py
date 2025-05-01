@@ -29,11 +29,12 @@ urlpatterns = [
     path('priority/',include('priority.urls')),
     path('knowledge_article/',include('knowledge_article.urls')),
     path('details/',include('personal_details.urls')),
-    path('project/',include('projects_details.urls')),
+    path('project/',include('project_details.urls')),
     path('resolution/',include('resolution.urls')),
     path('five_notifications/',include('five_notifications.urls')),
-    path('solution/',include('solution.urls')),
-    path('ticket/',include('History.urls'))
+    # path('solution/',include('solution.urls')),
+    path('ticket/',include('history.urls')),
+    path('services/',include('services.urls')),
 
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

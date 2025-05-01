@@ -21,15 +21,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# SECRET_KEY = 'django-insecure-t+u)rn=0_&v6@_3hizmrv0k)%v^tzo(vee!r)^^4#%@ubc6pqk'
+SECRET_KEY = 'django-insecure-+hi)_oc5b4amw)o&%mk__mykl=5#v9f8lyf1oy1of%7$cg3z2('
 
-# # SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = False
-from decouple import config
-
-SECRET_KEY = config('SECRET_KEY')
-DEBUG = config('DEBUG', default=False, cast=bool)
-
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 CORS_ALLOW_ALL_ORIGINS = True  # (Allows all origins) OR Add on
@@ -44,15 +39,14 @@ CORS_ALLOW_CREDENTIALS=True
 
 
 # Application definition
-#celery off ha uska issue
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'djcelery_email',
+    'django.contrib.staticfiles','djcelery_email',
     'rest_framework',
     # 'django_auditlog',
     'login_details',
@@ -66,11 +60,12 @@ INSTALLED_APPS = [
     'category',
     'priority',
     'personal_details',
-    'projects_details',
+    'project_details',
     'resolution',
     'five_notifications',
-    'solution',
-    'History',
+    # 'solution',
+    'history',
+    'services',
     'celery',
     'django_celery_results',
     # 'django-mptt',
@@ -88,10 +83,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'roles_creation.middlewares.RoleBasedAccessControlMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
 
 ]
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 ROOT_URLCONF = 'Ticketing_tool.urls'
 
@@ -160,7 +153,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -169,7 +161,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 
+
 AUTH_USER_MODEL = 'login_details.User'
+
 
 #EMAIL_BACKEND = 'django.core.mail.backends.consloe.EmailBackend'
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -179,6 +173,7 @@ EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 EMAIL_HOST_USER = 'sridevigedela05@gmail.com'
 EMAIL_HOST_PASSWORD = 'ulgn jako ckts xodq'
+
 
 
 AUTHENTICATION_BACKENDS = [
@@ -250,8 +245,3 @@ DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-
-SECURE_SSL_REDIRECT = False
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False

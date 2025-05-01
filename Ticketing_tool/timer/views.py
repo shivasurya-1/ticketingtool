@@ -2,7 +2,7 @@ import re
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
-from History.serializers import TicketHistorySerializer
+from history.serializers import TicketHistorySerializer
 
 from roles_creation.models import UserRole
 from roles_creation.serializers import UserRoleSerializer
@@ -228,17 +228,19 @@ class CreateTicketAPIView(APIView):
                 engineer_email = ticket.assignee.email if ticket.assignee else None
                 # deve = ticket.solution_grp.email if ticket.solution_grp and hasattr(ticket.solution_grp, 'email') else None
                 requester_email = ticket.created_by.email if ticket.created_by else None
-                # developer_organisation = ticket.assignee.organisation if ticket.assignee else None
-                # send_ticket_creation_email.delay(
-                #     ticket.ticket_id,
-                #     engineer_email,
-                #     # solution_grp_email,
-                #     requester_email
-                # )
-                # data ={"title":f"{request.user.username} created Ticket", "ticket":ticket.ticket_id,"created_by":request.user}
-                # serializer_history = TicketHistorySerializer(data=data)
-                # if serializer_history.is_valid():
-                #     serializer_history.save(modified_by=request.user)
+                developer_organisation = ticket.assignee.organisation.organisation_mail if ticket.assignee else None
+                send_ticket_creation_email.delay(
+                    ticket.ticket_id,
+                    engineer_email,
+                    # solution_grp_email,
+                    requester_email,
+                    developer_organisation
+
+                )
+                data ={"title":f"{request.user.username} created Ticket", "ticket":ticket.ticket_id,"created_by":request.user}
+                serializer_history = TicketHistorySerializer(data=data)
+                if serializer_history.is_valid():
+                    serializer_history.save(modified_by=request.user)
 
                 return Response({
                     "message": "Ticket created successfully",
@@ -355,7 +357,7 @@ class DashboardTicketAPIView(APIView):
 
     def get(self, request):
         # User organization setup
-        org = request.user.organization_id
+        org = request.user.organisation
         self.permission_required = "view_sla"
         HasRolePermission.has_permission(self, request, self.permission_required)
         
@@ -494,7 +496,7 @@ class dispatcherAPIView(APIView):
         self.permission_required = "create_ticket"
         
         # if not HasRolePermission.has_permission(self, request, self.permission_required):
-        #     return Response({"detail": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+        #     return Response({"error": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
 
         ticket_id = request.data.get("ticket_id")
         if not ticket_id:
@@ -521,16 +523,7 @@ class dispatcherAPIView(APIView):
             
             updated_ticket = serializer.save(modified_by=request.user)
             
-            # engineer_email = ticket.assignee.email if ticket.assignee else None
-            # # deve = ticket.solution_grp.email if ticket.solution_grp and hasattr(ticket.solution_grp, 'email') else None
-            # requester_email = ticket.created_by.email if ticket.created_by else None
-            # # developer_organisation = ticket.assignee.organisation if ticket.assignee else None
-            # send_ticket_creation_email.delay(
-            #     ticket.ticket_id,
-            #     engineer_email,
-            #     # solution_grp_email,
-            #     requester_email
-            # )
+           
 
             return Response({
                 "message": "Ticket updated successfully",
@@ -724,7 +717,7 @@ class TicketChoicesAPIView(APIView):
     def get(self, request):
         choices = {
             "status_choices": Ticket.STATUS_CHOICES,
-            "issue_type_choices": Ticket.ISSUE_TYPE,
+            # "issue_type_choices": Ticket.ISSUE_TYPE,
             "support_team_choices": Ticket.SUPPORT,
             # "contact_mode_choices": Ticket._meta.get_field("contact_mode").choices
             "impact_choices":Ticket.IMPACT, #change 1
