@@ -12,21 +12,25 @@ from organisation_details.models import Employee
 
 class UserProfileSerializer(serializers.ModelSerializer): 
     assigned_projects = serializers.SerializerMethodField()
-    organisation_name = serializers.SerializerMethodField()
+    # organisation_name = serializers.SerializerMethodField()
     username = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
     profile_pic_url = serializers.SerializerMethodField()
     email = serializers.ReadOnlyField(source="user.email")  # Fetch email from user model
-    created_by = serializers.ReadOnlyField(source="created_by.id")  # Ensure ID is shown
-    modified_by = serializers.ReadOnlyField(source="modified_by.id")  # Ensure ID is shown
+    created_by = serializers.ReadOnlyField(source="created_by.username")  # Ensure ID is shown
+    modified_by = serializers.ReadOnlyField(source="modified_by.username")  # Ensure ID is shown
+    # organisation_name = serializers.ReadOnlyField()
+    # organisation_id = serializers.ReadOnlyField()
+    organisation_name = serializers.SerializerMethodField()
+    organisation_id = serializers.SerializerMethodField()
     
     class Meta:
         model = UserProfile
         fields = [
-            'emp_id', 'first_name', 'last_name', 'email', 'phone_number',
+            'first_name', 'last_name', 'email', 'phone_number',
             'address', 'city', 'state', 'country', 'department', 'date_of_birth',
             'profile_pic', 'created_at', 'modified_at', 'assigned_projects', 'created_by', 'modified_by',
-            'profile_pic_url', 'role', 'organisation_name', 'username'
+            'profile_pic_url', 'role', 'organisation_name', 'username', 'organisation_id', 'employee_id'
         ]
  # This will include all model fields plus your custom fields
         read_only_fields = ['user']
@@ -40,9 +44,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
             return obj.organisation.organisation_name
         return None
     
+ 
+    def get_organisation_id(self, obj):
+        # Fetch the organisation ID using the property
+        return obj.organisation_id
+ 
+    
     def get_role(self, obj):
-        if hasattr(obj.user, 'role'):   # If your user has a role field
-            return obj.user.role
+        try:
+            user_role = obj.user.user_roles.filter(is_active=True).first()  # Fetch the active role for the user
+            if user_role:
+                return user_role.role.name  # Adjust 'name' if it's the actual field name in your Role model
+        except UserRole.DoesNotExist:
+            return None
         return None
     def get_username(self, obj):
         if obj.user:
@@ -74,7 +88,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     
     def get_created_by(self, obj):
         if obj.created_by:
-            return obj.created_by.username  # or .email or whatever you want
+            return obj.created_by.username  
         return None
 
     def get_modified_by(self, obj):

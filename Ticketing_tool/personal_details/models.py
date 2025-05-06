@@ -9,7 +9,8 @@ from organisation_details.models import Employee
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    emp_id = models.AutoField(primary_key=True)  
+    employee = models.OneToOneField(Employee, on_delete=models.CASCADE, related_name='profile')
+    # emp_id = models.AutoField(primary_key=True)  
     profile_pic = models.ImageField(
         upload_to='profile_pics', 
         blank=True,
@@ -41,15 +42,31 @@ class UserProfile(models.Model):
         except UserRole.DoesNotExist:
             return None
 
+    
+ 
+    
     @property
     def organisation(self):
         try:
-            # Get the organisation from the employee linked to the active user role
+            # Fetch the user's active role
             user_role = self.user.user_roles.get(is_active=True)
+            # Return the organisation linked to the employee
             return user_role.employee.organisation
-        except (UserRole.DoesNotExist, Employee.DoesNotExist):
+        except (UserRole.DoesNotExist, Employee.DoesNotExist, AttributeError):
             return None
-
+ 
+    @property
+    def organisation_name(self):
+        if self.organisation:
+            return self.organisation.organisation_name
+        return None
+ 
+    @property
+    def organisation_id(self):
+        # If the organisation has a custom primary key, use that field
+        if self.organisation:
+            return getattr(self.organisation, 'organisation_id', None)  # Replace with correct field if needed
+        return None
 
     def _str_(self):
         return f"{self.first_name} {self.last_name} (ID: {self.emp_id})"
@@ -61,5 +78,10 @@ class UserProfile(models.Model):
             if self.email != original.email:
                 raise ValidationError("Email cannot be changed.")
         super().save(*args, **kwargs)
-
+    @property
+    def employee_id(self):
+        try:
+            return self.user.user_roles.first().employee.employee_id
+        except:
+            return None
     

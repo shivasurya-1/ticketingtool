@@ -27,7 +27,7 @@ import string
 from .tasks import send_registration_email
 from django.contrib.auth import update_session_auth_hash
 from .serializers import ChangePasswordSerializer
-from .tasks import async_setup_user_related_records 
+# from .tasks import async_setup_user_related_records 
 import logging
 from django.contrib.auth import get_user_model
 logger = logging.getLogger(__name__)
@@ -170,7 +170,7 @@ class LoginUserAPIView(APIView):
             refresh = RefreshToken.for_user(user)
 
             # Trigger background task
-            async_setup_user_related_records.delay(user.id)
+            # async_setup_user_related_records.delay(user.id)
 
             logger.info(f"Login successful for user '{email}'.")
 

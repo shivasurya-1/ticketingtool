@@ -31,10 +31,10 @@ class Ticket(models.Model):
         ('Canceled', 'Canceled'),
         ('Delegated', 'Delegated')
     ]
-    ISSUE_TYPE = [
-        ('F', 'Incident'),
-        ('G', 'Service Request')
-    ]
+    # ISSUE_TYPE = [
+    #     ('F', 'Incident'),
+    #     ('G', 'Service Request')
+    # ]
     IMPACT = [
         ('A', 'High'),
         ('B', 'Medium'),
@@ -52,18 +52,18 @@ class Ticket(models.Model):
     developer_organization = models.ForeignKey(Organisation, on_delete=models.CASCADE, null=True, blank=True)
 
     assignee = models.ForeignKey("login_details.User", on_delete=models.CASCADE,null=True, related_name='solution_engineer')
-    Issue_category = models.ForeignKey('services.IssueCategory', on_delete=models.SET_NULL, null=True, blank=True)
+    service_domain = models.ForeignKey('services.IssueCategory', on_delete=models.SET_NULL, null=True, blank=True)
     product_issue = models.ForeignKey('services.IssueType', on_delete=models.SET_NULL, null=True, blank=True,related_name='s_product')
     solution_grp = models.ForeignKey(SolutionGroup, on_delete=models.SET_NULL, related_name='s_solution_group', null=True, blank=True)
     reference_tickets = models.ManyToManyField('self',blank=True)
     pre_assignee = models.JSONField(default=list,null= True)  # Stores a list of strings
-    issue_type = models.CharField(
-        max_length=50, 
-        choices=ISSUE_TYPE, 
-        blank=True, 
-        null=True, 
-        default=""
-    )
+    # issue_type = models.CharField(
+    #     max_length=50, 
+    #     choices=ISSUE_TYPE, 
+    #     blank=True, 
+    #     null=True, 
+    #     default=""
+    # )
 
     impact = models.CharField(
         max_length=50, 

@@ -7,8 +7,12 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import IssueCategory, IssueType
 from .serializers import IssueCategorySerializer, IssueTypeSerializer
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication   
 
 class IssueCategoryListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     def get(self, request):
         categories = IssueCategory.objects.all()
         serializer = IssueCategorySerializer(categories, many=True, context={'request': request})
@@ -16,19 +20,37 @@ class IssueCategoryListAPIView(APIView):
     def post(self, request):
         serializer = IssueCategorySerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(created_by=request.user)  # Set the created_by and modified_by fields to the current user
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    def put(self, request,issue_category_id):
-        try:
-            category = IssueCategory.objects.get(pk=issue_category_id)
-        except IssueCategory.DoesNotExist:
-            return Response({"error": "Category not found"}, status=status.HTTP_404_NOT_FOUND)
+    # def put(self, request,issue_category_id):
+    #     try:
+    #         category = IssueCategory.objects.get(pk=issue_category_id)
+    #     except IssueCategory.DoesNotExist:
+    #         return Response({"error": "Category not found"}, status=status.HTTP_404_NOT_FOUND)
         
-        serializer = IssueCategorySerializer(category, data=request.data, partial=True)
+    #     serializer = IssueCategorySerializer(category, data=request.data, partial=True)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         return Response(serializer.data, status=status.HTTP_200_OK)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, *args, **kwargs):
+        category_id = kwargs.get('pk')
+        if not category_id:
+            return Response({'detail': 'Category ID is missing.'}, status=status.HTTP_400_BAD_REQUEST)
+ 
+        # Retrieve the category object
+        category = self.get_object(category_id)
+        if not category:
+            return Response({'detail': 'Category not found.'}, status=status.HTTP_404_NOT_FOUND)
+ 
+        # Serialize the data, allowing partial updates if necessary
+        serializer = IssueCategorySerializer(category, data=request.data, context={'request': request}, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(modified_by=request.user)  # Set the modified_by field to the current user
             return Response(serializer.data, status=status.HTTP_200_OK)
+ 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     def delete(self, request, *args, **kwargs):
         category_id = kwargs.get('issue_category_id')
@@ -42,6 +64,8 @@ class IssueCategoryListAPIView(APIView):
         except IssueCategory.DoesNotExist:
             return Response({"error": "Category not found."}, status=status.HTTP_404_NOT_FOUND)
 class IssueTypeListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     def get(self, request, category_id):
         try:
             category = IssueCategory.objects.get(id=category_id)

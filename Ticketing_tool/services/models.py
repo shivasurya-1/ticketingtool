@@ -6,9 +6,10 @@ from login_details.models import User
 class IssueCategory(models.Model):
     issue_category_id = models.AutoField(primary_key=True)  # Auto-incrementing primary key
     name = models.CharField(max_length=100, unique=True)
-    icon = models.ImageField(upload_to='category_icons/')  # Stores icon
+    icon_url = models.ImageField(upload_to='category_icons/')  # Stores icon
     description = models.TextField(blank=True, null=True)  # Optional description field
     # icon = models.ImageField(upload_to='category_icons/')  # Stores icon
+    # icon_url
     is_active = models.BooleanField(default=True)  # Soft deletion flag
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="issuecategory_created")

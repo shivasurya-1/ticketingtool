@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from roles_creation.models import UserRole
 
 class Organisation(models.Model):
-    organisation_id = models.BigAutoField(primary_key=True) 
+    organisation_id = models.BigAutoField(primary_key=True)
     organisation_name = models.CharField(max_length=255,unique=True)  # Ensuring unique organisation name
     organisation_mail = models.EmailField(unique=True)  # Ensuring unique email
     is_active = models.BooleanField(default=True)  # Soft deletion flag
@@ -17,14 +17,21 @@ class Organisation(models.Model):
     modified_by = models.ForeignKey(
         'login_details.User', on_delete=models.SET_NULL, null=True, related_name='organisations_modified_by'
     )
-
+    parent_organisation = models.ForeignKey(
+    'self',
+    null=True,
+    blank=True,
+    on_delete=models.SET_NULL,
+    related_name='support_organisations')
+ 
     class Meta:
         unique_together = ('organisation_name', 'organisation_mail')
-
+ 
     def __str__(self):
         return self.organisation_name
-
-
+    def is_root(self):
+        return self.parent_organisation is None
+ 
 class Employee(MPTTModel):
     employee_id = models.BigAutoField(primary_key=True)  # Changed to BigAutoField for consistency
     user_role = models.OneToOneField(UserRole, on_delete=models.CASCADE, related_name='employee')

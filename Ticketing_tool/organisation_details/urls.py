@@ -11,3 +11,4 @@ urlpatterns = [
     path("employee/<int:employee_id>/", EmployeeAPI.as_view(), name="employee-detail"),
     path("organisation/<int:organisation_id>/employee/", EmployeeAPI.as_view(), name="organisation-employee-list"),
 ]
+   

@@ -3,6 +3,8 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
 from history.serializers import TicketHistorySerializer
+from django.db.models import Q
+
 
 from roles_creation.models import UserRole
 from roles_creation.serializers import UserRoleSerializer
@@ -128,9 +130,9 @@ class ReferenceTicketAPILIST(APIView):
     authentication_classes = [JWTAuthentication]
     def get(self, request):
             # Assuming the related field in the Ticket model is `created_by`
-            tickets = Ticket.objects.filter(created_by=request.user)
+            tickets = Ticket.objects.all()
             serializer = TicketSerializer(tickets, many=True)
-            final_data = [i['ticket_id'] for i in serializer.data]
+            final_data = [{'ticket_id': i['ticket_id'], 'summary': i['summary']} for i in serializer.data]
             return Response(final_data)
         
         
@@ -200,12 +202,23 @@ class CreateTicketAPIView(APIView):
         data["created_by"] = request.user.id  # Assuming user is logged in and using Token/Auth
         tickets = Ticket.objects.all()
 
-        ord_data= ""
-        for i in data["ticket_id"]:
-            if i.isalpha():
-                ord_data+=i
-            else:
-                break
+        # ord_data= ""
+        # for i in data["ticket_id"]:
+        #     if i.isalpha():
+        #         ord_data+=i
+        #     else:
+        #         break
+        ticket_id = data.get("ticket_id")
+
+        if ticket_id and isinstance(ticket_id, str):
+            ord_data = ""
+            for i in ticket_id:
+                if i.isalpha():
+                    ord_data += i
+                else:
+                    break
+        else:
+            return Response({"error": "ticket_id is required and must be a string"}, status=400)
         check_serializer = TicketSerializer(tickets,many=True)
         final_data = [i['ticket_id'] for i in check_serializer.data ]
         if data['ticket_id'] in final_data:
@@ -336,6 +349,7 @@ class ListTicketAPIView(APIView):
         all_serializer  = TicketSerializer(all_paginated_1, many=True)
         created_serializer = TicketSerializer(paginated_created, many=True)
         assigned_serializer = TicketSerializer(paginated_assigned, many=True)
+  
         if request.query_params.get('created')=='True':
             return paginator_created.get_paginated_response({
                     "all_tickets": created_serializer.data
@@ -349,7 +363,66 @@ class ListTicketAPIView(APIView):
             return paginator_created.get_paginated_response({
                     "all_tickets": all_serializer.data
                 })      
-            
+    
+    # def get(self, request, assignee=None):
+    #     self.permission_required = "view_ticket"
+    #     HasRolePermission.has_permission(self, request, self.permission_required)
+
+    #     print(f"Logged-in user: {request.user}")
+    #     print(f"User ID: {request.user.id}")
+    #     print(f"Query params: {request.query_params}")
+
+    #     # If user is Admin
+    #     if UserRole.objects.filter(user=request.user, role__name='Admin', is_active=True).exists():
+    #         print("User is Admin")
+    #         all_tickets = Ticket.objects.filter(is_active=True)
+    #         paginator = LimitOffsetPagination()
+    #         paginated_tickets = paginator.paginate_queryset(all_tickets, request, view=self)
+    #         serializer = TicketSerializer(paginated_tickets, many=True)
+    #         return paginator.get_paginated_response({
+    #             "all_tickets": serializer.data
+    #         })
+
+    #     # If normal user
+    #     print("User is Normal user (not Admin)")
+    #     created_tickets = Ticket.objects.filter(created_by=request.user, is_active=True)
+    #     assigned_tickets = Ticket.objects.filter(assignee=request.user, is_active=True).exclude(
+    #         ticket_id__in=created_tickets.values_list('ticket_id', flat=True)
+    #     )
+    #     all_user_tickets = Ticket.objects.filter(
+    #         Q(created_by=request.user) | Q(assignee=request.user),
+    #         is_active=True
+    #     ).distinct()
+
+    #     # ).distinct()
+
+    #     print(f"Created tickets count: {created_tickets.count()}")
+    #     print(f"Assigned tickets count: {assigned_tickets.count()}")
+    #     print(f"All user tickets count: {all_user_tickets.count()}")
+
+    #     paginator = LimitOffsetPagination()
+
+    #     if request.query_params.get('created') == 'True':
+    #         paginated = paginator.paginate_queryset(created_tickets, request, view=self)
+    #         serializer = TicketSerializer(paginated, many=True)
+    #         return paginator.get_paginated_response({
+    #             "all_tickets": serializer.data
+    #         })
+
+    #     if request.query_params.get('assignee') == 'True':
+    #         paginated = paginator.paginate_queryset(assigned_tickets, request, view=self)
+    #         serializer = TicketSerializer(paginated, many=True)
+    #         return paginator.get_paginated_response({
+    #             "all_tickets": serializer.data
+    #         })
+
+    #     # Otherwise show both created + assigned
+    #     paginated = paginator.paginate_queryset(all_user_tickets, request, view=self)
+    #     serializer = TicketSerializer(paginated, many=True)
+    #     return paginator.get_paginated_response({
+    #         "all_tickets": serializer.data
+    #     })
+
 
 class DashboardTicketAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -717,7 +790,7 @@ class TicketChoicesAPIView(APIView):
     def get(self, request):
         choices = {
             "status_choices": Ticket.STATUS_CHOICES,
-            "issue_type_choices": Ticket.ISSUE_TYPE,
+            # "issue_type_choices": Ticket.ISSUE_TYPE,
             "support_team_choices": Ticket.SUPPORT,
             # "contact_mode_choices": Ticket._meta.get_field("contact_mode").choices
             "impact_choices":Ticket.IMPACT, #change 1

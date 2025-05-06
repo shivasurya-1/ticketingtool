@@ -4,25 +4,49 @@ from solution_groups.models import SolutionGroup,SolutionGroupTickets
 from solution_groups.serializers import AssigneeTicketSerializer,SolutionSerializer,SolutionTicketSerializer
 from roles_creation.models import UserRole
 
-class OrganisationSerializer(serializers.ModelSerializer):
+class SupportOrganisationSerializer(serializers.ModelSerializer):
+    created_by = serializers.SlugRelatedField(read_only=True, slug_field='username')
+    modified_by = serializers.SlugRelatedField(read_only=True, slug_field='username')
     class Meta:
         model = Organisation
-        fields = ['organisation_name', 'organisation_mail', 'created_at', 'modified_at','organisation_id','created_by','modified_by','is_active']
-        extra_kwargs = {
-            'created_by': {'read_only': True},  
-            'modified_by': {'read_only': True},
-        }
-
+        fields = [
+            'organisation_id', 'organisation_name', 'organisation_mail', 'is_active',
+            'parent_organisation', 'created_at', 'modified_at', 'created_by', 'modified_by'
+        ]
+ 
+class OrganisationSerializer(serializers.ModelSerializer):
+    support_organisations = SupportOrganisationSerializer(many=True, read_only=True)
+    created_by = serializers.SlugRelatedField(read_only=True, slug_field='username')
+    modified_by = serializers.SlugRelatedField(read_only=True, slug_field='username')
+ 
+    class Meta:
+        model = Organisation
+        fields = [
+            'organisation_id', 'organisation_name', 'organisation_mail', 'is_active',
+            'parent_organisation', 'created_at', 'modified_at', 'created_by', 'modified_by',
+            'support_organisations'
+        ]
+# class OrganisationSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Organisation
+#         fields = ['organisation_name', 'organisation_mail', 'created_at', 'modified_at','organisation_id','created_by','modified_by','is_active']
+#         extra_kwargs = {
+#             'created_by': {'read_only': True},  
+#             'modified_by': {'read_only': True},
+#         }
+      
 class EmployeeSerializer(serializers.ModelSerializer): 
+    parent = serializers.SerializerMethodField()
     user_role = serializers.PrimaryKeyRelatedField(queryset=UserRole.objects.all())
     organisation = serializers.PrimaryKeyRelatedField(queryset=Organisation.objects.all())
     parent = serializers.PrimaryKeyRelatedField(queryset=Employee.objects.all(), required=False)
     level = serializers.IntegerField()
     organisation_name = serializers.SerializerMethodField(read_only=True)
     username = serializers.SerializerMethodField(read_only=True)
+    children = serializers.SerializerMethodField()
     class Meta:
         model = Employee
-        fields = ['employee_id','username', 'organisation_name','user_role', 'organisation', 'position_name', 'level', 'parent', 'created_at', 'modified_at','created_by','modified_by']
+        fields = ['employee_id','username', 'organisation_name','user_role', 'organisation', 'position_name', 'level', 'parent', 'created_at', 'modified_at','created_by','modified_by','children']
         extra_kwargs = {
             'created_by': {'read_only': True},  
             'modified_by': {'read_only': True},
@@ -40,6 +64,19 @@ class EmployeeSerializer(serializers.ModelSerializer):
     
     def get_username(self, obj):
         return obj.user_role.user.username if obj.user_role and obj.user_role.user else None
+    
+    def get_parent(self, obj):
+        return obj.parent.employee_id if obj.parent else 0
+    
+    # def get_children(self, obj):
+    #     if obj.get_children():
+    #         return EmployeeSerializer(obj.get_children(), many=True).data
+    #     return []
+
+    def get_children(self, obj):
+        children = Employee.objects.filter(parent=obj)
+        return EmployeeSerializer(children, many=True).data
+
     
 class AssigneeSerializer(serializers.ModelSerializer): 
     organisation_name = serializers.SerializerMethodField(read_only=True)

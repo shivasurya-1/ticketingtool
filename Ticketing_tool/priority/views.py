@@ -42,7 +42,29 @@ class PriorityView(APIView):
             priorities = Priority.objects.filter(organisation= request.user.organisation)
             serializer = PrioritySerializer(priorities, many=True)
             return Response(serializer.data)
+    
+    # def get(self, request, *args, **kwargs):
+    #     self.permission_required = "view_priority"
+    
+    #     if not HasRolePermission().has_permission(request, self.permission_required):
+    #         return Response({'error': 'Permission denied.'}, status=403)
+    #     # Retrieve all objects
+    #     priorities = Priority.objects.all(organisation= request.user.organisation)
+    #     serializer = PrioritySerializer(priorities, many=True)
+    #     return Response(serializer.data)
 
+
+
+    # def get(self, request, *args, **kwargs):
+    #     self.permission_required = "view_priority"
+    
+    #     if not HasRolePermission().has_permission(request, self.permission_required):
+    #         return Response({'error': 'Permission denied.'}, status=403)
+    #     # Retrieve all objects
+    #     priorities = Priority.objects.filter(organisation= request.user.organisation)
+    #     serializer = PrioritySerializer(priorities, many=True)
+    #     return Response(serializer.data)
+    
     
 
 
@@ -61,7 +83,7 @@ class PriorityView(APIView):
  
     def post(self, request):
         self.permission_required = "create_priority"
-    
+      
         if not HasRolePermission().has_permission(request, self.permission_required):
          return Response({'error': 'Permission denied.'}, status=403)
         data = request.data.copy()

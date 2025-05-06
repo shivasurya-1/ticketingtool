@@ -33,6 +33,6 @@ class IssueCategorySerializer(serializers.ModelSerializer):
 
     def get_icon_url(self, obj):
         request = self.context.get('request')
-        if obj.icon:
-            return request.build_absolute_uri(obj.icon.url)
+        if obj.icon_url:
+            return request.build_absolute_uri(obj.icon_url.url)
         return None

@@ -12,7 +12,7 @@ from roles_creation.permissions import HasRolePermission
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 class ResolutionAPIView(APIView):
-    permission_classes = [IsAuthenticated,HasRolePermission]
+    permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
 
@@ -36,7 +36,7 @@ class ResolutionAPIView(APIView):
          return Response({'error': 'Permission denied.'}, status=403)
         serializer = ResolutionSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(created_by=request.user, updated_by=request.user)
+            serializer.save(created_by=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -48,7 +48,7 @@ class ResolutionAPIView(APIView):
         resolution = get_object_or_404(Resolution, pk=pk)
         serializer = ResolutionSerializer(resolution, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save(updated_by=request.user)
+            serializer.save(modified_by=request.user)
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

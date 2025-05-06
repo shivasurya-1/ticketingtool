@@ -26,7 +26,7 @@ class TicketSerializer(serializers.ModelSerializer):
         """Customize serialized output to return human-readable labels."""
         representation = super().to_representation(instance)
         representation["impact"] = instance.get_impact_display()
-        representation["issue_type"] = instance.get_issue_type_display()
+        # representation["issue_type"] = instance.get_issue_type_display()
         representation["support_team"] = instance.get_support_team_display()
         representation["status"] = instance.get_status_display()
         representation["solution_grp"] = instance.solution_grp.group_name if instance.solution_grp else None
