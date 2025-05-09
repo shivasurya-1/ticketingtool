@@ -5,6 +5,7 @@ import ChatbotPopup from "../components/ChatBot";
 import { ToastContainer, toast } from "react-toastify";
 import ReactPaginate from "react-paginate";
 import { FiSearch, FiRefreshCw } from "react-icons/fi";
+import { useSelector } from "react-redux";
 
 export default function DispatcherPage() {
   // State for page data
@@ -24,6 +25,7 @@ export default function DispatcherPage() {
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [supportStaff, setSupportStaff] = useState([]);
+  const [flatEmployeeData, setFlatEmployeeData] = useState([]);
   const [supportOrganizations, setSupportOrganizations] = useState([]);
   const [solutionGroups, setSolutionGroups] = useState([]);
   const [assignmentData, setAssignmentData] = useState({
@@ -32,9 +34,30 @@ export default function DispatcherPage() {
     solutionGroupId: "",
   });
   const [assignLoading, setAssignLoading] = useState(false);
+  const [adminOrganization, setAdminOrganization] = useState("");
   const accessToken = localStorage.getItem("access_token");
 
   const searchInputRef = useRef(null);
+
+  const userProfile = useSelector((state) => state.userProfile.user);
+
+  // Update admin organization when user profile is available
+  useEffect(() => {
+    if (userProfile?.organisation_name) {
+      setAdminOrganization(userProfile.organisation_name);
+    }
+  }, [userProfile]);
+
+  // Filter staff data when adminOrganization changes
+  useEffect(() => {
+    if (adminOrganization && flatEmployeeData.length > 0) {
+      const cleanedStaffData = flatEmployeeData.filter(
+        (item) => 
+          item.organisation_name?.toLowerCase() === adminOrganization.toLowerCase()
+      );
+      setSupportStaff(cleanedStaffData);
+    }
+  }, [adminOrganization, flatEmployeeData]);
 
   // Fetch unassigned tickets on component mount
   useEffect(() => {
@@ -73,6 +96,32 @@ export default function DispatcherPage() {
   useEffect(() => {
     setCurrentPage(0);
   }, [searchTerm]);
+
+  const flattenEmployees = (data, parentInfo = null) => {
+    let result = [];
+
+    data.forEach((entry) => {
+      const { children, ...employeeData } = entry;
+
+      result.push({
+        ...employeeData,
+        id: employeeData.employee_id, // Ensure id property exists
+        isChild: parentInfo !== null,
+        parentUsername: parentInfo?.username || null,
+        parentId: parentInfo?.employee_id || null,
+      });
+
+      if (children && Array.isArray(children) && children.length > 0) {
+        const childEntries = flattenEmployees(children, {
+          username: employeeData.username,
+          employee_id: employeeData.employee_id,
+        });
+        result = result.concat(childEntries);
+      }
+    });
+
+    return result;
+  };
 
   // Ensure currentPage is never out of bounds
   useEffect(() => {
@@ -121,7 +170,7 @@ export default function DispatcherPage() {
   const fetchSupportData = async () => {
     try {
       const [staffRes, orgsRes, solutionsRes] = await Promise.all([
-        axiosInstance.get("user/api/assignee/", {
+        axiosInstance.get("/org/employee/", {
           headers: { Authorization: `Bearer ${accessToken}` },
         }),
         axiosInstance.get("org/autoAssignee/", {
@@ -132,21 +181,38 @@ export default function DispatcherPage() {
         }),
       ]);
 
-      setSupportStaff(staffRes.data);
+      // Process employee data
+      if (staffRes.data && Array.isArray(staffRes.data)) {
+        const flattened = flattenEmployees(staffRes.data);
+        setFlatEmployeeData(flattened);
+        
+        // Initial filtering (will be refined in useEffect when adminOrganization is confirmed)
+        if (adminOrganization) {
+          const filtered = flattened.filter(
+            emp => emp.organisation_name?.toLowerCase() === adminOrganization.toLowerCase()
+          );
+          setSupportStaff(filtered);
+        } else {
+          setSupportStaff(flattened);
+        }
+      }
 
-      const cleanedOrgData = orgsRes.data.map((item) => ({
-        username: item.username,
-        organisation_name: item.organisation_name,
-        solutiongroup: item.solutiongroup,
-      }));
-      setSupportOrganizations(cleanedOrgData);
+      // Process organization data
+      if (orgsRes.data && Array.isArray(orgsRes.data)) {
+        const cleanedOrgData = orgsRes.data.map((item) => ({
+          username: item.username,
+          organisation_name: item.organisation_name,
+          solutiongroup: item.solutiongroup,
+        }));
+        setSupportOrganizations(cleanedOrgData);
+      }
 
-      // Process solution groups properly
+      // Process solution groups data
       if (Array.isArray(solutionsRes.data)) {
         // If returned data is an array of objects with group_name property
         if (solutionsRes.data.length > 0 && solutionsRes.data[0]?.group_name) {
           // Map to just the group names for display
-          const groupNames = solutionsRes.data.map(group => group.group_name);
+          const groupNames = solutionsRes.data.map((group) => group.group_name);
           setSolutionGroups(groupNames);
           setAvailableSolutionGroups(groupNames);
         } else {
@@ -154,10 +220,6 @@ export default function DispatcherPage() {
           setSolutionGroups(solutionsRes.data);
           setAvailableSolutionGroups(solutionsRes.data);
         }
-      } else {
-        console.error("Solution groups data is not in expected format:", solutionsRes.data);
-        setSolutionGroups([]);
-        setAvailableSolutionGroups([]);
       }
     } catch (error) {
       console.error("Error fetching support data:", error);
@@ -196,32 +258,26 @@ export default function DispatcherPage() {
     });
     setShowAssignmentModal(true);
   };
-
+  
   const handleAssigneeChange = (e) => {
     const assigneeId = e.target.value;
 
-    setAssignmentData((prev) => ({ ...prev, assigneeId }));
-
     // Find the selected staff member
     const selectedStaff = supportStaff.find(
-      (staff) => staff.id?.toString() === assigneeId
+      (staff) =>
+        staff.id?.toString() === assigneeId ||
+        staff.employee_id?.toString() === assigneeId
     );
 
     if (selectedStaff) {
-      // Find matching organization data
-      const staffOrg = supportOrganizations.find(
-        (org) => org.username === selectedStaff.username
-      );
-
-      if (staffOrg) {
-        // Set organization without changing solution group selection
-        setAssignmentData((prev) => ({
-          ...prev,
-          assignee: selectedStaff.username,
-          supportOrgId: staffOrg.organisation_name,
-          // Maintain existing solutionGroupId
-        }));
-      }
+      setAssignmentData((prev) => ({
+        ...prev,
+        assigneeId,
+        assignee: selectedStaff.username,
+        supportOrgId: selectedStaff.organisation_name,
+      }));
+    } else {
+      setAssignmentData((prev) => ({ ...prev, assigneeId }));
     }
   };
 
@@ -230,6 +286,11 @@ export default function DispatcherPage() {
 
     if (!assignmentData.assigneeId) {
       toast.error("Please select an assignee");
+      return;
+    }
+
+    if (!assignmentData.solutionGroupId) {
+      toast.error("Please select a solution group");
       return;
     }
 
@@ -257,6 +318,8 @@ export default function DispatcherPage() {
           },
         }
       );
+      
+      // Update local state by removing the assigned ticket
       const updatedTickets = unassignedTickets.filter(
         (ticket) => ticket.ticket_id !== selectedTicket.ticket_id
       );
@@ -432,9 +495,6 @@ export default function DispatcherPage() {
                         Summary
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                        Issue Type
-                      </th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Priority
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
@@ -459,9 +519,6 @@ export default function DispatcherPage() {
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-800 max-w-xs truncate">
                           {ticket.summary}
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-800">
-                          {ticket.issue_type}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
                           <span
@@ -651,12 +708,22 @@ export default function DispatcherPage() {
                         id="solutionGroup"
                         value={assignmentData.solutionGroupId}
                         onChange={handleSolutionGroupChange}
+                        required
                         className="border border-gray-300 rounded-lg p-2 w-full text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="">Select a solution group</option>
                         {solutionGroups.map((group, index) => (
-                          <option key={index} value={typeof group === 'object' ? group.group_name : group}>
-                            {typeof group === 'object' ? group.group_name : group}
+                          <option
+                            key={index}
+                            value={
+                              typeof group === "object"
+                                ? group.group_name
+                                : group
+                            }
+                          >
+                            {typeof group === "object"
+                              ? group.group_name
+                              : group}
                           </option>
                         ))}
                       </select>
@@ -670,43 +737,27 @@ export default function DispatcherPage() {
                     )}
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-3 border-t">
+                  <div className="flex justify-end pt-2 space-x-3 border-t border-gray-200">
                     <button
                       type="button"
                       onClick={() => setShowAssignmentModal(false)}
-                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
-                      disabled={assignLoading}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors flex items-center gap-1"
+                      className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
                       disabled={assignLoading}
                     >
-                      {assignLoading && (
-                        <svg
-                          className="animate-spin h-3 w-3 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
+                      {assignLoading ? (
+                        <>
+                          <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Processing...</span>
+                        </>
+                      ) : (
+                        "Assign Ticket"
                       )}
-                      {assignLoading ? "Assigning..." : "Assign Ticket"}
                     </button>
                   </div>
                 </form>
@@ -716,15 +767,7 @@ export default function DispatcherPage() {
         </div>
       </main>
       <ChatbotPopup />
-      <ToastContainer
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
+      <ToastContainer position="bottom-right" autoClose={3000} />
     </div>
   );
 }
