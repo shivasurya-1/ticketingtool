@@ -549,27 +549,6 @@ export default function ResolveIssue() {
                 ></div>
               </div>
             </div>
-
-            {/* Attachments Section - If Any */}
-            {attachments.length > 0 && (
-              <div className="mt-3">
-                <h3 className="text-sm font-medium mb-1">
-                  Attachments ({attachments.length})
-                </h3>
-                <div className="border rounded bg-gray-50 p-2 text-sm max-h-20 overflow-auto">
-                  {attachments.map((attachment, index) => (
-                    <div key={index} className="mb-1 flex items-center">
-                      <span className="text-blue-500 hover:underline cursor-pointer">
-                        {attachment.file_name}
-                      </span>
-                      <span className="text-gray-400 text-xs ml-2">
-                        ({Math.round(attachment.file_size / 1024)} KB)
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Professional Tab System */}
