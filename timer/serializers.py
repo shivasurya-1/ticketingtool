@@ -9,25 +9,41 @@ class AttachmentSerializer(serializers.ModelSerializer):
         fields = ['id', 'file', 'uploaded_at']
 
 class TicketSerializer(serializers.ModelSerializer):
-    """Serializer for Ticket model."""
+    # Manually define service_domain and service_type fields
+    service_domain = serializers.CharField(source='service_domain.name', default="Application Support", read_only=True)
+    service_type = serializers.CharField(source='service_type.name', default="SAP", read_only=True)
+   
+    # Simplified attachments field
     attachments = serializers.SerializerMethodField()
-
+   
     class Meta:
         model = Ticket
         fields = "__all__"
         extra_kwargs = {
-            'created_by': {'read_only': True},  
+            'created_by': {'read_only': True},
             'modified_by': {'read_only': True},
         }
-
+   
     def get_attachments(self, obj):
-        return [attachment.file.url for attachment in obj.attachments.all()]
-
+        """Return only the file paths for attachments without id and uploaded_at"""
+        file_paths = []
+        for attachment in obj.attachments.all():
+            if attachment.file:
+                file_paths.append(attachment.file.url)
+        return file_paths
+   
     def to_representation(self, instance):
         """Customize serialized output to return human-readable labels."""
         representation = super().to_representation(instance)
+       
+        # Set default values for service_domain and service_type
+        if representation["service_domain"] is None:
+            representation["service_domain"] = "Application Support"
+       
+        if representation["service_type"] is None:
+            representation["service_type"] = "SAP"
+       
         representation["impact"] = instance.get_impact_display()
-        # representation["issue_type"] = instance.get_issue_type_display()
         representation["support_team"] = instance.get_support_team_display()
         representation["status"] = instance.get_status_display()
         representation["solution_grp"] = instance.solution_grp.group_name if instance.solution_grp else None
@@ -36,63 +52,43 @@ class TicketSerializer(serializers.ModelSerializer):
         representation["created_by"] = instance.created_by.username if instance.created_by else None
         representation["modified_by"] = instance.modified_by.username if instance.modified_by else None
         representation["assignee"] = instance.assignee.username if instance.assignee else None
+       
+        # Remove attachments_list if it exists (to avoid duplication)
+        if "attachments_list" in representation:
+            del representation["attachments_list"]
+           
         return representation
-
-    # def validate_status(self, value):
-    #     """Ensure assignee is a pk value."""
-    #     from .models import Organisation  # Assuming assignee is a User model
-    #     if isinstance(value, str):
-    #         try:
-    #             user = Organisation.objects.get(organisation_name=value)
-    #             return user.pk  # Return the primary key of the user
-    #         except Organisation.DoesNotExist:
-    #             raise serializers.ValidationError(f'org with org "{value}" does not exist.')
-    #     return value
+   
     def validate_developer_organization(self, value):
-        """Ensure assignee is a pk value."""
-        from .models import Organisation  # Assuming assignee is a User model
+        from .models import Organisation
         if isinstance(value, str):
             try:
-                user = Organisation.objects.get(organisation_name=value)
-                return user.pk  # Return the primary key of the user
+                org = Organisation.objects.get(organisation_name=value)
+                return org.pk
             except Organisation.DoesNotExist:
-                raise serializers.ValidationError(f'org with org "{value}" does not exist.')
+                raise serializers.ValidationError(f'Organisation "{value}" does not exist.')
         return value
+   
     def validate_assignee(self, value):
-        """Ensure assignee is a pk value."""
-        from .models import User  # Assuming assignee is a User model
+        from .models import User
         if isinstance(value, str):
             try:
                 user = User.objects.get(username=value)
-
-                return user.pk  # Return the primary key of the user
+                return user.pk
             except User.DoesNotExist:
-                raise serializers.ValidationError(f'User with username "{value}" does not exist.')
+                raise serializers.ValidationError(f'User "{value}" does not exist.')
         return value
-
+   
     def validate_solution_grp(self, value):
-        """Ensure solution_grp is a pk value."""
-        from .models import SolutionGroup  # Replace with your model
+        from .models import SolutionGroup
         if isinstance(value, str):
-            print(f"Validating solution_grp with value: {value}")
             try:
-                solution_group = SolutionGroup.objects.get(group_name__iexact=value)
-                print(f"Solution group found: {solution_group.group_name} -> Primary key: {solution_group.pk}")
-                return solution_group.pk  # Return the primary key (pk) of the solution group
+                group = SolutionGroup.objects.get(group_name__iexact=value)
+                return group.pk
             except SolutionGroup.DoesNotExist:
-                print(f"Solution group {value} does not exist.")
                 raise serializers.ValidationError(f'Solution group "{value}" does not exist.')
         return value
-
-    # def validate(self, data):
-    #     # Replace empty string fields with default values
-    #     if not data.get("impact"):
-    #         data["impact"] = "A"  # Default value corresponding to "High"
-    #     if not data.get("issue_type"):
-    #         data["issue_type"] = "F"  # Default value corresponding to "Incident"
-    #     if not data.get("support_team"):
-    #         data["support_team"] = "a"  # Default value corresponding to "FirstLevel"
-    #     return data
+ 
 
 class AssignTicketSerializer(serializers.ModelSerializer):
     class Meta:
