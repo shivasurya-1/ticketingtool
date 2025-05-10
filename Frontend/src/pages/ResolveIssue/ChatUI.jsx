@@ -115,56 +115,55 @@ const ChatUI = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-// Update your fetchMessages function to handle message content correctly
+  // Update your fetchMessages function to handle message content correctly
+  const fetchMessages = async (ticketId) => {
+    console.log(ticketId)
+    setLoading(true);
+    try {
+      const accessToken = localStorage.getItem("access_token");
+      if (!accessToken) {
+        toast.error("Access token missing. Please log in.");
+        return;
+      }
 
-const fetchMessages = async (ticketId) => {
+      if (!ticketId) {
+        setLoading(false);
+        return;
+      }
 
-  console.log(ticketId)
-  setLoading(true);
-  try {
-    const accessToken = localStorage.getItem("access_token");
-    if (!accessToken) {
-      toast.error("Access token missing. Please log in.");
-      return;
-    }
+      // Fetch ticket notes/messages
+      const response = await axiosInstance.get(`ticket/reports/`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        params: { ticket: ticketId }
+      });
 
-    if (!ticketId) {
+      // Transform ticket notes into message format
+      const messageData = response.data.map(note => ({
+        id: note.report_id || note.id,
+        text: note.content || note.title, // Try content first, then fall back to title
+        html: note.content || note.title, // Store HTML content if available
+        timestamp: new Date(note.created_at).toLocaleString(),
+        isCurrentUser: note.username === userProfile.username || note.username === userProfile.first_name,
+        user: note.username || "System",
+        attachments: note.report_attachments ? note.report_attachments.map(att => ({
+          id: att.id,
+          name: getFileNameFromUrl(att.file_url),
+          type: getFileTypeFromUrl(att.file_url),
+          url: att.file_url,
+          uploaded_at: att.uploaded_at
+        })) : []
+      }));
+      console.log("API Response:", response.data);
+      console.log("Transformed Message Data:", messageData);
+
+      setMessages(messageData);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      toast.error("Failed to load messages");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Fetch ticket notes/messages
-    const response = await axiosInstance.get(`ticket/reports/`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      params: { ticket: ticketId }
-    });
-
-    // Transform ticket notes into message format
-    const messageData = response.data.map(note => ({
-      id: note.report_id || note.id,
-      text: note.content || note.title, // Try content first, then fall back to title
-      timestamp: new Date(note.created_at).toLocaleString(),
-      isCurrentUser: note.username === userProfile.username || note.username === userProfile.first_name,
-      user: note.username || "System",
-      attachments: note.report_attachments ? note.report_attachments.map(att => ({
-        id: att.id,
-        name: getFileNameFromUrl(att.file_url),
-        type: getFileTypeFromUrl(att.file_url),
-        url: att.file_url,
-        uploaded_at: att.uploaded_at
-      })) : []
-    }));
-    console.log("API Response:", response.data);
-    console.log("Transformed Message Data:", messageData);
-
-    setMessages(messageData);
-  } catch (error) {
-    console.error("Error fetching messages:", error);
-    toast.error("Failed to load messages");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Helper function to extract filename from URL
   const getFileNameFromUrl = (url) => {
@@ -193,129 +192,211 @@ const fetchMessages = async (ticketId) => {
     return "application/octet-stream";
   };
 
-// Updated sendMessage function to fix the ticketId required error
-const sendMessage = async () => {
-  // Check if there's content in the editor by checking if the HTML contains only empty tags
-  const isMessageEmpty = !newMessageHTML || newMessageHTML === '<p><br></p>' || newMessageHTML === '<p></p>';
-  if (isMessageEmpty && attachments.length === 0) return;
-
-  try {
-    const accessToken = localStorage.getItem("access_token");
-    if (!accessToken) {
-      toast.error("Access token missing. Please log in.");
-      return;
-    }
-
-    // Check if we have a valid ticket ID
-    if (!formData.number) {
-      toast.error("Ticket ID is required but missing");
-      return;
-    }
-
-    console.log("Sending message for ticket:", formData.number);
-
-    // First, upload any local files
-    let uploadedAttachments = [];
-    let messageAlreadySent = false;
+  // Helper function to extract embedded images from Quill content
+  const extractImagesFromQuillContent = async (htmlContent) => {
+    // Create temporary DOM element to parse HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
     
-    for (const attachment of attachments) {
-      if (attachment.isLocal) {
-        const fileFormData = new FormData();
-        fileFormData.append('attachments', attachment.file);
-        // Fix: Use 'ticket_id' instead of 'ticket'
-        fileFormData.append('ticket_id', formData.number);
+    // Get all image elements
+    const imgElements = tempDiv.querySelectorAll('img');
+    if (imgElements.length === 0) return [];
+    
+    const extractedImages = [];
+    
+    // Process each image
+    for (let i = 0; i < imgElements.length; i++) {
+      const img = imgElements[i];
+      const imgSrc = img.getAttribute('src');
+      
+      // Skip if src is not a base64 data URL
+      if (!imgSrc || !imgSrc.startsWith('data:')) continue;
+      
+      try {
+        // Convert data URL to Blob
+        const response = await fetch(imgSrc);
+        const blob = await response.blob();
         
-        // Only include title/message on the first attachment to prevent duplicate messages
-        if (!messageAlreadySent && !isMessageEmpty) {
-          fileFormData.append('title', newMessage);
-          messageAlreadySent = true;
-        } else {
-          fileFormData.append('title', "Attachment Added");
-        }
+        // Create a filename for the image
+        const imgType = blob.type.split('/')[1] || 'png';
+        const fileName = `embedded-image-${Date.now()}-${i}.${imgType}`;
         
-        console.log("Uploading attachment for ticket_id:", formData.number);
-
-        try {
-          const response = await axiosInstance.post('ticket/reports/', fileFormData, {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-
-          // Assuming the response contains the uploaded file details
-          const uploadedFile = response.data;
-          uploadedAttachments.push({
-            id: uploadedFile.id,
-            name: attachment.name,
-            type: attachment.type,
-            url: uploadedFile.file_url,
-          });
-        } catch (uploadError) {
-          console.error("Error uploading attachment:", uploadError.response?.data || uploadError);
-          toast.error(`Failed to upload ${attachment.name}: ${uploadError.response?.data?.detail || "Ticket ID required"}`);
-        }
-      } else {
-        uploadedAttachments.push(attachment); // Already uploaded files
+        // Create a File object from the Blob
+        const file = new File([blob], fileName, { type: blob.type });
+        
+        // Create attachment object
+        extractedImages.push({
+          id: `embedded-${Date.now()}-${i}`,
+          name: fileName,
+          type: blob.type,
+          size: blob.size,
+          file: file,
+          previewUrl: imgSrc,
+          isLocal: true, // Flag as local file for upload
+        });
+        
+        // Replace the src in the HTML with a placeholder
+        img.setAttribute('src', `[embedded-image-${i}]`);
+        img.setAttribute('data-embedded-index', i);
+      } catch (error) {
+        console.error("Error extracting embedded image:", error);
       }
     }
-
-    // Create array of attachment IDs for the API request
-    const attachmentIds = uploadedAttachments
-      .map((att) => att.id)
-      .filter((id) => typeof id === 'number');
-
-    // Add message to UI immediately for responsive feeling
-    const tempMessage = {
-      id: `temp-${Date.now()}`,
-      text: newMessage,
-      timestamp: 'Sending...',
-      isCurrentUser: true,
-      user: userProfile.first_name || 'You',
-      attachments: [...uploadedAttachments],
+    
+    // Update HTML content with placeholders
+    const updatedHtml = tempDiv.innerHTML;
+    
+    return {
+      images: extractedImages,
+      updatedHtml: updatedHtml
     };
+  };
 
-    setMessages((prev) => [...prev, tempMessage]);
+  // Updated sendMessage function to handle embedded Quill images
+  const sendMessage = async () => {
+    // Check if there's content in the editor by checking if the HTML contains only empty tags
+    const isMessageEmpty = !newMessageHTML || newMessageHTML === '<p><br></p>' || newMessageHTML === '<p></p>';
+    if (isMessageEmpty && attachments.length === 0) return;
 
-    // This part handles sending text messages if there were no attachments
-    // or if we need to send a separate text message
-    if (!isMessageEmpty && (!attachments.length || !messageAlreadySent)) {
-      // Send the ticket ID as a string since it has format like "S00000002"
-      await axiosInstance.post(
-        "ticket/reports/",
-        {
-          title: newMessage,
-          ticket_id: formData.number, // Use ticket_id instead of ticket
-          attachments: attachmentIds, // Send attachment IDs if any
-        },
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-    }
-
-    // Clear the input field and attachments after successful send
-    setNewMessage("");
-    setNewMessageHTML("");
-    setAttachments([]);
-
-    // Revoke object URLs to prevent memory leaks
-    attachments.forEach((att) => {
-      if (att.previewUrl && att.previewUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(att.previewUrl);
+    try {
+      const accessToken = localStorage.getItem("access_token");
+      if (!accessToken) {
+        toast.error("Access token missing. Please log in.");
+        return;
       }
-    });
 
-    // Refresh messages to ensure we have the latest data
-    fetchMessages(formData.number);
+      // Check if we have a valid ticket ID
+      if (!formData.number) {
+        toast.error("Ticket ID is required but missing");
+        return;
+      }
 
-    // toast.success("Message and attachments sent successfully");
-  } catch (error) {
-    console.error("Error sending message:", error.response?.data || error.message || error);
-    toast.error("Failed to send message: " + (error.response?.data?.detail || "Please ensure ticket ID is valid"));
+      console.log("Sending message for ticket:", formData.number);
+      
+      // Extract embedded images from Quill content
+      let allAttachments = [...attachments];
+      let messageText = newMessage;
+      let messageHtml = newMessageHTML;
+      
+      if (!isMessageEmpty && newMessageHTML.includes('<img')) {
+        const extractionResult = await extractImagesFromQuillContent(newMessageHTML);
+        if (extractionResult && extractionResult.images.length > 0) {
+          // Add extracted images to attachments
+          allAttachments = [...allAttachments, ...extractionResult.images];
+          messageHtml = extractionResult.updatedHtml;
+          console.log("Extracted embedded images:", extractionResult.images.length);
+        }
+      }
 
-    // Remove the temp message if sending failed
-    setMessages((prev) => prev.filter((msg) => msg.id !== `temp-${Date.now()}`));
-  }
-};
+      // First, upload any local files
+      let uploadedAttachments = [];
+      let messageAlreadySent = false;
+      
+      for (const attachment of allAttachments) {
+        if (attachment.isLocal) {
+          const fileFormData = new FormData();
+          fileFormData.append('attachments', attachment.file);
+          // Fix: Use 'ticket_id' instead of 'ticket'
+          fileFormData.append('ticket_id', formData.number);
+          
+          // Only include title/message on the first attachment to prevent duplicate messages
+          if (!messageAlreadySent && !isMessageEmpty) {
+            fileFormData.append('title', messageText);
+            // Also include HTML content if available
+            if (messageHtml && messageHtml !== messageText) {
+              fileFormData.append('content', messageHtml);
+            }
+            messageAlreadySent = true;
+          } else {
+            fileFormData.append('title', attachment.name.startsWith('embedded-image') ? 
+              "Embedded Image" : "Attachment Added");
+          }
+          
+          console.log("Uploading attachment for ticket_id:", formData.number);
+
+          try {
+            const response = await axiosInstance.post('ticket/reports/', fileFormData, {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'multipart/form-data',
+              },
+            });
+
+            // Assuming the response contains the uploaded file details
+            const uploadedFile = response.data;
+            uploadedAttachments.push({
+              id: uploadedFile.id,
+              name: attachment.name,
+              type: attachment.type,
+              url: uploadedFile.file_url,
+            });
+          } catch (uploadError) {
+            console.error("Error uploading attachment:", uploadError.response?.data || uploadError);
+            toast.error(`Failed to upload ${attachment.name}: ${uploadError.response?.data?.detail || "Ticket ID required"}`);
+          }
+        } else {
+          uploadedAttachments.push(attachment); // Already uploaded files
+        }
+      }
+
+      // Create array of attachment IDs for the API request
+      const attachmentIds = uploadedAttachments
+        .map((att) => att.id)
+        .filter((id) => typeof id === 'number');
+
+      // Add message to UI immediately for responsive feeling
+      const tempMessage = {
+        id: `temp-${Date.now()}`,
+        text: messageText,
+        html: messageHtml,
+        timestamp: 'Sending...',
+        isCurrentUser: true,
+        user: userProfile.first_name || 'You',
+        attachments: [...uploadedAttachments],
+      };
+
+      setMessages((prev) => [...prev, tempMessage]);
+
+      // This part handles sending text messages if there were no attachments
+      // or if we need to send a separate text message
+      if (!isMessageEmpty && (!allAttachments.length || !messageAlreadySent)) {
+        // Send the ticket ID as a string since it has format like "S00000002"
+        await axiosInstance.post(
+          "ticket/reports/",
+          {
+            title: messageText,
+            content: messageHtml, // Include HTML content
+            ticket_id: formData.number, // Use ticket_id instead of ticket
+            attachments: attachmentIds, // Send attachment IDs if any
+          },
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+      }
+
+      // Clear the input field and attachments after successful send
+      setNewMessage("");
+      setNewMessageHTML("");
+      setAttachments([]);
+
+      // Revoke object URLs to prevent memory leaks
+      allAttachments.forEach((att) => {
+        if (att.previewUrl && att.previewUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(att.previewUrl);
+        }
+      });
+
+      // Refresh messages to ensure we have the latest data
+      fetchMessages(formData.number);
+
+      // toast.success("Message and attachments sent successfully");
+    } catch (error) {
+      console.error("Error sending message:", error.response?.data || error.message || error);
+      toast.error("Failed to send message: " + (error.response?.data?.detail || "Please ensure ticket ID is valid"));
+
+      // Remove the temp message if sending failed
+      setMessages((prev) => prev.filter((msg) => msg.id !== `temp-${Date.now()}`));
+    }
+  };
 
   const handleFileAttachment = () => {
     fileInputRef.current?.click();
@@ -371,20 +452,22 @@ const sendMessage = async () => {
     }
   };
 
-  // Fixed handleQuillChange to correctly handle the editor parameter
-  const handleQuillChange = (value, delta, source, editor) => {
-    setNewMessageHTML(value);
-    
-    // Fix: Check if editor exists before calling getText
-    if (editor && typeof editor.getText === 'function') {
-      const plainText = editor.getText().trim();
-      setNewMessage(plainText);
-    } else {
-      // Fallback: Extract plain text from HTML if editor is not available
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = value;
-      const plainText = tempDiv.textContent || tempDiv.innerText || '';
-      setNewMessage(plainText.trim());
+  // Fixed handleQuillChange to correctly handle the editor's value
+  const handleQuillChange = (event) => {
+    // Check if the event has a target property (synthetic event)
+    if (event && event.target && event.target.value !== undefined) {
+      setNewMessageHTML(event.target.value);
+      
+      // For plain text, we need to extract it from HTML
+      if (typeof event.target.value === 'string') {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = event.target.value;
+        const plainText = tempDiv.textContent || tempDiv.innerText || '';
+        setNewMessage(plainText.trim());
+      } else {
+        // Handle non-string values safely
+        setNewMessage(String(event.target.value));
+      }
     }
   };
   
@@ -449,6 +532,29 @@ const sendMessage = async () => {
     }
   };
 
+  // Helper function to render message content with support for HTML
+  const renderMessageContent = (message) => {
+    // If the message has HTML content, render it safely
+    if (message.html && message.html !== message.text) {
+      return (
+        <div 
+          className="text-sm"
+          dangerouslySetInnerHTML={{ __html: message.html }}
+        />
+      );
+    }
+    // Otherwise render as plain text
+    return <div className="text-sm whitespace-pre-wrap">{message.text}</div>;
+  };
+
+  // Check if string or object is empty
+  const isEmptyValue = (value) => {
+    if (typeof value === 'string') {
+      return value === '' || value === '<p><br></p>' || value === '<p></p>';
+    }
+    return !value;
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Main content area - Chat */}
@@ -500,7 +606,8 @@ const sendMessage = async () => {
                     </div>
                   </div>
 
-                  <div className="text-sm whitespace-pre-wrap">{msg.text}</div>
+                  {/* Render message content with HTML support */}
+                  {renderMessageContent(msg)}
 
                   {/* Show attachments if any */}
                   {msg.attachments && msg.attachments.length > 0 && (
@@ -664,33 +771,25 @@ const sendMessage = async () => {
                       <Minimize2 size={16} />
                     </button>
                   </div>
-                  {/* Fixed props for QuillTextEditor */}
+                  {/* QuillTextEditor with proper props */}
                   <QuillTextEditor
                     name="message"
                     value={newMessageHTML}
-                    onChange={(event) => {
-                      // Handle onChange as it's being passed a synthetic event from QuillTextEditor
-                      if (event && event.target && typeof event.target.value === 'string') {
-                        setNewMessageHTML(event.target.value);
-                        setNewMessage(event.target.value.replace(/<[^>]*>/g, '').trim());
-                      }
-                    }}
+                    onChange={handleQuillChange}
                     className="bg-white"
                   />
                 </div>
               )}
             </div>
             <button
-              className={`${(!newMessageHTML || newMessageHTML === '<p><br></p>' || newMessageHTML === '<p></p>') && attachments.length === 0
-                ? "bg-gray-300 cursor-not-allowed"
-                : "bg-blue-500 hover:bg-blue-600"
-                } text-white p-2 rounded flex items-center justify-center`}
+              className={`${isEmptyValue(newMessageHTML) && attachments.length === 0
+                ? 'bg-gray-200 text-gray-500'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+              } px-4 py-2 rounded-full`}
               onClick={sendMessage}
-              disabled={(!newMessageHTML || newMessageHTML === '<p><br></p>' || newMessageHTML === '<p></p>') && attachments.length === 0}
-              title={attachments.length > 0 ? "Send message with attachments" : "Send message"}
+              disabled={isEmptyValue(newMessageHTML) && attachments.length === 0}
             >
-              <Send size={18} />
-              <span className="ml-1 hidden sm:inline">Send</span>
+              <Send size={16} />
             </button>
           </div>
         </div>
