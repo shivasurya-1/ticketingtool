@@ -17,6 +17,7 @@ export const fetchUserDetails = createAsyncThunk(
           Authorization: `Bearer ${accessToken}`,
         },
       });
+      console.log("User Details", response);
       return response.data;
     } catch (error) {
       console.error("Error fetching user details:", error);
