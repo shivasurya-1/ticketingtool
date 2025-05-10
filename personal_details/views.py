@@ -56,7 +56,7 @@ class UserProfileView(APIView):
                         "assigned_projects": [
                                 {
                                     "project_name": project.project_name.project_name
-                                } for project in user.project_engineer.all()
+                                } for project in user.project_engineers.all()
                             ]
                                                 
                     },)

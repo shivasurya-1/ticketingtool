@@ -25,6 +25,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import LimitOffsetPagination
 from .tasks import send_status_change_email_async
 from django.db import transaction
+from priority.models import Priority
+from .models import TicketComment, Ticket
+from .serializers import (
+    TicketCommentCreateSerializer,
+    TicketCommentListSerializer
+)
 
 
 
@@ -36,20 +42,6 @@ def increment_id(id_str):
             new_num = str(int(num) + 1).zfill(len(num))  # Preserve leading zeros
             return f"{prefix}{new_num}"
         return id_str
-    
- 
-# class TicketAPI_Delegated(APIView):
-#     def get(self, request):
-#         tickets = User.objects.all()
-
-#         login_id = LoginSerializer(tickets,many=True)
-#         final_user_list=[ i['username'] for i in login_id.data]
-#         tickets = Ticket.objects.filter(status='Delegated')
-#         serializer = TicketSerializer(tickets, many=True)
-#         final_data=serializer.data
-#         final_data['all_assignee']=final_user_list
-#         return Response(final_data) 
-       
 
 class TicketAPI_Delegated(APIView):
     permission_classes = [IsAuthenticated]
@@ -735,12 +727,14 @@ class TicketDetailAPIView(APIView):
 "API for dropdown "
 class TicketChoicesAPIView(APIView):
     def get(self, request):
+        priority_choices = Priority.objects.values("priority_id", "urgency_name")
         choices = {
             "status_choices": Ticket.STATUS_CHOICES,
             # "issue_type_choices": Ticket.ISSUE_TYPE,
             "support_team_choices": Ticket.SUPPORT,
             # "contact_mode_choices": Ticket._meta.get_field("contact_mode").choices
             "impact_choices":Ticket.IMPACT, #change 1
+             "priority_choices":list(priority_choices),
         
         }
         return Response(choices)
@@ -941,55 +935,26 @@ class SLABreachStatusAPIView(APIView):
             })
         except SLATimer.DoesNotExist:
             return Response({"error": "SLA Timer not found"}, status=status.HTTP_404_NOT_FOUND)
-
-
-
-
-# class SLAActionAPIView(APIView):
-#     """Handles SLA timer actions (start, pause, resume)"""
-#     action = None
-#     def post(self, request,ticket_id, *args, **kwargs):
-#         """post method to start, pause or resume the SLA timer"""
-#         ticket = Ticket.objects.filter(ticket_id=ticket_id).first()
-#         if not ticket:
-#             return Response({"error": "Ticket not found"}, status=status.HTTP_404_NOT_FOUND)
-#         if self.action == "start":
-#             # SLAService.start_sla(ticket)
-#             return Response({"message": "SLA timer started"}, status=status.HTTP_200_OK)
-#         if self.action == "pause":
-#             # SLAService.pause_sla(ticket)
-#             return Response({"message": "SLA timer paused"}, status=status.HTTP_200_OK)
-#         elif self.action == "resume":
-#             # SLAService.resume_sla(ticket)
-#             return Response({"message": "SLA timer resumed"}, status=status.HTTP_200_OK)
-#         return Response({"error": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
-    
-#     def get(self, request, ticket_id, *args, **kwargs):
-#         try:
-#             ticket = Ticket.objects.get(ticket_id=ticket_id) 
-#         except Ticket.DoesNotExist:
-#             return Response({"error": "Ticket not found"}, status=status.HTTP_404_NOT_FOUND)
-
-#         sla_timer = SLATimer.objects.filter(ticket=ticket).first()  
-#         if not sla_timer:
-#             return Response({"error": "SLA Timer not found"}, status=status.HTTP_404_NOT_FOUND)
-
-#         pause_times = sla_timer.get_all_paused_times()  
-#         resume_times = sla_timer.get_all_resumed_times() 
-#         total_paused_time = timedelta()
-
-#         for pause, resume in zip(pause_times, resume_times):
-#             total_paused_time += (resume - pause) 
-#         if resume_times and pause_times and pause_times[-1] > resume_times[-1]:
-#             current_time = datetime.utcnow().replace(tzinfo=pause_times[0].tzinfo)  # Ensure same timezone
-#             total_paused_time += (current_time - pause_times[-1])
-
-            
-#         data = {
-#             "ticket_id": ticket.ticket_id,
-#             "start_time": sla_timer.start_time,
-#             "end_time": sla_timer.end_time,
-#             "total_paused_time": str(total_paused_time), 
-#             "sla_due_date": sla_timer.sla_due_date,
-            # "breached": sla_timer.breached,
-        # }
+ 
+class TicketCommentAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+ 
+    def get(self, request):
+        ticket_id = request.query_params.get('ticket')
+        if not ticket_id:
+            return Response({"error": "Missing 'ticket' query parameter."}, status=status.HTTP_400_BAD_REQUEST)
+ 
+        ticket = get_object_or_404(Ticket, id=ticket_id)
+        comments = TicketComment.objects.filter(ticket=ticket).select_related('created_by').prefetch_related('attachments')
+        serializer = TicketCommentListSerializer(comments, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+ 
+    def post(self, request):
+        serializer = TicketCommentCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(created_by=request.user)
+            return Response({"message": "Comment added successfully."}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+ 
+  

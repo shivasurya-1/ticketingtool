@@ -121,7 +121,7 @@ class autoAssigneeAPIView(APIView):
     authentication_classes = [JWTAuthentication]
 
     def get(self, request, organisation_id=None, employee_id=None):
-        self.permission_required = "view_employee "
+        self.permission_required = "view_employee"
         if not HasRolePermission().has_permission(request, self.permission_required):
             return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
         if 1:

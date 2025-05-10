@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import GetAssignee,dispatcherAPIView, DashboardTicketAPIView,TicketAPI_Delegated, CreateTicketAPIView,TicketAPIID, TicketDetailAPIView, SLATimerAPIView, SLATimerDetailAPIView,ReferenceTicketAPILIST,AssignTicketAPIView,TicketChoicesAPIView,ListTicketAPIView,TicketByStatusAPIView,TotalTicketsAPIViewCount,SLABreachStatusAPIView
+from .views import GetAssignee,dispatcherAPIView, DashboardTicketAPIView,TicketAPI_Delegated, CreateTicketAPIView,TicketAPIID, TicketDetailAPIView, SLATimerAPIView, SLATimerDetailAPIView,ReferenceTicketAPILIST,AssignTicketAPIView,TicketChoicesAPIView,ListTicketAPIView,TicketByStatusAPIView,TotalTicketsAPIViewCount,SLABreachStatusAPIView, TicketCommentAPIView
 
 urlpatterns = [
 
@@ -27,10 +27,6 @@ urlpatterns = [
     path('sla-timers/<str:ticket_id>/', SLATimerDetailAPIView.as_view(), name='sla_timer_detail'),
 
     path('delegate/',TicketAPI_Delegated.as_view(),name ='delegate'),
-    # SLA Timer Actions
-    # path('sla/start/<uuid:ticket_id>/', SLAActionAPIView.as_view(action='start'), name='sla_start'),
-    # path('sla/pause/<uuid:ticket_id>/', SLAActionAPIView.as_view(action='pause'), name='sla_pause'),
-    # path('sla/resume/<uuid:ticket_id>/', SLAActionAPIView.as_view(action='resume'), name='sla_resume'),
-    # path('sla-timers/<uuid:ticket_id>/', SLATimerDetailAPIView.as_view(), name='sla-timer-detail'),
+   path('ticket-comments/', TicketCommentAPIView.as_view(), name='ticket-comments'),
 
 ]

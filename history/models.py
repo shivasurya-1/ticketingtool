@@ -28,7 +28,7 @@ class History(models.Model):
 
 class Reports(models.Model):
     report_id = models.AutoField(primary_key=True)  # Primary Key
-    title = models.CharField(max_length=255)  # Article Title
+    title = models.TextField()  
     created_at = models.DateTimeField(auto_now_add=True)  # Timestamp when created
     modified_at = models.DateTimeField(auto_now=True)  # Timestamp when last modified
     ticket = models.ForeignKey("timer.Ticket",on_delete=models.SET_NULL, null=True, blank=True,related_name='report_ticket')  

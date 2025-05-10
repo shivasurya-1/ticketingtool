@@ -263,42 +263,6 @@ class SLATimer(models.Model):
         PauseLogs.objects.create(sla_timer=self,paused_time=None, resumed_time=nows())
 
 
-    # def check_sla_breach(self):
-    #     if self.get_sla_due_date() and nows() > self.get_sla_due_date():
-    #         self.breached = True
-    #         self.save()
-
-    # def check_sla_breach(self):
-    #     """Check if SLA is breached and handle notifications"""
-    #     if not self.sla_due_date or self.sla_status != 'Active':
-    #         return False
-            
-    #     now = timezone.now()
-        
-    #     # Calculate time remaining until breach
-    #     time_remaining = self.sla_due_date - now
-        
-    #     # SLA already breached
-    #     if now > self.sla_due_date and not self.breached:
-    #         self.breached = True
-    #         self.breach_notified = True
-    #         self.save()
-            
-    #         # Trigger breach notification
-    #         self.send_breach_notification()
-    #         return True
-            
-    #     # Send warning notification at 75% of SLA time
-    #     if not self.warning_sent:
-    #         total_time = self.sla_due_date - self.start_time
-    #         warning_threshold = total_time * 0.75
-            
-    #         if (now - self.start_time) > warning_threshold:
-    #             self.warning_sent = True
-    #             self.save()
-    #             self.send_warning_notification() 
-                
-    #     return self.breached
     def check_sla_breach(self):
         """
         Check if SLA is breached or approaching breach (75%) and trigger notifications.
@@ -397,26 +361,16 @@ def nows():
     current_time = timezone.now().astimezone(ist)
     return current_time
 
-
-
-
-
-
-
-# class SLATimeHistory(models.Model):
-#     """Model to store SLA status history."""
-#     STATUS_CHOICES = [
-#         ('Active', 'Active'),
-#         ('Paused', 'Paused'),
-#         ('Breached', 'Breached'),
-#         ('Closed', 'Closed'),
-#         ('Completed', 'Completed')
-#     ]
-
-#     ticket = models.ForeignKey("timer.Ticket", on_delete=models.CASCADE, related_name="sla_history")
-#     sla_status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="Active")
-#     changed_at = models.DateTimeField(auto_now_add=True)
-#     changed_by = models.ForeignKey("login_details.User", on_delete=models.SET_NULL, related_name='changed_by', null=True)
-
-#     class Meta:
-#         ordering = ['-changed_at']
+class TicketComment(models.Model):
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='comments')
+    comment = models.TextField()
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_internal = models.BooleanField(default=False)
+ 
+class TicketCommentAttachment(models.Model):
+    comment = models.ForeignKey(TicketComment, on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField(upload_to='ticket_attachments/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
+ 

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Ticket, SLATimer,PauseLogs
 from .models import Ticket, Attachment
+from .models import Ticket, Attachment,TicketComment,TicketCommentAttachment
 
 class AttachmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -110,9 +111,35 @@ class SLATimerSerializer(serializers.ModelSerializer):
         fields = "__all__"
         
 
-
-# class SlaTimeHistorySerializer(serializers.ModelSerializer):
-#     """Serializer for SlaTimeHistory model."""
-#     class Meta:
-#         model = SLATimeHistory
-#         fields = "__all__" 
+class TicketCommentAttachmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TicketCommentAttachment
+        fields = ['id', 'file', 'uploaded_at']
+ 
+class TicketCommentCreateSerializer(serializers.ModelSerializer):
+    attachments = serializers.ListField(
+        child=serializers.FileField(), write_only=True, required=False
+    )
+ 
+    class Meta:
+        model = TicketComment
+        fields = ['ticket', 'comment', 'is_internal', 'attachments']
+ 
+    def create(self, validated_data):
+        attachments = validated_data.pop('attachments', [])
+        comment = TicketComment.objects.create(**validated_data)
+ 
+        TicketCommentAttachment.objects.bulk_create([
+            TicketCommentAttachment(comment=comment, file=file) for file in attachments
+        ])
+        return comment
+ 
+class TicketCommentListSerializer(serializers.ModelSerializer):
+    attachments = TicketCommentAttachmentSerializer(many=True, read_only=True)
+    created_by = serializers.StringRelatedField()
+ 
+    class Meta:
+        model = TicketComment
+        fields = ['id', 'ticket', 'comment', 'is_internal', 'attachments', 'created_by', 'created_at']
+ 
+ 

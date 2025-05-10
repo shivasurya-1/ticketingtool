@@ -81,11 +81,11 @@ class ProjectDetailsAPI(APIView):
             result = [
                 {
                     "name": k,
-                    "assigned_projects": [d["project_name_name"] for d in v]
+                    "assigned_projects": [d["project_name"] for d in v]
                 }
                 for k, v in itertools.groupby(
-                    sorted(project_members_serializer.data, key=lambda x: x["project_asignee_username"]),
-                    key=lambda x: x["project_asignee_username"]
+                    sorted(project_members_serializer.data, key=lambda x: x["project_asignees"]),
+                    key=lambda x: x["project_asignees"]
                 )
             ]
 
