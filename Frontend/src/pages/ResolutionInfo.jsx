@@ -5,48 +5,26 @@ import { toast } from "react-toastify";
 
 const ResolutionInfo = ({ ticketDetails, setActivityLog, activityLog }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const userProfile = useSelector((state) => state.userProfile.user);
+  const [isFetchingResolution, setIsFetchingResolution] = useState(false);
+  const userProfile = useSelector((state) => state.userProfile?.username);
   const accessToken = localStorage.getItem("access_token");
   const authHeaders = { headers: { Authorization: `Bearer ${accessToken}` } };
 
-  // const [formData, setFormData] = useState({
-  //   number: "",
-  //   requestor: userProfile?.first_name || "",
-  //   customerCountry: "india",
-  //   supportOrgName: "",
-  //   assignee: "",
-  //   solutionGroup: "",
-  //   referenceTicket: [],
-  //   description: "",
-  //   summary: "",
-  //   issueType: "",
-  //   impact: "",
-  //   supportTeam: "",
-  //   project: "",
-  //   product: "",
-  //   priority: "",
-  //   email: userProfile?.email || "",
-  //   developerOrganization: "",
-  //   contactNumber: "",
-  //   contactMode: "",
-  //   search: "",
-  //   resolutionCode: "",
-  //   resolutionNotes: "",
-  //   resolutionSummary: "",
-  //   status: "",
-  //   resolvedBy: "",
-  //   resolvedDate: "",
-  // });
   const [formData, setFormData] = useState({
     resolutionCode: "",
     incidentBasedOn: "",
     incidentCategory: "",
     resolutionNotes: "",
     resolutionSummary: "",
+    status: "",
+    ticket_id: "",
+    resolvedBy: "",
+    resolvedDate: "",
   });
   const [resolutionChoices, setResolutionChoices] = useState([]);
   const [incidentChoices, setIncidentChoices] = useState([]);
   const [incidentCategoryChoices, setIncidentCategoryChoices] = useState([]);
+  const [resolutionData, setResolutionData] = useState(null);
 
   useEffect(() => {
     if (ticketDetails) {
@@ -54,19 +32,52 @@ const ResolutionInfo = ({ ticketDetails, setActivityLog, activityLog }) => {
         ...prev,
         ...ticketDetails,
       }));
+      
+      // If ticket status is Resolved, fetch resolution information
+      if (ticketDetails.status === "Resolved") {
+        fetchResolutionInfo(ticketDetails.ticket_id);
+      }
     }
   }, [ticketDetails]);
   
+  const fetchResolutionInfo = async (ticketId) => {
+    setIsFetchingResolution(true);
+    try {
+      const response = await axiosInstance.get(
+        `resolution/resolutions/${ticketId}/`,
+        authHeaders
+      );
+      
+      if (response.data && response.data.length > 0) {
+        const resolutionInfo = response.data[0];
+        setResolutionData(resolutionInfo);
+        
+        // Map the backend data format to our component's format
+        setFormData(prev => ({
+          ...prev,
+          status: "Resolved",
+          resolutionCode: resolutionInfo.resolution_type,
+          incidentBasedOn: resolutionInfo.incident_based_on,
+          incidentCategory: resolutionInfo.incident_category,
+          resolutionNotes: resolutionInfo.resolution_description,
+          resolutionSummary: resolutionInfo.resolution_summary || "",
+          resolvedBy: resolutionInfo.created_by,
+          resolvedDate: new Date(resolutionInfo.created_at).toLocaleString(),
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching resolution info:", error);
+    } finally {
+      setIsFetchingResolution(false);
+    }
+  };
+
   useEffect(() => {
     const fetchTicketChoices = async () => {
       try {
         const response = await axiosInstance.get(
           `resolution/resolution-choices/`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-            },
-          }
+          authHeaders
         );
         console.log("Resolution Choices Data:", response.data);
 
@@ -75,7 +86,6 @@ const ResolutionInfo = ({ ticketDetails, setActivityLog, activityLog }) => {
         setIncidentCategoryChoices(response.data.incident_category_choices);
       } catch (error) {
         console.error("Error fetching ticket choices:", error);
-        toast.error("Failed to load ticket choices");
       }
     };
 
@@ -95,8 +105,16 @@ const ResolutionInfo = ({ ticketDetails, setActivityLog, activityLog }) => {
     setIsLoading(true);
 
     try {
-      // Use the ticket number from formData instead of hardcoded value
-      console.log("Form Data:", formData);
+      // First update the ticket status to Resolved
+      await axiosInstance.put(
+        `ticket/tickets/${formData.ticket_id}/`,
+        {
+          status: "Resolved",
+        },
+        authHeaders
+      );
+
+      // Then create the resolution record
       await axiosInstance.post(
         `/resolution/resolutions/`,
         {
@@ -107,27 +125,29 @@ const ResolutionInfo = ({ ticketDetails, setActivityLog, activityLog }) => {
           incident_category: formData.incidentCategory,
           resolution_description: formData.resolutionNotes,
           resolution_summary: formData.resolutionSummary,
-          resolved_by: formData.requestor,
+          resolved_by: userProfile?.id || formData.requestor,
           resolved_date: new Date().toISOString(),
         },
-        { headers: { Authorization: `Bearer ${accessToken}` } }
+        authHeaders
       );
 
       // Update local formData with resolved status and information
       setFormData((prev) => ({
         ...prev,
         status: "Resolved",
-        resolvedBy: prev.requestor,
+        resolvedBy: userProfile?.username || prev.requestor,
         resolvedDate: new Date().toLocaleString(),
       }));
 
       toast.success("Incident resolved successfully");
 
+      window.location.reload();
+
       // Update activity log if it's provided
       if (setActivityLog && activityLog) {
         setActivityLog([
           {
-            user: formData.requestor,
+            user: userProfile?.username || formData.requestor,
             timestamp: new Date().toLocaleString(),
             type: "Resolution",
             changes: [
@@ -140,13 +160,27 @@ const ResolutionInfo = ({ ticketDetails, setActivityLog, activityLog }) => {
           ...activityLog,
         ]);
       }
+      
+      // Refresh resolution info
+      fetchResolutionInfo(formData.ticket_id);
+      
     } catch (error) {
       console.error("Error:", error);
-      toast.error("There was an error resolving the incident.");
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (isFetchingResolution) {
+    return (
+      <div className="p-4">
+        <h3 className="font-medium text-lg mb-4">Resolution Information</h3>
+        <div className="flex justify-center">
+          <p>Loading resolution information...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4">
@@ -159,8 +193,9 @@ const ResolutionInfo = ({ ticketDetails, setActivityLog, activityLog }) => {
               Resolution Code:
             </div>
             <div className="w-2/3">
-              {resolutionChoices.find((c) => c.id === formData.resolutionCode)
-                ?.name || formData.resolutionCode}
+              {resolutionChoices.find(choice => 
+                choice[0] === formData.resolutionCode
+              )?.[1] || formData.resolutionCode}
             </div>
           </div>
           <div className="flex">
@@ -168,8 +203,9 @@ const ResolutionInfo = ({ ticketDetails, setActivityLog, activityLog }) => {
               Incident Based On:
             </div>
             <div className="w-2/3">
-              {incidentChoices.find((c) => c.id === formData.incidentBasedOn)
-                ?.name || formData.incidentBasedOn}
+              {incidentChoices.find(choice => 
+                choice[0] === formData.incidentBasedOn
+              )?.[1] || formData.incidentBasedOn}
             </div>
           </div>
           <div className="flex">
@@ -177,9 +213,9 @@ const ResolutionInfo = ({ ticketDetails, setActivityLog, activityLog }) => {
               Incident Category:
             </div>
             <div className="w-2/3">
-              {incidentCategoryChoices.find(
-                (c) => c.id === formData.incidentCategory
-              )?.name || formData.incidentCategory}
+              {incidentCategoryChoices.find(choice => 
+                choice[0] === formData.incidentCategory
+              )?.[1] || formData.incidentCategory}
             </div>
           </div>
           <div className="flex">
@@ -190,14 +226,14 @@ const ResolutionInfo = ({ ticketDetails, setActivityLog, activityLog }) => {
               {formData.resolutionNotes}
             </div>
           </div>
-          <div className="flex">
+          {/* <div className="flex">
             <div className="w-1/3 font-medium text-gray-600">
               Resolution Summary:
             </div>
             <div className="w-2/3 whitespace-pre-wrap">
               {formData.resolutionSummary}
             </div>
-          </div>
+          </div> */}
           <div className="flex">
             <div className="w-1/3 font-medium text-gray-600">Resolved By:</div>
             <div className="w-2/3">{formData.resolvedBy}</div>
@@ -286,7 +322,7 @@ const ResolutionInfo = ({ ticketDetails, setActivityLog, activityLog }) => {
               ></textarea>
             </div>
 
-            <div className="mb-4">
+            {/* <div className="mb-4">
               <label className="block text-gray-700 mb-2">
                 Resolution Summary:
               </label>
@@ -298,7 +334,7 @@ const ResolutionInfo = ({ ticketDetails, setActivityLog, activityLog }) => {
                 placeholder="Provide a brief summary of the resolution..."
                 required
               ></textarea>
-            </div>
+            </div> */}
 
             <button
               type="submit"

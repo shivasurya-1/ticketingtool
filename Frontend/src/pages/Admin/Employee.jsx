@@ -8,6 +8,8 @@ import { ToastContainer, toast } from "react-toastify";
 import { axiosInstance } from "../../utils/axiosInstance";
 import { formatDate } from "../../utils/formatDate";
 import { useSelector } from "react-redux";
+import { useAdminProgress } from "../../context/AdminProgressContext";
+import AdminProgressTracker from "../../components/common/AdminProgressTracker";
 
 export default function Employee() {
   const [loading, setLoading] = useState(true);
@@ -20,6 +22,8 @@ export default function Employee() {
   const [userRoles, setUserRoles] = useState([]);
   const [parent, setParent] = useState([]);
   const [userRolesForEdit, setUserRolesForEdit] = useState([]);
+  const { adminProgress, advanceToStep, completeSetup, loadings } =
+    useAdminProgress();
 
   const [users, setUsers] = useState([]);
   const [formData, setFormData] = useState({
@@ -176,10 +180,10 @@ export default function Employee() {
 
       // Fetch hierarchical employees
       const employeeResponse = await axiosInstance.get("/org/employee/", {
-          
         headers: {
           "Content-Type": "application/json",
-           Authorization: `Bearer ${accessToken}` },
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
 
       console.log("Employee list fetch", employeeResponse);
@@ -216,6 +220,7 @@ export default function Employee() {
         user: entry.user,
         role: entry.role,
       }));
+      console.log(processedRolesForAdd, "the processed roles for add");
 
       setUserRoles(processedRolesForAdd);
     } catch (error) {
@@ -412,6 +417,7 @@ export default function Employee() {
     setPageSize(newSize);
     setCurrentPage(0);
   };
+  // Modify the handleSubmit function in your Employee component
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -425,17 +431,26 @@ export default function Employee() {
     }
 
     const parentId = extractParentId(formData.parent);
+    const parseFormData = (data) => {
+      // Extract username from the selected user role if in add mode
+      let username = data.username;
+      if (modalMode === "add" && data.userRole) {
+        const selectedRole = userRoles.find(
+          (role) => role.user_role_id.toString() === data.userRole
+        );
+        username = selectedRole ? selectedRole.user : "";
+      }
 
-    const parseFormData = (data) => ({
-      username: data.username,
-
-      organisation: data.organisation,
-      position_name: data.position_name,
-      level: data.level,
-      parent: parentId || null,
-      user_role: parseInt(data.userRole, 10),
-      is_active: data.isActive,
-    });
+      return {
+        username: username,
+        organisation: data.organisation,
+        position_name: data.position_name,
+        level: data.level,
+        parent: parentId || null,
+        user_role: parseInt(data.userRole, 10),
+        is_active: data.isActive,
+      };
+    };
 
     try {
       const parsedData = parseFormData(formData);
@@ -451,13 +466,53 @@ export default function Employee() {
 
         if (response.status === 201 || response.status === 200) {
           toast.success("Employee added successfully");
+
+          if (adminProgress.currentUser) {
+            // Check if this employee assignment is for our tracked user
+            console.log("Form Username:", parsedData.username);
+            console.log(
+              "Admin Current User:",
+              adminProgress.currentUser.username
+            );
+
+            if (parsedData.username === adminProgress.currentUser.username) {
+              // Make sure we're at the right step - either 2 (role assigned) or earlier
+              if (adminProgress.currentStep <= 2) {
+                // Advance to step 3 (organization assigned and complete)
+                advanceToStep(3);
+
+                // Show a completion message
+                toast.success(
+                  "Organization assigned! User setup is now complete.",
+                  {
+                    autoClose: 3000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true,
+                    progress: undefined,
+                  }
+                );
+
+                // After a short delay, show options message
+                setTimeout(() => {
+                  toast.info(
+                    "You can now register another user or go to dashboard.",
+                    {
+                      autoClose: 5000,
+                      hideProgressBar: false,
+                      closeOnClick: true,
+                      pauseOnHover: true,
+                      draggable: true,
+                      progress: undefined,
+                    }
+                  );
+                }, 2000);
+              }
+            }
+          }
         }
       } else if (modalMode === "edit") {
-        console.log("The put method triggered");
-        console.log("The put method triggered");
-        console.log("The put method triggered");
-        console.log("The put method triggered");
-        console.log("The put method triggered");
         response = await axiosInstance.put(
           `/org/employee/${selectedEmployeeId}/`,
           parsedData,
@@ -467,11 +522,6 @@ export default function Employee() {
             },
           }
         );
-        console.log(parsedData, "the put details");
-        console.log("The put method triggered");
-        console.log("The put method triggered");
-        console.log("The put method triggered");
-        console.log("The put method triggered");
 
         if (response.status === 200) {
           toast.success("Employee updated successfully");
@@ -1145,8 +1195,27 @@ export default function Employee() {
           )}
 
           <ChatbotPopup />
-          <ToastContainer position="bottom-right" />
+          <ToastContainer
+            position="top-right"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop={true}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+          />
         </div>
+
+        {!loadings &&
+          adminProgress.currentUser &&
+          adminProgress.currentStep > 0 &&
+          adminProgress.currentStep <= 3 && (
+            <div className="fixed bottom-20 right-6 w-96 z-40">
+              <AdminProgressTracker />
+            </div>
+          )}
       </main>
     </div>
   );

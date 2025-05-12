@@ -382,14 +382,14 @@ const IncidentTrackingSystem = () => {
                           </div>
   
                           <div className="flex items-center gap-4">
-                            <div className="text-right text-xs hidden md:block">
+                            {/* <div className="text-right text-xs hidden md:block">
                               <div className={`text-gray-600 flex items-center gap-1`}>
                                 <Clock size={12} />
                                 <span className={slaTextColor + " font-medium"}>
                                   {slaTimeDisplay}
                                 </span>
                               </div>
-                            </div>
+                            </div> */}
                             
                             <div className="flex items-center gap-2">
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700">

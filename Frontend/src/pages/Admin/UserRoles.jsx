@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+
+import AdminProgressTracker from "../../components/common/AdminProgressTracker";
 import Sidebar from "../../components/Sidebar";
 import {
   FiSearch,
@@ -10,17 +13,23 @@ import {
 } from "react-icons/fi";
 import ChatbotPopup from "../../components/ChatBot";
 import Button from "../../components/common/Button";
+
 import ReactPaginate from "react-paginate";
 import { ToastContainer, toast } from "react-toastify";
 import { axiosInstance } from "../../utils/axiosInstance";
 import { formatDate } from "../../utils/formatDate";
+import { useAdminProgress } from "../../context/AdminProgressContext";
 
 export default function UserRoles() {
   const [loading, setLoading] = useState(true);
+
   const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
   const [pageSize, setPageSize] = useState(10);
   const [userRoles, setUserRoles] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
+  const { adminProgress, loadings, advanceToStep, completeSetup } =
+    useAdminProgress();
   const [formData, setFormData] = useState({
     userId: "",
     roleId: "",
@@ -60,6 +69,19 @@ export default function UserRoles() {
   const pageCount = Math.max(1, Math.ceil(filteredUserRoles.length / pageSize));
   const offset = currentPage * pageSize;
   const currentItems = filteredUserRoles.slice(offset, offset + pageSize);
+
+  useEffect(() => {
+    // If there's no progress tracking active, allow normal access
+    if (!adminProgress.currentUser) return;
+
+    // If the user has already assigned roles (step > 1), allow access
+    if (adminProgress.currentStep > 1) return;
+
+    // If we reach this point, the user should be at step 1 (assigning roles)
+    if (adminProgress.currentStep !== 1) {
+      navigate("/register");
+    }
+  }, [adminProgress]);
 
   // Fetch user roles on component mount
   useEffect(() => {
@@ -141,14 +163,43 @@ export default function UserRoles() {
         },
       });
       if (response.status === 200) {
-        setUsers(response.data);
+        const allUsers = response.data;
+
+        const assignedUsernames = userRoles.map((role) => role.user);
+
+        const unassignedUsers = allUsers.filter(
+          (user) => !assignedUsernames.includes(user.username)
+        );
+
+        setUsers(unassignedUsers);
         setDataLoaded((prev) => ({ ...prev, users: true }));
       }
+      console.log("Users fetched successfully let us see:", response.data);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to load users");
     }
   };
+
+  // const fetchUsers = async () => {
+  //   const accessToken = localStorage.getItem("access_token");
+  //   if (!accessToken) return;
+
+  //   try {
+  //     const response = await axiosInstance.get("/user/api/assignee/", {
+  //       headers: {
+  //         Authorization: `Bearer ${accessToken}`,
+  //       },
+  //     });
+  //     if (response.status === 200) {
+  //       setUsers(response.data);
+  //       setDataLoaded((prev) => ({ ...prev, users: true }));
+  //     }
+  //   } catch (error) {
+  //     console.error("Error fetching users:", error);
+  //     toast.error("Failed to load users");
+  //   }
+  // };
 
   const fetchRoles = async () => {
     const accessToken = localStorage.getItem("access_token");
@@ -201,6 +252,12 @@ export default function UserRoles() {
     };
   };
 
+  // Modify the handleSubmit function in your UserRole component
+  // This goes in your User Role component to automatically advance to employee page
+
+  // Modify the handleSubmit function in your UserRole component
+  // This goes in your User Role component to automatically advance to employee page
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -232,6 +289,50 @@ export default function UserRoles() {
           toast.success(
             response?.data?.message || "User role assigned successfully"
           );
+
+          // Check if this assignment is for our tracked user
+          if (adminProgress.currentUser) {
+            const assignedUser = users.find(
+              (u) => u.id.toString() === formData.userId
+            );
+
+            // If this role assignment matches our in-progress user, advance to step 1
+            if (
+              assignedUser &&
+              assignedUser.username === adminProgress.currentUser.username
+            ) {
+              // First, make sure we're at step 0 (just registered) or 1 (currently at role assignment)
+              if (adminProgress.currentStep <= 1) {
+                // Now advance to step 2 (meaning role assignment is complete)
+                advanceToStep(2);
+
+                // Show a toast notification prompting the user to continue
+                toast.success("Role assigned successfully!", {
+                  autoClose: 3000,
+                  hideProgressBar: false,
+                  closeOnClick: true,
+                  pauseOnHover: true,
+                  draggable: true,
+                  progress: undefined,
+                });
+
+                // Show another toast about next steps
+                setTimeout(() => {
+                  toast.info("Please continue to assign organization", {
+                    autoClose: 3000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true,
+                    progress: undefined,
+                  });
+                }, 1000);
+
+                // Give the user option to continue rather than auto-navigating
+                // Display a button or let them use the progress tracker to navigate
+              }
+            }
+          }
         }
       } else if (modalMode === "edit") {
         response = await axiosInstance.put(
@@ -839,7 +940,7 @@ export default function UserRoles() {
             position="top-right"
             autoClose={3000}
             hideProgressBar={false}
-            newestOnTop
+            newestOnTop={true}
             closeOnClick
             rtl={false}
             pauseOnFocusLoss
@@ -850,6 +951,14 @@ export default function UserRoles() {
           {/* Chatbot Popup */}
           <ChatbotPopup />
         </div>
+        {!loadings &&
+          adminProgress.currentUser &&
+          adminProgress.currentStep > 0 &&
+          adminProgress.currentStep <= 3 && (
+            <div className="fixed bottom-20 right-6 w-96 z-40">
+              <AdminProgressTracker />
+            </div>
+          )}
       </main>
     </div>
   );

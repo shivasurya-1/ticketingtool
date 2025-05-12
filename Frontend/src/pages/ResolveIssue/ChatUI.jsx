@@ -1,186 +1,154 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
+import { useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
-
-import { Search, Paperclip, Image, Send, X, FileText, Maximize2, Minimize2 } from 'lucide-react';
+import { Search, Paperclip, Send, X, FileText, Minimize2 } from "lucide-react";
 import { axiosInstance } from "../../utils/axiosInstance";
 import { toast } from "react-toastify";
-import QuillTextEditor from "../CreateIssue/Components/QuillTextEditor"; // Import the QuillTextEditor component
+import QuillTextEditor from "../CreateIssue/Components/QuillTextEditor";
+import RichTextViewer from "../../components/common/RichTextViewer"; // Import the RichTextViewer
 
-const ChatUI = () => {
-  // State management
-  const [currentTab, setCurrentTab] = useState("Chat");
-  const userProfile = useSelector((status) => status.userProfile.user);
-
+const ChatUI = forwardRef((props, ref) => {
+  // URL and State Management
   const { ticketId } = useParams();
-  const [newMessage, setNewMessage] = useState('');
-  const [newMessageHTML, setNewMessageHTML] = useState('');
+  const userProfile = useSelector((state) => state.userProfile.username);
+  const accessToken = localStorage.getItem("access_token");
+  const authHeaders = { headers: { Authorization: `Bearer ${accessToken}` } };
+
+  // Chat UI States
+  const [newMessage, setNewMessage] = useState("");
+  const [newMessageHTML, setNewMessageHTML] = useState("");
   const [expandEditor, setExpandEditor] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const fileInputRef = useRef(null);
-  const accessToken = localStorage.getItem("access_token");
-  const imageInputRef = useRef(null);
-  const authHeaders = { headers: { Authorization: `Bearer ${accessToken}` } };
-  const chatEndRef = useRef(null);
-  const [formData, setFormData] = useState({
-    number: "",
+  const [ticketDetails, setTicketDetails] = useState({
+    ticketId: "",
     requestor: "",
-    customerCountry: "india",
-    supportOrgName: "",
-    assignee: "",
-    solutionGroup: "",
-    referenceTicket: [],
-    description: "",
     summary: "",
-    issueType: "",
-    impact: "",
-    supportTeam: "",
-    project: "",
-    product: "",
-    priority: "",
-    email: "",
-    developerOrganization: "",
-    // contactNumber: "",
-    // contactMode: "",
-    search: "",
-    resolutionCode: "",
-    resolutionNotes: "",
-    resolutionSummary: "",
     status: "",
-    resolvedBy: "",
-    resolvedDate: ""
   });
 
-  // Fetch ticket details when component mounts
+    useImperativeHandle(ref, () => ({
+    fetchMessages,
+  }));
+
+  // Refs
+  const fileInputRef = useRef(null);
+  const chatEndRef = useRef(null);
+
+  // Load ticket details on component mount
   useEffect(() => {
-    const fetchTicketDetails = async () => {
-      try {
-        const ticketResponse = await axiosInstance.get(`ticket/tickets/${ticketId}/`, authHeaders);
-        const ticketData = ticketResponse.data;
-
-        setFormData({
-          number: ticketData.ticket_id || "",
-          requestor: ticketData.created_by || userProfile.first_name,
-          customerCountry: ticketData.customer_country || "india",
-          supportOrgName: "",
-          assignee: ticketData.assignee || "",
-          solutionGroup: ticketData.solution_grp || "",
-          referenceTicket: ticketData.reference_tickets || [],
-          description: ticketData.description || "",
-          summary: ticketData.summary || "",
-          issueType: ticketData.issue_type || "",
-          impact: ticketData.impact || "",
-          supportTeam: ticketData.support_team || "",
-          project: ticketData.project || "",
-          product: ticketData.product || "",
-          priority: ticketData.priority || "",
-          email: ticketData.requester_email || userProfile.email,
-          developerOrganization: ticketData.developer_organization || "",
-          contactNumber: ticketData.customer_number || "",
-          contactMode: ticketData.contact_mode || "",
-          search: `Issue - ${ticketData.ticket_id}`,
-          resolutionCode: ticketData.resolution_code || "",
-          resolutionNotes: ticketData.resolution_notes || "",
-          resolutionSummary: ticketData.resolution_summary || "",
-          status: ticketData.status || "",
-          resolvedBy: ticketData.resolved_by || "",
-          resolvedDate: ticketData.resolved_date || "",
-        });
-      } catch (error) {
-        console.error("Error fetching ticket details:", error);
-        toast.error("Failed to load ticket details");
-      }
-    };
-
     if (ticketId) {
-      fetchTicketDetails();
+      fetchTicketDetails(ticketId);
     }
-  }, [ticketId, userProfile.first_name, userProfile.email]);
+  }, [ticketId]);
 
-  // Fetch messages (ticket notes) when ticket number changes
+  // Fetch messages when ticket ID changes
   useEffect(() => {
-    if (formData.number) {
-      fetchMessages(formData.number);
+    if (ticketDetails.ticketId) {
+      fetchMessages(ticketDetails.ticketId);
     }
-  }, [formData.number]);
+  }, [ticketDetails.ticketId]);
 
-  // Auto scroll to bottom of messages
+  // Auto-scroll to bottom when messages update
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
   const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Update your fetchMessages function to handle message content correctly
-  const fetchMessages = async (ticketId) => {
-    console.log(ticketId)
+  /**
+   * Fetches ticket details from the API
+   */
+  const fetchTicketDetails = async (id) => {
+    try {
+      const response = await axiosInstance.get(
+        `ticket/tickets/${id}/`,
+        authHeaders
+      );
+      const ticketData = response.data;
+
+      setTicketDetails({
+        ticketId: ticketData.ticket_id || id,
+        requestor: ticketData.created_by || userProfile?.username,
+        email: ticketData.requester_email || userProfile?.email,
+        summary: ticketData.summary || "",
+        status: ticketData.status || "",
+      });
+    } catch (error) {
+      console.error("Error fetching ticket details:", error);
+    }
+  };
+
+  /**
+   * Fetches message history for the current ticket
+   */
+  const fetchMessages = async (id) => {
     setLoading(true);
     try {
-      const accessToken = localStorage.getItem("access_token");
-      if (!accessToken) {
-        toast.error("Access token missing. Please log in.");
-        return;
-      }
-
-      if (!ticketId) {
+      if (!id || !accessToken) {
+        if (!accessToken) toast.error("Access token missing. Please log in.");
         setLoading(false);
         return;
       }
 
-      // Fetch ticket notes/messages
       const response = await axiosInstance.get(`ticket/reports/`, {
         headers: { Authorization: `Bearer ${accessToken}` },
-        params: { ticket: ticketId }
+        params: { ticket: id },
       });
 
       // Transform ticket notes into message format
-      const messageData = response.data.map(note => ({
+      const messageData = response.data.map((note) => ({
         id: note.report_id || note.id,
-        text: note.content || note.title, // Try content first, then fall back to title
-        html: note.content || note.title, // Store HTML content if available
+        text: note.content || note.title,
+        html: note.content || note.title,
         timestamp: new Date(note.created_at).toLocaleString(),
-        isCurrentUser: note.username === userProfile.username || note.username === userProfile.first_name,
+        isCurrentUser:
+          note.username === userProfile?.username ||
+          note.username === userProfile?.first_name,
         user: note.username || "System",
-        attachments: note.report_attachments ? note.report_attachments.map(att => ({
-          id: att.id,
-          name: getFileNameFromUrl(att.file_url),
-          type: getFileTypeFromUrl(att.file_url),
-          url: att.file_url,
-          uploaded_at: att.uploaded_at
-        })) : []
+        attachments: note.report_attachments
+          ? note.report_attachments.map((att) => ({
+              id: att.id,
+              name: getFileNameFromUrl(att.file_url),
+              type: getFileTypeFromUrl(att.file_url),
+              url: att.file_url,
+              uploaded_at: att.uploaded_at,
+            }))
+          : [],
       }));
-      console.log("API Response:", response.data);
-      console.log("Transformed Message Data:", messageData);
 
       setMessages(messageData);
     } catch (error) {
       console.error("Error fetching messages:", error);
-      toast.error("Failed to load messages");
+      // toast.error("Failed to load messages");
     } finally {
       setLoading(false);
     }
   };
 
-  // Helper function to extract filename from URL
+  /**
+   * Extract filename from URL
+   */
   const getFileNameFromUrl = (url) => {
     if (!url) return "Unknown file";
-    const urlParts = url.split('/');
+    const urlParts = url.split("/");
     const fileNameWithParams = urlParts[urlParts.length - 1];
-    // Remove any query parameters if present
-    return fileNameWithParams.split('?')[0];
+    return fileNameWithParams.split("?")[0];
   };
 
-  // Helper function to guess file type from URL or filename
+  /**
+   * Determine file type from URL or filename
+   */
   const getFileTypeFromUrl = (url) => {
-    if (!url) return "application/octet-stream"; // default binary
+    if (!url) return "application/octet-stream";
 
     const fileName = getFileNameFromUrl(url).toLowerCase();
 
-    if (fileName.match(/\.(jpeg|jpg|png|gif|bmp|webp)$/)) return "image/" + fileName.split('.').pop();
+    if (fileName.match(/\.(jpeg|jpg|png|gif|bmp|webp)$/))
+      return "image/" + fileName.split(".").pop();
     if (fileName.match(/\.(pdf)$/)) return "application/pdf";
     if (fileName.match(/\.(doc|docx)$/)) return "application/msword";
     if (fileName.match(/\.(xls|xlsx)$/)) return "application/vnd.ms-excel";
@@ -188,254 +156,273 @@ const ChatUI = () => {
     if (fileName.match(/\.(zip|rar|7z)$/)) return "application/zip";
     if (fileName.match(/\.(txt)$/)) return "text/plain";
 
-    // Fallback
     return "application/octet-stream";
   };
 
-  // Helper function to extract embedded images from Quill content
-  const extractImagesFromQuillContent = async (htmlContent) => {
-    // Create temporary DOM element to parse HTML
-    const tempDiv = document.createElement('div');
+  /**
+   * Extracts and processes embedded images from Quill content
+   */
+  const processEmbeddedImages = async (htmlContent) => {
+    if (!htmlContent || !htmlContent.includes("<img")) {
+      return { images: [], updatedHtml: htmlContent };
+    }
+
+    const tempDiv = document.createElement("div");
     tempDiv.innerHTML = htmlContent;
-    
-    // Get all image elements
-    const imgElements = tempDiv.querySelectorAll('img');
-    if (imgElements.length === 0) return [];
-    
+
+    const imgElements = tempDiv.querySelectorAll("img");
+    if (imgElements.length === 0)
+      return { images: [], updatedHtml: htmlContent };
+
     const extractedImages = [];
-    
-    // Process each image
+
     for (let i = 0; i < imgElements.length; i++) {
       const img = imgElements[i];
-      const imgSrc = img.getAttribute('src');
-      
-      // Skip if src is not a base64 data URL
-      if (!imgSrc || !imgSrc.startsWith('data:')) continue;
-      
-      try {
-        // Convert data URL to Blob
-        const response = await fetch(imgSrc);
-        const blob = await response.blob();
-        
-        // Create a filename for the image
-        const imgType = blob.type.split('/')[1] || 'png';
-        const fileName = `embedded-image-${Date.now()}-${i}.${imgType}`;
-        
-        // Create a File object from the Blob
-        const file = new File([blob], fileName, { type: blob.type });
-        
-        // Create attachment object
-        extractedImages.push({
-          id: `embedded-${Date.now()}-${i}`,
-          name: fileName,
-          type: blob.type,
-          size: blob.size,
-          file: file,
-          previewUrl: imgSrc,
-          isLocal: true, // Flag as local file for upload
-        });
-        
-        // Replace the src in the HTML with a placeholder
-        img.setAttribute('src', `[embedded-image-${i}]`);
-        img.setAttribute('data-embedded-index', i);
-      } catch (error) {
-        console.error("Error extracting embedded image:", error);
+      const imgSrc = img.getAttribute("src");
+
+      if (!imgSrc) continue;
+
+      if (imgSrc.startsWith("data:")) {
+        try {
+          const response = await fetch(imgSrc);
+          const blob = await response.blob();
+
+          const imgType = blob.type.split("/")[1] || "png";
+          const fileName = `embedded-image-${Date.now()}-${i}.${imgType}`;
+
+          const file = new File([blob], fileName, { type: blob.type });
+
+          extractedImages.push({
+            id: `embedded-${Date.now()}-${i}`,
+            name: fileName,
+            type: blob.type,
+            size: blob.size,
+            file: file,
+            previewUrl: imgSrc,
+            isLocal: true,
+          });
+
+          // Keep the src but add data attributes for reference
+          img.setAttribute("data-embedded-index", i);
+          img.setAttribute("data-original-src", imgSrc);
+        } catch (error) {
+          console.error("Error processing embedded image:", error);
+        }
       }
     }
-    
-    // Update HTML content with placeholders
-    const updatedHtml = tempDiv.innerHTML;
-    
+
     return {
       images: extractedImages,
-      updatedHtml: updatedHtml
+      updatedHtml: tempDiv.innerHTML,
     };
   };
 
-  // Updated sendMessage function to handle embedded Quill images
+  /**
+   * Send message with or without attachments
+   */
   const sendMessage = async () => {
-    // Check if there's content in the editor by checking if the HTML contains only empty tags
-    const isMessageEmpty = !newMessageHTML || newMessageHTML === '<p><br></p>' || newMessageHTML === '<p></p>';
-    if (isMessageEmpty && attachments.length === 0) return;
+    const messageIsEmpty = isEmptyContent(newMessageHTML);
+    const hasAttachments = attachments.length > 0;
+
+    // Skip if no content and no attachments
+    if (messageIsEmpty && !hasAttachments) return;
 
     try {
-      const accessToken = localStorage.getItem("access_token");
       if (!accessToken) {
         toast.error("Access token missing. Please log in.");
         return;
       }
 
-      // Check if we have a valid ticket ID
-      if (!formData.number) {
-        toast.error("Ticket ID is required but missing");
+      if (!ticketDetails.ticketId) {
+        toast.error("Ticket ID is required");
         return;
       }
 
-      console.log("Sending message for ticket:", formData.number);
-      
-      // Extract embedded images from Quill content
-      let allAttachments = [...attachments];
-      let messageText = newMessage;
+      // Process message content including any embedded images
+      let messagesToSend = [];
+      let processedAttachments = [...attachments];
+      let messageContent = newMessage;
       let messageHtml = newMessageHTML;
-      
-      if (!isMessageEmpty && newMessageHTML.includes('<img')) {
-        const extractionResult = await extractImagesFromQuillContent(newMessageHTML);
-        if (extractionResult && extractionResult.images.length > 0) {
-          // Add extracted images to attachments
-          allAttachments = [...allAttachments, ...extractionResult.images];
-          messageHtml = extractionResult.updatedHtml;
-          console.log("Extracted embedded images:", extractionResult.images.length);
-        }
+
+      // Handle embedded images in rich text
+      if (!messageIsEmpty && newMessageHTML.includes("<img")) {
+        const { images, updatedHtml } = await processEmbeddedImages(
+          newMessageHTML
+        );
+        processedAttachments = [...processedAttachments, ...images];
+        messageHtml = updatedHtml;
       }
 
-      // First, upload any local files
-      let uploadedAttachments = [];
-      let messageAlreadySent = false;
-      
-      for (const attachment of allAttachments) {
-        if (attachment.isLocal) {
-          const fileFormData = new FormData();
-          fileFormData.append('attachments', attachment.file);
-          // Fix: Use 'ticket_id' instead of 'ticket'
-          fileFormData.append('ticket_id', formData.number);
-          
-          // Only include title/message on the first attachment to prevent duplicate messages
-          if (!messageAlreadySent && !isMessageEmpty) {
-            fileFormData.append('title', messageText);
-            // Also include HTML content if available
-            if (messageHtml && messageHtml !== messageText) {
-              fileFormData.append('content', messageHtml);
-            }
-            messageAlreadySent = true;
-          } else {
-            fileFormData.append('title', attachment.name.startsWith('embedded-image') ? 
-              "Embedded Image" : "Attachment Added");
-          }
-          
-          console.log("Uploading attachment for ticket_id:", formData.number);
-
-          try {
-            const response = await axiosInstance.post('ticket/reports/', fileFormData, {
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'multipart/form-data',
-              },
-            });
-
-            // Assuming the response contains the uploaded file details
-            const uploadedFile = response.data;
-            uploadedAttachments.push({
-              id: uploadedFile.id,
-              name: attachment.name,
-              type: attachment.type,
-              url: uploadedFile.file_url,
-            });
-          } catch (uploadError) {
-            console.error("Error uploading attachment:", uploadError.response?.data || uploadError);
-            toast.error(`Failed to upload ${attachment.name}: ${uploadError.response?.data?.detail || "Ticket ID required"}`);
-          }
-        } else {
-          uploadedAttachments.push(attachment); // Already uploaded files
-        }
-      }
-
-      // Create array of attachment IDs for the API request
-      const attachmentIds = uploadedAttachments
-        .map((att) => att.id)
-        .filter((id) => typeof id === 'number');
-
-      // Add message to UI immediately for responsive feeling
+      // Create optimistic UI update
+      const tempMessageId = `temp-${Date.now()}`;
       const tempMessage = {
-        id: `temp-${Date.now()}`,
-        text: messageText,
+        id: tempMessageId,
+        text: messageContent,
         html: messageHtml,
-        timestamp: 'Sending...',
+        timestamp: new Date().toLocaleString(),
         isCurrentUser: true,
-        user: userProfile.first_name || 'You',
-        attachments: [...uploadedAttachments],
+        user: userProfile.username || "You",
+        attachments: processedAttachments.map((att) => ({
+          ...att,
+          // For local attachments, use the preview URL temporarily
+          url: att.isLocal ? att.previewUrl : att.url,
+        })),
+        pending: true,
       };
 
+      // Add message to UI immediately for responsive feeling
       setMessages((prev) => [...prev, tempMessage]);
 
-      // This part handles sending text messages if there were no attachments
-      // or if we need to send a separate text message
-      if (!isMessageEmpty && (!allAttachments.length || !messageAlreadySent)) {
-        // Send the ticket ID as a string since it has format like "S00000002"
-        await axiosInstance.post(
-          "ticket/reports/",
-          {
-            title: messageText,
-            content: messageHtml, // Include HTML content
-            ticket_id: formData.number, // Use ticket_id instead of ticket
-            attachments: attachmentIds, // Send attachment IDs if any
-          },
-          { headers: { Authorization: `Bearer ${accessToken}` } }
-        );
-      }
-
-      // Clear the input field and attachments after successful send
+      // Clear input fields and attachments early for better UX
       setNewMessage("");
       setNewMessageHTML("");
       setAttachments([]);
 
-      // Revoke object URLs to prevent memory leaks
-      allAttachments.forEach((att) => {
-        if (att.previewUrl && att.previewUrl.startsWith('blob:')) {
-          URL.revokeObjectURL(att.previewUrl);
-        }
-      });
+      // Upload files and message
+      if (hasAttachments) {
+        // Case: Has attachments (with or without message)
+        await sendAttachmentsWithMessage(
+          processedAttachments,
+          messageContent,
+          messageHtml,
+          ticketDetails.ticketId
+        );
+      } else {
+        // Case: Message only, no attachments
+        await sendTextMessage(
+          messageContent,
+          messageHtml,
+          ticketDetails.ticketId
+        );
+      }
 
-      // Refresh messages to ensure we have the latest data
-      fetchMessages(formData.number);
-
-      // toast.success("Message and attachments sent successfully");
+      // Refresh messages to get server-assigned IDs and proper statuses
+      fetchMessages(ticketDetails.ticketId);
     } catch (error) {
-      console.error("Error sending message:", error.response?.data || error.message || error);
-      toast.error("Failed to send message: " + (error.response?.data?.detail || "Please ensure ticket ID is valid"));
+      console.error(
+        "Error sending message:",
+        error.response?.data || error.message
+      );
 
-      // Remove the temp message if sending failed
-      setMessages((prev) => prev.filter((msg) => msg.id !== `temp-${Date.now()}`));
+      // Remove optimistic update on failure
+      setMessages((prev) => prev.filter((msg) => !msg.pending));
+
+      toast.error(
+        "Failed to send message: " +
+          (error.response?.data?.detail || "Please check ticket ID")
+      );
+
+      // Return attachments to the UI if sending failed
+      if (attachments.length === 0) {
+        setAttachments(attachments);
+      }
     }
   };
 
+  /**
+   * Send text-only message
+   */
+  const sendTextMessage = async (text, html, ticketId) => {
+    return axiosInstance.post(
+      "ticket/reports/",
+      {
+        title: html,
+        ticket: ticketId,
+      },
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+  };
+
+  /**
+   * Send message with attachments
+   */
+  const sendAttachmentsWithMessage = async (files, text, html, ticketId) => {
+    let isContentSent = false;
+
+    // Process each attachment
+    for (const attachment of files) {
+      if (attachment.isLocal) {
+        const formData = new FormData();
+        formData.append("attachments", attachment.file);
+        formData.append("ticket", ticketId);
+
+        // Add message content with first attachment only
+        if (!isContentSent && !isEmptyContent(html)) {
+          formData.append("title", html);
+          isContentSent = true;
+        } else {
+          // For subsequent attachments or if no message
+          formData.append(
+            "title",
+            attachment.name.startsWith("embedded-image")
+              ? "Embedded Image"
+              : "Attachment"
+          );
+        }
+
+        await axiosInstance.post("ticket/reports/", formData, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "multipart/form-data",
+          },
+        });
+      }
+    }
+
+    // If we have a message but didn't send it with attachments, send it separately
+    if (!isContentSent && !isEmptyContent(html)) {
+      await sendTextMessage(text, html, ticketId);
+    }
+
+    // Clean up object URLs
+    files.forEach((att) => {
+      if (att.previewUrl && att.previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(att.previewUrl);
+      }
+    });
+  };
+
+  /**
+   * Handle file attachment button click
+   */
   const handleFileAttachment = () => {
     fileInputRef.current?.click();
   };
 
-  const handleImageAttachment = () => {
-    imageInputRef.current?.click();
-  };
-
-  // Enhanced file handling with clearer preview
+  /**
+   * Process selected files
+   */
   const handleFileChange = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files).map((file) => {
-        const objectUrl = URL.createObjectURL(file); // Create a local URL for preview
-        return {
-          id: `local-${Date.now()}-${Math.random()}`, // Temporary ID for local files
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          file: file, // Store the actual File object for later upload
-          previewUrl: objectUrl, // URL for preview
-          isLocal: true, // Flag to indicate this is a local file
-        };
-      });
+    if (e.target.files?.length > 0) {
+      const newFiles = Array.from(e.target.files).map((file) => ({
+        id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        file: file,
+        previewUrl: URL.createObjectURL(file),
+        isLocal: true,
+      }));
 
       setAttachments((prev) => [...prev, ...newFiles]);
-      toast.success("Files ready for preview. Send to upload.");
+      toast.success(
+        `${newFiles.length} file${newFiles.length > 1 ? "s" : ""} added`
+      );
     }
 
-    // Reset the file input so the same file can be selected again
-    e.target.value = '';
+    // Reset input value to allow selecting the same file again
+    e.target.value = "";
   };
 
+  /**
+   * Remove attachment from list
+   */
   const removeAttachment = (id) => {
     setAttachments((prev) =>
       prev.filter((att) => {
         if (att.id === id) {
-          // Revoke object URL to prevent memory leaks
-          if (att.previewUrl && att.previewUrl.startsWith('blob:')) {
+          // Clean up preview URL
+          if (att.previewUrl?.startsWith("blob:")) {
             URL.revokeObjectURL(att.previewUrl);
           }
           return false;
@@ -445,40 +432,57 @@ const ChatUI = () => {
     );
   };
 
+  /**
+   * Handle message input via keyboard
+   */
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Send message on Enter (but not with Shift+Enter for newlines)
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
   };
 
-  // Fixed handleQuillChange to correctly handle the editor's value
+  /**
+   * Handle Quill rich text editor changes
+   */
   const handleQuillChange = (event) => {
-    // Check if the event has a target property (synthetic event)
-    if (event && event.target && event.target.value !== undefined) {
-      setNewMessageHTML(event.target.value);
-      
-      // For plain text, we need to extract it from HTML
-      if (typeof event.target.value === 'string') {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = event.target.value;
-        const plainText = tempDiv.textContent || tempDiv.innerText || '';
-        setNewMessage(plainText.trim());
-      } else {
-        // Handle non-string values safely
-        setNewMessage(String(event.target.value));
-      }
+    // Check if the event has HTML content
+    if (event?.target?.value !== undefined) {
+      const htmlValue = event.target.value;
+      setNewMessageHTML(htmlValue);
+
+      // Extract plain text from HTML
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = htmlValue;
+      setNewMessage(tempDiv.textContent || tempDiv.innerText || "");
     }
   };
-  
-  // Toggle expanded editor mode
+
+  /**
+   * Toggle rich text editor expansion
+   */
   const toggleExpandEditor = () => {
     setExpandEditor(!expandEditor);
   };
 
-  // Enhanced file preview renderer with clearer presentation
+  /**
+   * Check if content is empty
+   */
+  const isEmptyContent = (value) => {
+    if (typeof value !== "string") return true;
+
+    // Check for empty strings and Quill's empty paragraph
+    return (
+      !value || value === "" || value === "<p><br></p>" || value === "<p></p>"
+    );
+  };
+
+  /**
+   * Render file preview based on type
+   */
   const renderFilePreview = (file) => {
-    if (file.type?.startsWith('image/')) {
+    if (file.type?.startsWith("image/")) {
       return (
         <div className="relative group">
           <img
@@ -489,14 +493,14 @@ const ChatUI = () => {
           <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               className="bg-gray-800 bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-70"
-              onClick={() => window.open(file.previewUrl || file.url, '_blank')}
+              onClick={() => window.open(file.previewUrl || file.url, "_blank")}
             >
               <Search size={14} />
             </button>
           </div>
         </div>
       );
-    } else if (file.type === 'application/pdf') {
+    } else if (file.type === "application/pdf") {
       return (
         <div className="flex items-center bg-gray-100 p-2 rounded">
           <FileText size={24} className="text-red-500 mr-2" />
@@ -532,44 +536,61 @@ const ChatUI = () => {
     }
   };
 
-  // Helper function to render message content with support for HTML
   const renderMessageContent = (message) => {
-    // If the message has HTML content, render it safely
-    if (message.html && message.html !== message.text) {
+    if (!message.html && !message.text) return null;
+
+    // Check if the message appears to be an embedded image placeholder
+    if (message.html && message.html.includes("[embedded-image")) {
+      return <div className="text-sm italic text-gray-500">Embedded image</div>;
+    }
+
+    try {
+      // Process the HTML to ensure images are displayed correctly
+      if (message.html) {
+        // Check if it's actual HTML content with proper structure
+        if (message.html.includes("<") && message.html.includes(">")) {
+          return (
+            <RichTextViewer
+              content={message.html}
+              className="text-sm message-content"
+            />
+          );
+        }
+      }
+
+      // Fallback to plain text with line breaks preserved
       return (
-        <div 
-          className="text-sm"
-          dangerouslySetInnerHTML={{ __html: message.html }}
-        />
+        <div className="text-sm whitespace-pre-wrap">
+          {message.text || message.html}
+        </div>
+      );
+    } catch (error) {
+      console.error("Error rendering message content:", error);
+      return (
+        <div className="text-sm whitespace-pre-wrap">
+          {message.text || "Error displaying message"}
+        </div>
       );
     }
-    // Otherwise render as plain text
-    return <div className="text-sm whitespace-pre-wrap">{message.text}</div>;
-  };
-
-  // Check if string or object is empty
-  const isEmptyValue = (value) => {
-    if (typeof value === 'string') {
-      return value === '' || value === '<p><br></p>' || value === '<p></p>';
-    }
-    return !value;
   };
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Main content area - Chat */}
+      {/* Main content area */}
       <div className="flex-1 flex flex-col">
         {/* Chat header */}
         <div className="bg-white p-4 border-b">
           <div className="flex justify-between items-center">
             <div>
               <h2 className="font-bold">Customer Communication</h2>
-              <div className="text-sm text-gray-600">Case #{formData.number}</div>
+              <div className="text-sm text-gray-600">
+                Case #{ticketDetails.ticketId} - {ticketDetails.summary}
+              </div>
             </div>
             <div className="flex space-x-2">
               <button
                 className="bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded text-sm"
-                onClick={() => fetchMessages(formData.number)}
+                onClick={() => fetchMessages(ticketDetails.ticketId)}
               >
                 Refresh
               </button>
@@ -577,7 +598,7 @@ const ChatUI = () => {
           </div>
         </div>
 
-        {/* Chat messages area */}
+        {/* Messages area */}
         <div className="flex-1 overflow-auto p-4 bg-gray-100">
           {loading ? (
             <div className="text-center py-4">
@@ -589,32 +610,39 @@ const ChatUI = () => {
               {messages.map((msg, idx) => (
                 <div
                   key={idx}
-                  className={`p-3 rounded-lg max-w-3xl ${msg.isCurrentUser
-                    ? "bg-blue-100 ml-auto"
-                    : "bg-white border border-gray-200 mr-auto"
-                    }`}
+                  className={`p-3 rounded-lg max-w-3xl ${
+                    msg.isCurrentUser
+                      ? "bg-blue-100 ml-auto"
+                      : "bg-white border border-gray-200 mr-auto"
+                  }`}
                 >
                   <div className="flex items-center mb-1">
-                    <div className={`w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs ${msg.isCurrentUser ? "order-last ml-2" : "mr-2"
-                      }`}>
-                      {msg.user?.charAt(0) || '?'}
+                    <div
+                      className={`w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs ${
+                        msg.isCurrentUser ? "order-last ml-2" : "mr-2"
+                      }`}
+                    >
+                      {msg.user?.charAt(0) || "?"}
                     </div>
                     <div className="font-medium text-sm">{msg.user}</div>
-                    <div className={`text-xs text-gray-500 ${msg.isCurrentUser ? "mr-auto pr-2" : "ml-auto pl-2"
-                      }`}>
+                    <div
+                      className={`text-xs text-gray-500 ${
+                        msg.isCurrentUser ? "mr-auto pr-2" : "ml-auto pl-2"
+                      }`}
+                    >
                       {msg.timestamp}
                     </div>
                   </div>
 
-                  {/* Render message content with HTML support */}
+                  {/* Message content with rich text support */}
                   {renderMessageContent(msg)}
 
-                  {/* Show attachments if any */}
-                  {msg.attachments && msg.attachments.length > 0 && (
+                  {/* Attachments */}
+                  {msg.attachments?.length > 0 && (
                     <div className="mt-2 space-y-2">
                       {msg.attachments.map((file, fileIdx) => (
                         <div key={fileIdx} className="text-xs">
-                          {file.type?.startsWith('image/') ? (
+                          {file.type?.startsWith("image/") ? (
                             <div className="mt-1">
                               <a
                                 href={file.url}
@@ -628,7 +656,8 @@ const ChatUI = () => {
                                   className="max-h-32 rounded border border-gray-200 mb-1 hover:opacity-90 transition-opacity"
                                   onError={(e) => {
                                     e.target.onerror = null;
-                                    e.target.src = "https://via.placeholder.com/150?text=Image+Not+Available";
+                                    e.target.src =
+                                      "https://via.placeholder.com/150?text=Image+Not+Available";
                                   }}
                                 />
                               </a>
@@ -645,10 +674,15 @@ const ChatUI = () => {
                                 </a>
                               </div>
                             </div>
-                          ) : file.type === 'application/pdf' ? (
+                          ) : file.type === "application/pdf" ? (
                             <div className="flex items-center bg-gray-50 p-2 rounded">
-                              <FileText size={18} className="text-red-500 mr-2" />
-                              <span className="truncate max-w-xs">{file.name}</span>
+                              <FileText
+                                size={18}
+                                className="text-red-500 mr-2"
+                              />
+                              <span className="truncate max-w-xs">
+                                {file.name}
+                              </span>
                               <div className="ml-auto flex space-x-2">
                                 <a
                                   href={file.url}
@@ -669,8 +703,13 @@ const ChatUI = () => {
                             </div>
                           ) : (
                             <div className="flex items-center bg-gray-50 p-2 rounded">
-                              <Paperclip size={16} className="mr-2 text-gray-500" />
-                              <span className="truncate max-w-xs">{file.name}</span>
+                              <Paperclip
+                                size={16}
+                                className="mr-2 text-gray-500"
+                              />
+                              <span className="truncate max-w-xs">
+                                {file.name}
+                              </span>
                               <a
                                 href={file.url}
                                 target="_blank"
@@ -700,14 +739,15 @@ const ChatUI = () => {
           )}
         </div>
 
-        {/* Attachment preview area with clear labeling */}
+        {/* Attachment preview area */}
         {attachments.length > 0 && (
           <div className="bg-white p-3 border-t">
             <div className="text-sm font-medium mb-2">
-              Ready to send: {attachments.length} {attachments.length === 1 ? 'attachment' : 'attachments'}
+              Ready to send: {attachments.length}{" "}
+              {attachments.length === 1 ? "attachment" : "attachments"}
             </div>
             <div className="flex flex-wrap gap-3">
-              {attachments.map(file => (
+              {attachments.map((file) => (
                 <div key={file.id} className="relative group">
                   {renderFilePreview(file)}
                   <button
@@ -722,7 +762,7 @@ const ChatUI = () => {
           </div>
         )}
 
-        {/* Message input with QuillTextEditor instead of textarea */}
+        {/* Message input */}
         <div className="bg-white p-3 border-t">
           <div className="flex items-center">
             <button
@@ -732,6 +772,7 @@ const ChatUI = () => {
             >
               <Paperclip size={18} />
             </button>
+
             <input
               type="file"
               ref={fileInputRef}
@@ -739,14 +780,7 @@ const ChatUI = () => {
               className="hidden"
               multiple
             />
-            <input
-              type="file"
-              ref={imageInputRef}
-              accept="image/*"
-              onChange={handleFileChange}
-              className="hidden"
-              multiple
-            />
+
             <div className="flex-1 mx-2 relative">
               {!expandEditor ? (
                 <input
@@ -758,12 +792,13 @@ const ChatUI = () => {
                     setNewMessageHTML(e.target.value);
                   }}
                   onFocus={() => setExpandEditor(true)}
+                  onKeyPress={handleKeyPress}
                   className="w-full border rounded px-2 py-2 outline-none focus:ring-1 focus:ring-blue-300"
                 />
               ) : (
                 <div className="relative">
                   <div className="absolute top-0 right-0 z-10">
-                    <button 
+                    <button
                       onClick={toggleExpandEditor}
                       className="p-1 hover:bg-gray-100 rounded-full"
                       title="Toggle editor size"
@@ -771,7 +806,6 @@ const ChatUI = () => {
                       <Minimize2 size={16} />
                     </button>
                   </div>
-                  {/* QuillTextEditor with proper props */}
                   <QuillTextEditor
                     name="message"
                     value={newMessageHTML}
@@ -781,13 +815,17 @@ const ChatUI = () => {
                 </div>
               )}
             </div>
+
             <button
-              className={`${isEmptyValue(newMessageHTML) && attachments.length === 0
-                ? 'bg-gray-200 text-gray-500'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
+              className={`${
+                isEmptyContent(newMessageHTML) && attachments.length === 0
+                  ? "bg-gray-200 text-gray-500"
+                  : "bg-blue-600 text-white hover:bg-blue-700"
               } px-4 py-2 rounded-full`}
               onClick={sendMessage}
-              disabled={isEmptyValue(newMessageHTML) && attachments.length === 0}
+              disabled={
+                isEmptyContent(newMessageHTML) && attachments.length === 0
+              }
             >
               <Send size={16} />
             </button>
@@ -796,6 +834,6 @@ const ChatUI = () => {
       </div>
     </div>
   );
-};
+});
 
 export default ChatUI;

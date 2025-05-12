@@ -96,7 +96,6 @@ export default function ListAllTickets() {
       }
     } catch (error) {
       console.error("Error fetching tickets:", error);
-      toast.error("Failed to load tickets");
       setTickets([]);
     } finally {
       setLoading(false);

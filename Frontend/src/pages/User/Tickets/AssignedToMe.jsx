@@ -83,7 +83,6 @@ export default function AssignedToMe() {
       setLoading(false);
     } catch (err) {
       console.error("Error fetching tickets:", err.response ? err.response.data : err.message);
-      setError(`Failed to load tickets: ${err.response?.data?.message || err.message}`);
       setTickets([]);
       setTotalEntries(0);
       setLoading(false);

@@ -50,6 +50,7 @@ import IssueCategory from "./pages/Admin/IssueCategory";
 import IssueTypes from "./pages/Admin/IssueTypes";
 import RolePermissions from "./pages/Admin/RolePermissions";
 import ProjectAssignment from "./pages/Admin/ProjectAssignment.jsx";
+import { AdminProgressProvider } from "./context/AdminProgressContext.js";
 
 const App = () => {
  const dispatch= useDispatch() 
@@ -66,6 +67,7 @@ const App = () => {
     <div className="flex bg-[#E3E3E3] h-screen">
       <Analytics />
       <div className="flex-1 flex flex-col">
+        <AdminProgressProvider>
         <Routes>
           {/* Public Routes */}
           <Route
@@ -182,6 +184,7 @@ const App = () => {
             <Route path="*" element={<Home />} />
           </Route>
         </Routes>
+        </AdminProgressProvider>
       </div>
     </div>
   );

@@ -170,7 +170,6 @@ export default function CreateIssue() {
       });
 
       setAttachments((prev) => [...prev, ...newFiles]);
-      toast.success("Files uploaded.");
     }
 
     // Reset the file input so the same file can be selected again
@@ -200,7 +199,7 @@ export default function CreateIssue() {
           fileFormData.append("attachments", attachment.file);
           fileFormData.append("ticket", formData.number);
           fileFormData.append("title", newMessage || "Attachment Added");
-
+          console.log("FormData", fileFormData);
           const response = await axiosInstance.post(
             "/ticket/reports/",
             fileFormData,
@@ -255,7 +254,7 @@ export default function CreateIssue() {
       // Refresh messages to ensure we have the latest data
       fetchMessages(formData.number);
 
-      // toast.success("Message and attachments sent successfully");
+      toast.success("Message and attachments sent successfully");
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message and attachments");
@@ -481,8 +480,6 @@ export default function CreateIssue() {
       }));
     }
   }, [userProfile]);
-
-  
 
   useEffect(() => {
     if (activeServiceDomain) {

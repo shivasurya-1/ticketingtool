@@ -11,6 +11,7 @@ import QuillTextEditor from "../CreateIssue/Components/QuillTextEditor";
 import { axiosInstance } from "../../utils/axiosInstance";
 import ResolutionInfo from "../ResolutionInfo";
 import ChatUI from "./ChatUI";
+import QuestionToUserModal from "./components/QuestionToUserModal";
 
 export default function ResolveIssue() {
   const { ticketId } = useParams();
@@ -25,12 +26,6 @@ export default function ResolveIssue() {
   const [priorityChoices, setPriorityChoices] = useState([]);
   const [supportTeamChoices, setSupportTeamChoices] = useState([]);
   const [attachments, setAttachments] = useState([]);
-  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
-  const [questionData, setQuestionData] = useState({
-    ticket: "",
-    comment: "",
-    attachments: [],
-  });
   const [expandEditor, setExpandEditor] = useState(false);
   const [assignmentData, setAssignmentData] = useState({
     assigneeId: "",
@@ -39,6 +34,16 @@ export default function ResolveIssue() {
     solutionGroupId: "",
   });
   const [currentTab, setCurrentTab] = useState("Notes");
+  const [questionData, setQuestionData] = useState({
+    ticket: "",
+    comment: "",
+    commentHTML: "",
+    attachments: [],
+  });
+  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+
+  // Reference to ChatUI component - will be used to access its methods
+  const chatUIRef = useRef(null);
 
   // Refs for content scrolling
   const mainContentRef = useRef(null);
@@ -79,7 +84,6 @@ export default function ResolveIssue() {
         });
       } catch (error) {
         console.error("Error fetching ticket details:", error);
-        toast.error("Failed to load ticket details");
       } finally {
         setLoading(false);
       }
@@ -104,7 +108,6 @@ export default function ResolveIssue() {
         setSupportTeamChoices(response.data.support_team_choices || []);
       } catch (error) {
         console.error("Error fetching ticket choices:", error);
-        toast.error("Failed to load ticket choices");
       }
     };
 
@@ -132,7 +135,6 @@ export default function ResolveIssue() {
         setAttachments(ticketAttachments);
       } catch (error) {
         console.error("Error fetching attachments:", error);
-        toast.error("Failed to load attachments");
       }
     };
 
@@ -154,6 +156,15 @@ export default function ResolveIssue() {
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
+  const handleQuestionToUser = () => {
+    setIsQuestionModalOpen(true);
+  };
+
+  const updateTicketStatus = (newStatus) => {
+    setTicket((prev) => ({ ...prev, status: newStatus }));
+    setEditableStatus(newStatus);
+  };
+
   // Helper function to get impact code from label
   const getImpactCode = (impactLabel) => {
     if (!impactLabel || !impactChoices.length) return null;
@@ -172,37 +183,8 @@ export default function ResolveIssue() {
     return priorityItem ? priorityItem.priority_id : null;
   };
 
-  // Handle save assignment
-  const handleSaveAssignment = async () => {
-    try {
-      // Get the correct impact code and priority ID
-      const impactCode = getImpactCode(ticket?.impact);
-      const priorityId = getPriorityId(ticket?.priority);
-      console.log("Priority", priorityId)
-      const response = await axiosInstance.put(
-        `ticket/tickets/${ticketId}/`,
-        {
-          assignee: assignmentData.assignee,
-          solution_grp: assignmentData.solutionGroupId,
-          developer_organization: assignmentData.supportOrgId,
-          status: editableStatus,
-          impact: impactCode, // Send code instead of label
-          priority: priorityId, // Send ID instead of label
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        }
-      );
-
-      setTicket(response.data);
-      toast.success("Assignment updated successfully!");
-    } catch (error) {
-      console.error("Failed to update assignment:", error);
-      toast.error("Failed to update assignment.");
-    }
-  };
+  console.log("Assignee ", ticket?.assignee?.toLowerCase());
+  console.log("Username", userProfile?.username?.toLowerCase());
 
   // Handle Start Work button click
   const handleStartWork = async () => {
@@ -214,23 +196,18 @@ export default function ResolveIssue() {
       // Make sure we have valid values before sending
       if (!impactCode) {
         console.error("Invalid impact value:", ticket?.impact);
-        toast.error("Invalid impact value. Cannot update ticket.");
         return;
       }
 
       if (!priorityId) {
         console.error("Invalid priority value:", ticket?.priority);
-        toast.error("Invalid priority value. Cannot update ticket.");
         return;
       }
 
       const response = await axiosInstance.put(
         `ticket/tickets/${ticketId}/`,
         {
-          ...ticket,
           status: "Working in Progress",
-          impact: impactCode, // Send code instead of label
-          priority: priorityId, // Send ID instead of label
         },
         {
           headers: {
@@ -244,144 +221,23 @@ export default function ResolveIssue() {
       toast.success("Status updated to Working in Progress!");
     } catch (error) {
       console.error("Failed to update status:", error);
-      toast.error(
-        `Failed to update status: ${
-          error.response?.data
-            ? JSON.stringify(error.response.data)
-            : error.message
-        }`
-      );
+     
     }
   };
 
-  // Handle Question to User button click
-  const handleQuestionToUser = () => {
-    setIsQuestionModalOpen(true);
-  };
+  const tabs = ["Notes", "RelatedRecords"];
 
-  // Handle question form input changes
-  const handleQuestionInputChange = (e) => {
-    // If e is an event object with target
-    if (e && e.target) {
-      const { name, value } = e.target;
-      setQuestionData((prev) => ({ ...prev, [name]: value }));
-    }
-    // If direct name/value params are passed (for QuillTextEditor)
-    else if (arguments.length === 2) {
-      const [name, value] = arguments;
-      setQuestionData((prev) => ({ ...prev, [name]: value }));
-    }
-  };
+  // Case 1: If the ticket status is "Resolved", always include "ResolutionInfo"
+  if (ticket?.status === "Resolved") {
+    tabs.push("ResolutionInfo");
+  }
+  // Case 2: If the status is NOT "Resolved", only include "ResolutionInfo" if the logged-in user is the assignee
+  else if (
+    ticket?.assignee?.toLowerCase() === userProfile?.username?.toLowerCase()
+  ) {
+    tabs.push("ResolutionInfo");
+  }
 
-  // Handle file input changes
-  const handleFileChange = (e) => {
-    const { name, files } = e.target;
-    if (name === "attachments") {
-      // Handle multiple files
-      const fileArray = Array.from(files);
-      setQuestionData((prev) => ({
-        ...prev,
-        [name]: [...prev.attachments, ...fileArray],
-      }));
-    } else {
-      setQuestionData((prev) => ({ ...prev, [name]: files[0] }));
-    }
-  };
-
-  // Remove a specific attachment
-  const handleRemoveAttachment = (index) => {
-    setQuestionData((prev) => ({
-      ...prev,
-      attachments: prev.attachments.filter((_, i) => i !== index),
-    }));
-  };
-
-  // Handle question form submission
-  const handleQuestionSubmit = async (e) => {
-    e.preventDefault();
-
-    try {
-      const formData = new FormData();
-      formData.append("ticket", ticket.ticket_id); // Make sure to use ticket.ticket_id directly
-      formData.append("username", userProfile.username);
-      formData.append("comment", questionData.comment);
-
-      // Add multiple attachments
-      if (questionData.attachments && questionData.attachments.length > 0) {
-        questionData.attachments.forEach((file) => {
-          formData.append("attachments", file);
-        });
-      }
-
-      // Debug FormData contents properly
-      console.log("Form Data being submitted:");
-      for (let pair of formData.entries()) {
-        console.log(
-          pair[0] + ": " + (pair[1] instanceof File ? pair[1].name : pair[1])
-        );
-      }
-
-      // First submit the question
-      const questionResponse = await axiosInstance.post(
-        "ticket/ticket-comments/",
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      console.log("Question submission response:", questionResponse.data);
-
-      // Then update the ticket status to "Waiting for User Response"
-      // Get the correct impact code and priority ID to include in the update
-      const impactCode = getImpactCode(ticket?.impact);
-      const priorityId = getPriorityId(ticket?.priority);
-
-      const ticketUpdateResponse = await axiosInstance.put(
-        `ticket/tickets/${ticketId}/`,
-        {
-          ...ticket,
-          status: "Waiting for User Response",
-          impact: impactCode,
-          priority: priorityId,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        }
-      );
-
-      setTicket(ticketUpdateResponse.data);
-      setEditableStatus("Waiting for User Response");
-
-      toast.success("Question submitted successfully! Ticket status updated.");
-      setIsQuestionModalOpen(false);
-
-      // Reset form
-      setQuestionData({
-        ticket: ticket.ticket_id,
-        comment: "",
-        attachments: [],
-      });
-      setExpandEditor(false);
-    } catch (error) {
-      console.error("Failed to submit question:", error);
-      console.error("Error details:", error.response?.data);
-      toast.error(
-        `Failed to submit question: ${
-          error.response?.data
-            ? JSON.stringify(error.response.data)
-            : error.message
-        }`
-      );
-    }
-  };
-
-  // Helper function to render read-only field
   const renderField = (label, value, additionalClasses = "") => {
     const displayValue = value || "N/A";
     const fieldClasses = `bg-gray-50 border rounded px-2 py-1 w-[50%] cursor-not-allowed outline-none text-sm ${
@@ -452,41 +308,69 @@ export default function ResolveIssue() {
             </div>
           </div>
           <div className="flex items-center space-x-1">
-            {editableStatus !== "Working in Progress" ? (
+            {ticket.status === "Resolved" ? (
               <button
                 type="button"
-                className="border rounded px-2 py-0.5 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
-                onClick={handleStartWork}
+                className="border rounded px-2 py-0.5 text-xs bg-green-50 text-green-700 hover:bg-green-100"
               >
-                Start Work
+                Resolved
               </button>
             ) : (
-              <button
-                type="button"
-                className="border rounded px-2 py-0.5 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100"
-                onClick={handleQuestionToUser}
-              >
-                Question to User
-              </button>
+              <>
+                {ticket?.assignee?.toLowerCase() ===
+                  userProfile?.username?.toLowerCase() && (
+                  <>
+                    {editableStatus !== "Working in Progress" ? (
+                      <>
+                        <button
+                          type="button"
+                          className="border rounded px-2 py-0.5 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
+                          onClick={handleStartWork}
+                        >
+                          Start Work
+                        </button>
+                        <button
+                          type="button"
+                          className="border rounded px-2 py-0.5 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
+                        >
+                          Assign
+                        </button>
+
+                        <button
+                          type="button"
+                          className="border rounded px-2 py-0.5 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
+                        >
+                          Change Priority
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="border rounded px-2 py-0.5 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100"
+                          onClick={handleQuestionToUser}
+                        >
+                          Question to User
+                        </button>
+                        <button
+                          type="button"
+                          className="border rounded px-2 py-0.5 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
+                        >
+                          Assign
+                        </button>
+
+                        <button
+                          type="button"
+                          className="border rounded px-2 py-0.5 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
+                        >
+                          Change Priority
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+              </>
             )}
-            <button
-              type="button"
-              className="border rounded px-2 py-0.5 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
-            >
-              Assign
-            </button>
-            <button
-              type="button"
-              className="border rounded px-2 py-0.5 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
-            >
-              Change Priority
-            </button>
-            <button
-              className="bg-blue-500 text-white px-2 py-0.5 text-xs rounded hover:bg-blue-600"
-              onClick={handleSaveAssignment}
-            >
-              Save Changes
-            </button>
           </div>
         </div>
 
@@ -554,7 +438,7 @@ export default function ResolveIssue() {
           {/* Professional Tab System */}
           <div className="sticky top-0 bg-white z-10 px-3 border-b shadow-sm">
             <div className="flex">
-              {[ "Notes", "RelatedRecords","ResolutionInfo"].map((tab) => (
+              {tabs.map((tab) => (
                 <button
                   key={tab}
                   className={`px-4 py-2 font-medium relative transition-all duration-200 ${
@@ -575,7 +459,10 @@ export default function ResolveIssue() {
 
           {/* Tab Content with reference for scrolling */}
           <div className="p-4 bg-white" ref={tabContentRef}>
-            {currentTab === "Notes" && <ChatUI />}
+            {currentTab === "Notes" && (
+              <ChatUI ref={chatUIRef} ticketId={ticket?.ticket_id} />
+            )}
+
             {currentTab === "RelatedRecords" && (
               <div className="p-2">
                 <div>
@@ -596,43 +483,63 @@ export default function ResolveIssue() {
                         </tr>
                       </thead>
                       <tbody>
-                        {/* We'll fetch attachments in useEffect */}
                         {attachments && attachments.length > 0 ? (
-                          attachments.map((attachment) => (
-                            <tr
-                              key={attachment.id}
-                              className="hover:bg-gray-50"
-                            >
-                              <td className="border-b p-2">
-                                <a
-                                  href={attachment.file_url}
-                                  className="flex items-center text-blue-600 hover:underline"
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <Paperclip size={16} className="mr-2" />
-                                  {attachment.file_name}
-                                </a>
-                              </td>
-                              <td className="border-b p-2">
-                                {new Date(
-                                  attachment.uploaded_at
-                                ).toLocaleString()}
-                              </td>
-                              <td className="border-b p-2">
-                                <div className="flex space-x-2">
-                                  <button
-                                    className="text-blue-500 hover:underline"
-                                    onClick={() =>
-                                      window.open(attachment.file_url, "_blank")
-                                    }
-                                  >
-                                    View
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))
+                          attachments.map((attachment) => {
+                            // Construct the correct backend URL
+                            // Extract just the path portion from the file_url
+                            const urlPath = attachment.file_url.replace(
+                              /^https?:\/\/[^\/]+/,
+                              ""
+                            );
+                            // Construct the correct backend URL
+                            const backendUrl =
+                              process.env.REACT_APP_API_BASE_URL ||
+                              "http://localhost:8000";
+                            const fullUrl = `${backendUrl}${urlPath}`;
+
+                            return (
+                              <tr
+                                key={attachment.id}
+                                className="hover:bg-gray-50"
+                              >
+                                <td className="border-b p-2">
+                                  <div className="flex items-center">
+                                    <Paperclip
+                                      size={16}
+                                      className="mr-2 text-gray-500"
+                                    />
+                                    <span className="text-gray-700">
+                                      {attachment.file_name}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="border-b p-2">
+                                  {new Date(
+                                    attachment.uploaded_at
+                                  ).toLocaleString()}
+                                </td>
+                                <td className="border-b p-2">
+                                  <div className="flex space-x-2">
+                                    <a
+                                      href={fullUrl}
+                                      className="text-blue-500 hover:underline"
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      View
+                                    </a>
+                                    <a
+                                      href={fullUrl}
+                                      className="text-blue-500 hover:underline"
+                                      download={attachment.file_name}
+                                    >
+                                      Download
+                                    </a>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
                         ) : (
                           <tr>
                             <td
@@ -655,128 +562,21 @@ export default function ResolveIssue() {
           </div>
         </div>
 
-        {/* Question to User Modal */}
-        {isQuestionModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg w-full max-w-2xl p-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium">Ask Question to User</h3>
-                <button
-                  onClick={() => setIsQuestionModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <form onSubmit={handleQuestionSubmit}>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Comment
-                  </label>
-                  <div className="w-full">
-                    {!expandEditor ? (
-                      <input
-                        type="text"
-                        name="comment"
-                        value={questionData.comment}
-                        onFocus={() => {
-                          setExpandEditor(true);
-                        }}
-                        onChange={handleQuestionInputChange}
-                        className="w-full border rounded-md p-2 text-sm"
-                        placeholder="Enter your question or comment here..."
-                      />
-                    ) : (
-                      <QuillTextEditor
-                        name="comment"
-                        value={questionData.comment}
-                        onChange={(name, value) =>
-                          handleQuestionInputChange(name, value)
-                        }
-                        className="bg-white border rounded"
-                      />
-                    )}
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Attachments
-                  </label>
-                  <div className="border rounded-md p-2">
-                    <input
-                      type="file"
-                      name="attachments"
-                      onChange={handleFileChange}
-                      className="hidden"
-                      id="attachment-upload"
-                      multiple
-                    />
-                    <label
-                      htmlFor="attachment-upload"
-                      className="flex items-center cursor-pointer text-sm text-blue-500 hover:text-blue-600"
-                    >
-                      <Paperclip size={16} className="mr-1" />
-                      Upload files
-                    </label>
-
-                    {/* Display selected files */}
-                    {questionData.attachments.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {questionData.attachments.map((file, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between bg-gray-50 p-1 rounded"
-                          >
-                            <div className="flex items-center text-xs">
-                              <Paperclip
-                                size={14}
-                                className="mr-1 text-gray-500"
-                              />
-                              <span className="truncate max-w-[250px]">
-                                {file.name}
-                              </span>
-                              <span className="text-gray-400 ml-1">
-                                ({Math.round(file.size / 1024)} KB)
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveAttachment(index)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-2 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsQuestionModalOpen(false);
-                      setExpandEditor(false);
-                    }}
-                    className="px-4 py-2 border rounded-md text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600"
-                  >
-                    Submit Question
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        <QuestionToUserModal
+          isOpen={isQuestionModalOpen}
+          onClose={() => setIsQuestionModalOpen(false)}
+          ticketId={ticket?.ticket_id}
+          ticketStatus={editableStatus}
+          updateTicketStatus={updateTicketStatus}
+          refreshChatMessages={() => {
+            if (
+              chatUIRef.current &&
+              typeof chatUIRef.current.fetchMessages === "function"
+            ) {
+              chatUIRef.current.fetchMessages(ticket.ticket_id);
+            }
+          }}
+        />
 
         {/* Toast Container and Chatbot */}
         <ChatbotPopup />
