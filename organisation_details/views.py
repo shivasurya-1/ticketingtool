@@ -143,23 +143,87 @@ class autoAssigneeAPIView(APIView):
         return Response({"error": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
     
 
+# class EmployeeAPI(APIView):
+#     permission_classes = [IsAuthenticated]
+#     authentication_classes = [JWTAuthentication]
+
+#     def get(self, request, organisation_id=None, employee_id=None):
+#         # self.permission_required = "view_employee"  
+#         # HasRolePermission.has_permission(self,request,self.permission_required)
+#         """Handles fetching employees for a specific organisation or a single employee"""
+#         self.permission_required = "view_employee"
+#         if not HasRolePermission().has_permission(request, self.permission_required):
+#             return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+#         organisation_id = request.user.organisation
+#         if organisation_id:
+#             employees = Employee.objects.filter(organisation_id=organisation_id)
+#             serializer = EmployeeSerializer(employees, many=True)
+#             return Response(serializer.data, status=status.HTTP_200_OK)
+
+#         elif employee_id:
+#             try:
+#                 employee = Employee.objects.get(id=employee_id)
+#                 serializer = EmployeeSerializer(employee)
+#                 return Response(serializer.data, status=status.HTTP_200_OK)
+#             except Employee.DoesNotExist:
+#                 return Response({"error": "Employee not found."}, status=status.HTTP_404_NOT_FOUND)
+
+#         return Response({"error": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+#     def post(self, request, organisation_id=None):
+#         self.permission_required = "create_employee"  
+#         HasRolePermission.has_permission(self,request,self.permission_required) 
+#         """
+#         Create an employee. If `organisation_id` is provided in the URL,
+#         it will automatically associate the employee with that organisation.
+#         """
+#         if organisation_id:
+#             # Attach organisation ID from URL if provided
+#             request.data["organisation"] = organisation_id
+
+#         serializer = EmployeeSerializer(data=request.data)
+#         if serializer.is_valid():
+#             serializer.save(created_by=request.user)
+#             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+#     def put(self, request, employee_id):
+#         self.permission_required = "update_employee"  
+#         HasRolePermission.has_permission(self,request,self.permission_required) 
+#         employee = get_object_or_404(Employee, id=employee_id)
+#         serializer = EmployeeSerializer(employee, data=request.data, partial=True)
+#         if serializer.is_valid():
+#             serializer.save(created_by=request.user, modified_by=request.data)
+#             return Response(serializer.data)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+#     def delete(self, request, employee_id):
+#         self.permission_required = "delete_employee"  
+#         HasRolePermission.has_permission(self,request,self.permission_required)
+#         employee = get_object_or_404(Employee, id=employee_id)
+#         employee.delete()
+#         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
 class EmployeeAPI(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-
+ 
     def get(self, request, organisation_id=None, employee_id=None):
-        # self.permission_required = "view_employee"  
-        # HasRolePermission.has_permission(self,request,self.permission_required)
-        """Handles fetching employees for a specific organisation or a single employee"""
         self.permission_required = "view_employee"
-        if not HasRolePermission().has_permission(request, self.permission_required):
-            return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+        if not HasRolePermission.has_permission(self, request, self.permission_required):
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
         organisation_id = request.user.organisation
+ 
         if organisation_id:
-            employees = Employee.objects.filter(organisation_id=organisation_id)
-            serializer = EmployeeSerializer(employees, many=True)
+            # Only fetch top-level employees
+            top_level_employees = Employee.objects.filter(organisation_id=organisation_id, parent=None)
+            serializer = EmployeeSerializer(top_level_employees, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
-
+ 
         elif employee_id:
             try:
                 employee = Employee.objects.get(id=employee_id)
@@ -167,13 +231,15 @@ class EmployeeAPI(APIView):
                 return Response(serializer.data, status=status.HTTP_200_OK)
             except Employee.DoesNotExist:
                 return Response({"error": "Employee not found."}, status=status.HTTP_404_NOT_FOUND)
-
+ 
         return Response({"error": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
-    
-
+ 
+ 
+   
+ 
     def post(self, request, organisation_id=None):
         self.permission_required = "create_employee"  
-        HasRolePermission.has_permission(self,request,self.permission_required) 
+        HasRolePermission.has_permission(self,request,self.permission_required)
         """
         Create an employee. If `organisation_id` is provided in the URL,
         it will automatically associate the employee with that organisation.
@@ -181,29 +247,43 @@ class EmployeeAPI(APIView):
         if organisation_id:
             # Attach organisation ID from URL if provided
             request.data["organisation"] = organisation_id
-
+ 
         serializer = EmployeeSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(created_by=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
+       
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+ 
+   
     def put(self, request, employee_id):
-        self.permission_required = "update_employee"  
-        HasRolePermission.has_permission(self,request,self.permission_required) 
-        employee = get_object_or_404(Employee, id=employee_id)
-        serializer = EmployeeSerializer(employee, data=request.data, partial=True)
+        self.permission_required = "update_employee"
+        if not HasRolePermission.has_permission(self, request, self.permission_required):
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+ 
+        employee = get_object_or_404(Employee, employee_id=employee_id)
+ 
+        # Copy and modify data to convert `parent=0` to `None`
+        data = request.data.copy()
+        if str(data.get("parent")) == "0":
+            data["parent"] = None
+ 
+        serializer = EmployeeSerializer(employee, data=data, partial=True)
         if serializer.is_valid():
-            serializer.save(created_by=request.user, modified_by=request.data)
+            serializer.save(modified_by=request.user)
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+ 
+ 
     def delete(self, request, employee_id):
         self.permission_required = "delete_employee"  
         HasRolePermission.has_permission(self,request,self.permission_required)
         employee = get_object_or_404(Employee, id=employee_id)
         employee.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
+ 
+ 
+ 
+ 
+ 
+ 

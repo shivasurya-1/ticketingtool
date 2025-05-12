@@ -12,41 +12,6 @@ import re
 
 
 
-# class PriorityView(APIView):
-#     permission_classes = [IsAuthenticated]
-#     authentication_classes = [JWTAuthentication]
-    
-#     def get(self, request, pk=None, *args, **kwargs):
-#         self.permission_required = "view_priority"
-    
-#         if not HasRolePermission().has_permission(request, self.permission_required):
-#             return Response({'error': 'Permission denied.'}, status=403)
-#         print(request.user.organisation)
-#         print(request.user.organisation)
-#         print(request.user.organisation)
-#         print(request.user.organisation)
-#         print(request.user.organisation)
-#         print(request.user.organisation)
-#         print(request.user.organisation)
-        
-#         if pk:
-#             # Retrieve a single object by pk
-#             try:
-#                 priority = Priority.objects.get(pk=pk)
-#                 serializer = PrioritySerializer(priority)
-#                 return Response(serializer.data)
-#             except Priority.DoesNotExist:
-#                 return Response({'error': 'Priority not found'}, status=status.HTTP_404_NOT_FOUND)
-#         else:
-#             # Retrieve all objects
-#             priorities = Priority.objects.filter(organisation= request.user.organisation)
-#             print("Queryset:", priorities)
-
-#             if not priorities:
-#                 return Response({'error': 'No priorities found for your organisation.'}, status=status.HTTP_404_NOT_FOUND)
-            
-#             serializer = PrioritySerializer(priorities, many=True)
-#             return Response(serializer.data)
     
 class PriorityView(APIView):
     permission_classes = [IsAuthenticated]

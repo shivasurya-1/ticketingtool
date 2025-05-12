@@ -1,22 +1,4 @@
-# from rest_framework import serializers
-# from .models import SolutionGroup
-# class SolutionSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = SolutionGroup
-#         fields = '__all__'
-#         extra_kwargs = {
-#             'created_by': {'read_only': True},  
-#             'modified_by': {'read_only': True},
-#         }
-    
-#     def to_representation(self, instance):
-#         """Customize serialized output to return human-readable labels."""
-#         representation = super().to_representation(instance)
-#         representation["organisation"] = instance.organisation.organisation_name if instance.organisation else None
-#         representation["category"] = instance.category.category_name if instance.category else None
-#         representation["created_by"] = instance.created_by.username if instance.created_by else None
-#         representation["modified_by"] = instance.modified_by.username if instance.modified_by else None
-#         return representation
+
 from timer.serializers import TicketSerializer
 from rest_framework import serializers
 from .models import SolutionGroup,SolutionGroupTickets

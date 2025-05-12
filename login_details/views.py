@@ -32,6 +32,14 @@ import logging
 from django.contrib.auth import get_user_model
 logger = logging.getLogger(__name__)
 User = get_user_model()
+from rest_framework.parsers import MultiPartParser
+from login_details.tasks import process_user_excel
+from django.http import JsonResponse
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
+import os
+import tempfile
+
 
 class RegisterUserAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -98,32 +106,6 @@ class RegisterGetAPIVIEW(APIView):
             return Response({"message": "User deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
 @method_decorator(csrf_exempt, name='dispatch')
-
-# class LoginUserAPIView(APIView):
-#     permission_classes = [AllowAny]
-
-#     def post(self, request):
-#         email = request.data.get('email')
-#         password = request.data.get('password')
-
-#         if not email or not password:
-#             return Response({'error': 'Email and password are required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-#         try:
-#             user_obj = User.objects.get(email=email)
-#         except User.DoesNotExist:
-#             return Response({'error': 'User with this email does not exist.'}, status=status.HTTP_404_NOT_FOUND)
-
-#         user = authenticate(username=user_obj.username, password=password)
-#         if user:
-#             refresh = RefreshToken.for_user(user)
-#             return Response({
-#                 'message': 'Login successful.',
-#                 'access': str(refresh.access_token),
-#                 'refresh': str(refresh),
-#             }, status=status.HTTP_200_OK)
-
-#         return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 
@@ -279,8 +261,7 @@ class NewPasswordAPIView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
+
 from .tasks import send_password_update_email
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -321,14 +302,6 @@ class ChangePasswordAPIView(APIView):
 
 
 
-from rest_framework.parsers import MultiPartParser
-from login_details.tasks import process_user_excel
-from django.http import JsonResponse
-# from rest_framework_simplejwt.authentication import jwtAuthentication
-from rest_framework_simplejwt.authentication import JWTAuthentication
-
-import os
-import tempfile
 
 class BulkUserUploadAPIView(APIView):
     parser_classes = (MultiPartParser,)

@@ -38,31 +38,7 @@ class CategoryAPIView(APIView):
             serializer = CategorySerializer(categories, many=True)
             return Response(serializer.data)
 
-    # def post(self, request, *args, **kwargs):
-    #     """Handles POST requests for creating a category"""
-    #     self.permission_required = "create_category"
-    
-    #     if not HasRolePermission().has_permission(request, self.permission_required):
-    #      return Response({'error': 'Permission denied.'}, status=403)
-
-    #     data = request.data
-    #     category_name = data.get('category_name')
-    #     organisation = data.get('organisation')
-
-    #     # Check if the category already exists for the organization
-    #     if organisation and Category.objects.filter(category_name=category_name, organisation=organisation).exists():
-    #         return Response(
-    #             {"category_name": "Category with this name already exists for the organization."},
-    #             status=status.HTTP_400_BAD_REQUEST
-    #         )
-
-    #     serializer = CategorySerializer(data=data)
-    #     if serializer.is_valid():
-    #         serializer.save(created_by=request.user, modified_by=request.user)
-    #         return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+   
     def post(self, request, *args, **kwargs):
         """Handles POST requests for creating a category"""
         self.permission_required = "create_category"

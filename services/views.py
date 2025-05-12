@@ -36,63 +36,7 @@ class IssueCategoryListAPIView(APIView):
             serializer.save(created_by=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    # def put(self, request,issue_category_id):
-    #     try:
-    #         category = IssueCategory.objects.get(pk=issue_category_id)
-    #     except IssueCategory.DoesNotExist:
-    #         return Response({"error": "Category not found"}, status=status.HTTP_404_NOT_FOUND)
-        
-    #     # serializer = IssueCategorySerializer(category, data=request.data, partial=True)
-    #     serializer = IssueCategorySerializer(instance, context={'request': request})
-
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response(serializer.data, status=status.HTTP_200_OK)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    # def put(self, request, *args, **kwargs):
-    #     category_id = self.kwargs.get('pk')  # 🔥 this is safe
-    #     if not category_id:
-    #         return Response({'detail': 'Category ID is missing.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-    #     try:
-    #         category = IssueCategory.objects.get(pk=category_id)
-    #     except IssueCategory.DoesNotExist:
-    #         return Response({'detail': 'Category not found.'}, status=status.HTTP_404_NOT_FOUND)
-        
-    #     serializer = IssueCategorySerializer(category, data=request.data, context={'request': request})
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response(serializer.data, status=status.HTTP_200_OK)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-    # def delete(self, request, *args, **kwargs):
-    #     category_id = kwargs.get('issue_category_id')
-    #     if not category_id:
-    #         return Response({"error": "Category ID is required."}, status=status.HTTP_400_BAD_REQUEST)
-
-    #     try:
-    #         category = IssueCategory.objects.get(id=category_id)
-    #         category.delete()
-    #         return Response({"message": "Category deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
-    #     except IssueCategory.DoesNotExist:
-    #         return Response({"error": "Category not found."}, status=status.HTTP_404_NOT_FOUND)
-        
-    # def patch(self, request, *args, **kwargs):
-    #     category_id = kwargs.get('issue_category_id')
-    #     if not category_id:
-    #         return Response({"error": "Category ID is required."}, status=status.HTTP_400_BAD_REQUEST)
-
-    #     try:
-    #         category = IssueCategory.objects.get(id=category_id)
-    #     except IssueCategory.DoesNotExist:
-    #         return Response({"error": "Category not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    #     serializer = IssueCategorySerializer(category, data=request.data, partial=True)
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response(serializer.data, status=status.HTTP_200_OK)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  
+    
     
     def get_object(self, pk):
         """

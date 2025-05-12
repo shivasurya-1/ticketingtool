@@ -15,19 +15,21 @@ class ResolutionAPIView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-
-    def get(self, request, pk=None):
-       self.permission_required = "view_resolution"
-       if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'error': 'Permission denied.'}, status=403)
-       
-       if pk:
-            resolution = get_object_or_404(Resolution, pk=pk)
-            serializer = ResolutionSerializer(resolution)
-       else:
+    def get(self, request, ticket_id=None):  # Here, pk is expected to be ticket_id now
+        self.permission_required = "view_resolution"
+        if not HasRolePermission().has_permission(request, self.permission_required):
+            return Response({'error': 'Permission denied.'}, status=403)
+    
+        if ticket_id:
+            resolutions = Resolution.objects.filter(ticket_id=ticket_id)
+            if not resolutions.exists():
+                return Response({'error': 'No resolution found for this ticket.'}, status=404)
+            serializer = ResolutionSerializer(resolutions, many=True)
+        else:
             resolutions = Resolution.objects.all()
             serializer = ResolutionSerializer(resolutions, many=True)
-       return Response(serializer.data, status=status.HTTP_200_OK)
+    
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
         self.permission_required = "create_resolution"

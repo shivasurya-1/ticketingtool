@@ -39,26 +39,45 @@ class RoleAPIView(APIView):
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def post(self, request):
+
         """ Handle POST requests to create a new role """
+
         self.permission_required = "create_roles"
+
         if not HasRolePermission().has_permission(request, self.permission_required):
+
             return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+    
         try:
-            # self.check_permission(request, "create_roles")
-            serializer = RoleSerializer(data=request.data)
+
+            # Normalize name to avoid case and space issues
+
+            data = request.data.copy()
+
+            data['name'] = data.get('name', '').strip()
+    
+            serializer = RoleSerializer(data=data)
+
             if serializer.is_valid():
-                # Check for duplicate roles based on some field
-                if Role.objects.filter(name=request.data.get('name')).exists():
-                    raise ValidationError("A role with this name already exists.")
+
                 serializer.save(created_by=request.user)
+
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
             raise ValidationError(serializer.errors)
+    
         except ValidationError as e:
+
             return Response({"error": f"Validation failed: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
         except IntegrityError as e:
+
             return Response({"error": f"Integrity Error: {str(e)}"}, status=status.HTTP_409_CONFLICT)
+
         except Exception as e:
+
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+ 
 class RoleDetailAPIView(APIView):
     def get(self, request, pk):
         """ Handle GET requests to fetch a specific role """
@@ -212,29 +231,7 @@ class RolePermissionAPIView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
                 return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    # def post(self, request):
-    #         """ Handle POST requests to assign a permission to a role """
-            
-    #         # Define the required permission
-    #         self.permission_required = "create_roles"  # or whatever matches the permission in your system
-    #         # Checking if the user has the required permission
-    #         if not HasRolePermission().has_permission(request, self.permission_required):
-    #             return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
-            
-    #         try:
-    #             # Your permission-assigning logic here...
-    #             serializer = RolePermissionSerializer(data=request.data)
-    #             if serializer.is_valid():
-    #                 # Check if the role already has the permission
-    #                 if RolePermission.objects.filter(role=request.data['role'], permission=request.data['permission']).exists():
-    #                     raise ValidationError("This permission is already assigned to the role.")
-    #                 serializer.save()
-    #                 return Response(serializer.data, status=status.HTTP_201_CREATED)
-    #             raise ValidationError(serializer.errors)
-    #         except ValidationError as e:
-    #             return Response({"error": f"Validation failed: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-            # except Exception as e:
-            #     return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
 
     
     def post(self, request, *args, **kwargs):
@@ -246,33 +243,14 @@ class RolePermissionAPIView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    # def put(self, request, pk):
-    #     """ Handle PUT requests to update a role-permission association """
-    #     self.permission_required = "update_roles"
-    #     if not HasRolePermission().has_permission(request, self.permission_required):
-    #         return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
-    #     try:
-    #         # self.check_permission(request, "update_permissions")
-    #         role_permission = get_object_or_404(RolePermission, pk=pk)
-    #         serializer = RolePermissionSerializer(role_permission, data=request.data, partial=True)
-    #         if serializer.is_valid():
-    #             # Validate if the role already has the permission
-    #             if RolePermission.objects.filter(role=request.data['role'], permission=request.data['permission']).exclude(pk=pk).exists():
-    #                 raise ValidationError("This permission is already assigned to the role.")
-    #             serializer.save()
-    #             return Response(serializer.data, status=status.HTTP_200_OK)
-    #         raise ValidationError(serializer.errors)
-    #     except ValidationError as e:
-    #         return Response({"error": f"Validation failed: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-    #     except Exception as e:
-    #         return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    def put(self, request, pk):
+   
+    def put(self, request, role_permission_id):
         self.permission_required = "update_roles"
         if not HasRolePermission().has_permission(request, self.permission_required):
             return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
         
         try:
-            role_permission = get_object_or_404(RolePermission, pk=pk)
+            role_permission = get_object_or_404(RolePermission, pk=role_permission_id)
             serializer = RolePermissionSerializer(role_permission, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
@@ -298,14 +276,14 @@ class RolePermissionAPIView(APIView):
         except Exception as e:
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     # @admin_required
-    def delete(self, request, pk):
+    def delete(self, request, role_permission_id):
         """ Handle DELETE requests to remove a role-permission association """
         self.permission_required = "dlete_roles"
         if not HasRolePermission().has_permission(request, self.permission_required):
             return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
         try:
             # self.check_permission(request, "remove_permissions_from_roles")
-            role_permission = get_object_or_404(RolePermission, pk=pk)
+            role_permission = get_object_or_404(RolePermission, pk=role_permission_id)
             role_permission.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
         except RolePermission.DoesNotExist:

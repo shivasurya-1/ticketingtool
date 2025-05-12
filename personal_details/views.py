@@ -48,7 +48,7 @@ class UserProfileView(APIView):
                     return Response({
                         # "error": "UserProfile not found for the current user.",
                         # "user_id": request.user.id,
-                        "first_name": request.user.username,
+                        "username": request.user.username,
                         "email": request.user.email,
                         "organisation_name": request.user.organisation.organisation_name if request.user.organisation else None,
                         "role": request.user.user_roles.filter(is_active=True).first().role.name if request.user.user_roles.filter(is_active=True).exists() else None,
@@ -79,31 +79,39 @@ class UserProfileView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, id=None, pk=None):
-        try:
-            if pk is not None:
-                personal_details = get_object_or_404(UserProfile, pk=pk)
-            elif id is not None:
-                personal_details = get_object_or_404(UserProfile, user__id=id)
-            else:
-                personal_details = get_object_or_404(UserProfile, user=request.user)
-
-            if 'delete_profile_pic' in request.data and request.data['delete_profile_pic'] == 'true':
-                if personal_details.profile_pic:
-                    personal_details.profile_pic.delete(save=False)
-
-            serializer = UserProfileSerializer(
-                personal_details,
-                data=request.data,
-                context={'request': request},
-                partial=True  # Important for flexibility
-            )
-            if serializer.is_valid():
-                serializer.save(modified_by=request.user)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+            try:
+                print("Received PUT request data:", request.data)  # Add debug logging
+               
+                if pk is not None:
+                    personal_details = get_object_or_404(UserProfile, pk=pk)
+                elif id is not None:
+                    personal_details = get_object_or_404(UserProfile, user__id=id)
+                else:
+                    personal_details = get_object_or_404(UserProfile, user=request.user)
+ 
+                if 'delete_profile_pic' in request.data and request.data['delete_profile_pic'] == 'true':
+                    if personal_details.profile_pic:
+                        personal_details.profile_pic.delete(save=False)
+ 
+                serializer = UserProfileSerializer(
+                    personal_details,
+                    data=request.data,
+                    context={'request': request},
+                    partial=True
+                )
+               
+                print("Serializer valid:", serializer.is_valid())  # Check if serializer is valid
+                if not serializer.is_valid():
+                    print("Validation errors:", serializer.errors)  # Print validation errors
+                   
+                if serializer.is_valid():
+                    serializer.save(modified_by=request.user)
+                    return Response(serializer.data, status=status.HTTP_200_OK)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                print("Exception:", str(e))  # Debug the exception
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
     def delete(self, request, id=None, pk=None):
         try:
             if pk is not None:

@@ -5,15 +5,8 @@ class CategorySerializer(serializers.ModelSerializer):
     modified_by = serializers.SlugRelatedField(read_only=True, slug_field='username')
     class Meta:
         model=Category
-        # fields=['category_id','category_name','description','organisation','created_by','modified_by','is_active','created_at','modified_at']
         fields = '__all__'
-        # extra_kwargs = {
-        #     'created_by': {'read_only': True},  
-        #     'modified_by': {'read_only': True},
-        # } 
-           
-
-
+       
     def to_representation(self, instance):
         """
             Modify the response to return user and role names instead of their IDs.

@@ -58,67 +58,6 @@ class OpenItem(Notification):
     )
 
 
-# class OpenItem(Notification):
-#     user = models.ForeignKey('user.User', on_delete=models.CASCADE)
-#     status = models.CharField(
-#         max_length=50, choices=(('open', 'Open'), ('in_progress', 'In Progress'), ('closed', 'Closed'))
-#     )
-# User = get_user_model()
-
-# class RecentItem(models.Model):
-#     title = models.CharField(max_length=255)
-#     content = models.TextField(null=True, blank=True)  # Optional content field
-#     user = models.ForeignKey(User, on_delete=models.CASCADE)
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
-
-#     def __str__(self):
-#         return self.title
-
-# class RecentItem(models.Model):
-#     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-#     # entity_type = models.CharField(max_length=50)
-#     # entity_id = models.IntegerField()
-#     entity_id = models.PositiveIntegerField(null=True, blank=True)  # Allow null
-#     entity_type = models.CharField(max_length=100, null=True, blank=True) 
-#     title = models.CharField(max_length=50)
-#     description= models.TextField(null=True, blank=True)
-#     url = models.URLField(max_length=250)
-#     last_accessed_at = models.DateTimeField(auto_now=True)
-
-#     def __str__(self):
-#         return f"{self.entity_type} - {self.title}"
-
-
-# class RecentItem(models.Model):
-#     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-#     entity_type = models.CharField(max_length=50)
-#     url = models.URLField()
-#     article = models.ForeignKey(KnowledgeArticle, null=True, blank=True, on_delete=models.SET_NULL)
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
-#     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recentitems_created')
-#     updated_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recentitems_updated')
-
-#     class Meta:
-#         ordering = ['-created_at']
-
-
-# class RecentItem(models.Model):
-#     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recent_items')
-#     title  = models.CharField(max_length=255)
-#     content = models.TextField(blank=True)
-#     viewed_at = models.DateTimeField(auto_now=True)
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
-#     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recentitem_created')
-#     updated_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recentitem_updated')
-#     knowledge_article = models.ForeignKey(KnowledgeArticle, on_delete=models.CASCADE, related_name='recent_items', null=True, blank=True)
-
-
-#     class Meta:
-#         ordering = ['-viewed_at']  # Show recent items first
-#         unique_together = ('user', 'title')
 
 
 class RecentItem(models.Model):

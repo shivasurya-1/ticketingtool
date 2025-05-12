@@ -148,10 +148,7 @@ class RecentItemView(APIView):
         recent_items = RecentItem.objects.filter(user=request.user)[:10]  # Limit to last 10 items
         serializer = RecentItemSerializer(recent_items, many=True)
         return Response(serializer.data)
-    # def get(self,request):
-    #     recent_items = RecentItem.objects.all()  # Fetch all recent items
-    #     data = list(recent_items.values('user', 'title', 'content', 'viewed_at'))  # Convert to list of dictionaries
-    #     return JsonResponse(data, safe=False)
+    
     def get(self, request, *args, **kwargs):
         user = request.user  # Assuming you're filtering by the logged-in user
         recent_items = RecentItem.objects.filter(user=user)

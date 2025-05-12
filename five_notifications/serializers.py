@@ -24,6 +24,4 @@ class RecentItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RecentItem
-        # fields = ['title', 'content', 'viewed_at']
-        # fields = '__all__'
         fields = '__all__'

@@ -7,11 +7,23 @@ from organisation_details.models import Employee
 
 
 
+from django.db import models
+from login_details.models import User
+from django.core.exceptions import ValidationError
+from cloudinary_storage.storage import MediaCloudinaryStorage
+from roles_creation.models import UserRole
+from organisation_details.models import Employee
+ 
+ 
+ 
 class UserProfile(models.Model):
+    personal_id = models.BigAutoField(primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    emp_id = models.AutoField(primary_key=True)  
+    # emp_id = models.AutoField(primary_key=True)
+    employee = models.OneToOneField(Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name='profile')
+   
     profile_pic = models.ImageField(
-        upload_to='profile_pics', 
+        upload_to='profile_pics',
         blank=True,
         storage=MediaCloudinaryStorage()
     )
@@ -32,6 +44,7 @@ class UserProfile(models.Model):
     modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='profile_modified')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='profile_created')
     # role=models.ForeignKey(UserRole)
+   
     @property
     def role(self):
         try:
@@ -39,47 +52,32 @@ class UserProfile(models.Model):
             return self.user.user_roles.get(is_active=True).role
         except UserRole.DoesNotExist:
             return None
+ 
     @property
     def organisation(self):
         try:
-            # Fetch the user's active role
+            # Get the organisation from the employee linked to the active user role
             user_role = self.user.user_roles.get(is_active=True)
-            # Return the organisation linked to the employee
             return user_role.employee.organisation
-        except (UserRole.DoesNotExist, Employee.DoesNotExist, AttributeError):
+        except (UserRole.DoesNotExist, Employee.DoesNotExist):
             return None
  
-    @property
-    def organisation_name(self):
-        if self.organisation:
-            return self.organisation.organisation_name
-        return None
  
-    @property
-    def organisation_id(self):
-        # If the organisation has a custom primary key, use that field
-        if self.organisation:
-            return getattr(self.organisation, 'organisation_id', None)  # Replace with correct field if needed
-        return None
-
     def _str_(self):
-        return f"{self.first_name} {self.last_name} (ID: {self.emp_id})"
+        return f"{self.first_name} {self.last_name} (ID: {self.personal_id})"
    
-    
+   
     def save(self, *args, **kwargs):
         if self.pk:  # Prevent changes after creation
             original = UserProfile.objects.get(pk=self.pk)
             if self.email != original.email:
                 raise ValidationError("Email cannot be changed.")
         super().save(*args, **kwargs)
-
-
+ 
+ 
     @property
     def employee_id(self):
         try:
             return self.user.user_roles.first().employee.employee_id
         except:
             return None
-   
-
-    
