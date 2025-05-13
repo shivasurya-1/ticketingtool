@@ -10,7 +10,7 @@ import RichTextViewer from "../../components/common/RichTextViewer"; // Import t
 const ChatUI = forwardRef((props, ref) => {
   // URL and State Management
   const { ticketId } = useParams();
-  const userProfile = useSelector((state) => state.userProfile.username);
+  const userProfile = useSelector((state) => state.userProfile.user);
   const accessToken = localStorage.getItem("access_token");
   const authHeaders = { headers: { Authorization: `Bearer ${accessToken}` } };
 
@@ -261,7 +261,7 @@ const ChatUI = forwardRef((props, ref) => {
         html: messageHtml,
         timestamp: new Date().toLocaleString(),
         isCurrentUser: true,
-        user: userProfile.username || "You",
+        user: userProfile?.username || "You",
         attachments: processedAttachments.map((att) => ({
           ...att,
           // For local attachments, use the preview URL temporarily
