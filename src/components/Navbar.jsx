@@ -122,7 +122,7 @@ const Navbar = ({ isLoading = false }) => {
                   <Menu className="w-5 h-5 text-gray-600" />
                 )}
               </button>
-              <ul className="flex space-x-1">
+              {/* <ul className="flex space-x-1">
                 {navItems.map((item) => (
                   <li key={item.path}>
                     <Link
@@ -141,7 +141,7 @@ const Navbar = ({ isLoading = false }) => {
                     </Link>
                   </li>
                 ))}
-              </ul>
+              </ul> */}
               {/* Navigation and Profile Section */}
               <div className="hidden md:flex items-center justify-between space-x-4">
                 {/* Navigation Items */}
@@ -239,8 +239,7 @@ const Navbar = ({ isLoading = false }) => {
             </div>
           </nav>
 
-          {/* Mobile Menu */}
-          {isMenuOpen && (
+          {/* {isMenuOpen && (
             <div
               className="md:hidden bg-white py-2 border-t border-blue-50 rounded-b-lg"
               ref={mobileMenuRef}
@@ -273,7 +272,6 @@ const Navbar = ({ isLoading = false }) => {
 
               <div className="border-t border-blue-50 my-2"></div>
 
-              {/* Mobile Profile Section */}
               <div className="px-4">
                 <div className="flex items-center space-x-3 p-1">
                   <div className="h-7 w-7 rounded-full flex items-center justify-center overflow-hidden ring-1 ring-blue-400">
@@ -336,7 +334,7 @@ const Navbar = ({ isLoading = false }) => {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
         </div>
       </header>
     </div>

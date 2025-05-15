@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   AtSign,
   Folder,
+  ChevronDown,
 } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
 import { toast } from "react-hot-toast";
@@ -25,6 +26,7 @@ import { Country, State, City } from "country-state-city";
 import Navbar from "../../components/Navbar";
 import Sidebar from "../../components/Sidebar";
 import { axiosInstance } from "../../utils/axiosInstance";
+import PhoneNumberInput from "../../components/common/PhoneNumberInput"; // Import the new PhoneNumberInput component
 
 export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
@@ -35,6 +37,7 @@ export default function Profile() {
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
+  const [isPhoneValid, setIsPhoneValid] = useState(true);
   const dispatch = useDispatch();
 
   const userProfile = useSelector((state) => state.userProfile.user);
@@ -80,6 +83,7 @@ export default function Profile() {
     }
   }, [editedProfile?.country, editedProfile?.state]);
 
+  // Initialize editedProfile when userProfile loads
   useEffect(() => {
     if (userProfile) {
       setEditedProfile({ ...userProfile });
@@ -112,16 +116,16 @@ export default function Profile() {
     }));
   };
 
-  // Phone number input handler - only allows digits
-  const handlePhoneChange = (e) => {
-    const { value } = e.target;
-    // Only allow digits in the phone field
-    const digitsOnly = value.replace(/\D/g, "");
-
+  // Phone number input handler for the new component
+  const handlePhoneChange = (phoneNumber) => {
     setEditedProfile((prev) => ({
       ...prev,
-      phone_number: digitsOnly,
+      phone_number: phoneNumber,
     }));
+  };
+
+  const handlePhoneValidChange = (validPhoneNumber) => {
+    setIsPhoneValid(true);
   };
 
   // Handle country, state, city selection
@@ -162,6 +166,12 @@ export default function Profile() {
   };
 
   const handleSave = async () => {
+    // Validate phone number before saving
+    if (!isPhoneValid && editedProfile.phone_number) {
+      toast.error("Please enter a valid phone number");
+      return;
+    }
+
     try {
       setIsLoading(true);
 
@@ -202,7 +212,9 @@ export default function Profile() {
           "Content-Type": "multipart/form-data",
         },
       };
-      console.log("updated user details foem", formData);
+      for (const [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
       const response = await axiosInstance.put(
         `details/personal_details/`,
         formData,
@@ -258,6 +270,12 @@ export default function Profile() {
       !userProfile.first_name ||
       !userProfile.last_name
     );
+  };
+
+  // Format phone number display for viewing mode
+  const formatPhoneNumberForDisplay = (phone) => {
+    if (!phone) return "Not specified";
+    return phone; // The PhoneNumberInput component already formats the phone number
   };
 
   // Select styles for consistent UI
@@ -437,7 +455,7 @@ export default function Profile() {
                       <div className="flex-1">
                         <p className="text-xs text-gray-500">Employee ID</p>
                         <p className="text-sm font-medium">
-                          {userProfile.emp_id || "Not assigned yet"}
+                          {userProfile.employee_id || "Not assigned yet"}
                         </p>
                       </div>
                     </div>
@@ -466,18 +484,20 @@ export default function Profile() {
                       <div className="flex-1">
                         <p className="text-xs text-gray-500">Phone Number</p>
                         {isEditing ? (
-                          <input
-                            type="tel"
-                            name="phone_number"
+                          <PhoneNumberInput
                             value={editedProfile.phone_number || ""}
                             onChange={handlePhoneChange}
-                            className="w-full text-sm bg-white border border-blue-300 rounded px-2 py-1"
-                            placeholder="Phone Number (digits only)"
-                            pattern="[0-9]*"
+                            onValidChange={handlePhoneValidChange}
+                            placeholder="Enter phone number"
+                            required={false}
+                            className="h-[31px] "
+                            errorMessage="Please enter a valid phone number"
                           />
                         ) : (
                           <p className="text-sm font-medium">
-                            {userProfile.phone_number || "Not specified"}
+                            {formatPhoneNumberForDisplay(
+                              userProfile.phone_number
+                            )}
                           </p>
                         )}
                       </div>
@@ -653,96 +673,100 @@ export default function Profile() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 pl-8">
-                    <div className="flex-1">
-                      <p className="text-xs text-gray-500">Country</p>
-                      {isEditing ? (
+                  {isEditing ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {/* Country Dropdown */}
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Country</p>
                         <Select
                           options={countries}
+                          value={
+                            editedProfile.country
+                              ? countries.find(
+                                  (c) => c.value === editedProfile.country
+                                )
+                              : null
+                          }
+                          onChange={handleCountryChange}
                           placeholder="Select Country"
                           isClearable
-                          onChange={handleCountryChange}
                           styles={selectStyles}
                           className="text-sm"
-                          value={
-                            editedProfile.country && countries.length > 0
-                              ? countries.find(
-                                  (country) =>
-                                    country.value === editedProfile.country
-                                ) || null
-                              : null
-                          }
                         />
-                      ) : (
-                        <p className="text-sm font-medium">
-                          {userProfile.country || "Not specified"}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-gray-500">State</p>
-                      {isEditing ? (
+                      </div>
+
+                      {/* State Dropdown */}
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">State</p>
                         <Select
                           options={states}
-                          placeholder="Select State"
-                          isClearable
-                          onChange={handleStateChange}
-                          styles={selectStyles}
-                          className="text-sm"
                           value={
-                            editedProfile.state && states.length > 0
+                            editedProfile.state
                               ? states.find(
-                                  (state) => state.value === editedProfile.state
-                                ) || null
+                                  (s) => s.value === editedProfile.state
+                                )
                               : null
                           }
-                          noOptionsMessage={() =>
-                            editedProfile.country
-                              ? "No states found for selected country"
-                              : "Please select a country first"
-                          }
+                          onChange={handleStateChange}
+                          placeholder="Select State"
+                          isDisabled={!editedProfile.country}
+                          isClearable
+                          styles={selectStyles}
+                          className="text-sm"
                         />
-                      ) : (
-                        <p className="text-sm font-medium">
-                          {userProfile.state || "Not specified"}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-gray-500">City</p>
-                      {isEditing ? (
+                      </div>
+
+                      {/* City Dropdown */}
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">City</p>
                         <Select
                           options={cities}
-                          placeholder="Select City"
-                          isClearable
-                          onChange={handleCityChange}
-                          styles={selectStyles}
-                          className="text-sm"
                           value={
-                            editedProfile.city && cities.length > 0
-                              ? {
-                                  value: editedProfile.city,
-                                  label: editedProfile.city,
-                                }
+                            editedProfile.city
+                              ? cities.find(
+                                  (c) => c.value === editedProfile.city
+                                )
                               : null
                           }
-                          noOptionsMessage={() => {
-                            if (!editedProfile.country) {
-                              return "Please select a country first";
-                            }
-                            if (!editedProfile.state) {
-                              return "Please select a state first";
-                            }
-                            return "No cities found for selected state";
-                          }}
+                          onChange={handleCityChange}
+                          placeholder="Select City"
+                          isDisabled={!editedProfile.state}
+                          isClearable
+                          styles={selectStyles}
+                          className="text-sm"
                         />
-                      ) : (
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <p className="text-xs text-gray-500">Country</p>
+                        <p className="text-sm font-medium">
+                          {userProfile.country
+                            ? Country.getCountryByCode(userProfile.country)
+                                ?.name
+                            : "Not specified"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">State</p>
+                        <p className="text-sm font-medium">
+                          {userProfile.state && userProfile.country
+                            ? State.getStateByCodeAndCountry(
+                                userProfile.state,
+                                userProfile.country
+                              )?.name
+                            : "Not specified"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">City</p>
                         <p className="text-sm font-medium">
                           {userProfile.city || "Not specified"}
                         </p>
-                      )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Account Information Section */}
@@ -750,18 +774,28 @@ export default function Profile() {
                   <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-3">
                     Account Information
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-xs text-gray-500">Created At</p>
-                      <p className="text-sm">
-                        {formatDate(userProfile.created_at)}
-                      </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-cyan-100 rounded text-cyan-600">
+                        <Calendar size={14} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500">Account Created</p>
+                        <p className="text-sm font-medium">
+                          {formatDate(userProfile.created_at)}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Last Modified</p>
-                      <p className="text-sm">
-                        {formatDate(userProfile.modified_at)}
-                      </p>
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-emerald-100 rounded text-emerald-600">
+                        <Calendar size={14} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500">Last Modified</p>
+                        <p className="text-sm font-medium">
+                          {formatDate(userProfile.modified_at)}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -769,8 +803,8 @@ export default function Profile() {
             </div>
           </div>
         </main>
-        <ChatbotPopup />
       </div>
+      <ChatbotPopup />
     </div>
   );
 }
