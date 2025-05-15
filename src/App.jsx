@@ -85,6 +85,17 @@ const App = () => {
               }
             />
 
+            <Route
+              path="/reset-password"
+              element={
+                <ProtectedRoute>
+                  <UserSideLayout>
+                    <ResetPassword />
+                  </UserSideLayout>
+                </ProtectedRoute>
+              }
+            />
+
             {/* Protected Routes */}
             <Route
               element={
@@ -94,14 +105,14 @@ const App = () => {
               }
             >
               <Route path="/" element={<Home />} />
-              <Route
+              {/* <Route
                 path="/reset-password"
                 element={
                   <UserSideLayout>
                     <ResetPassword />
                   </UserSideLayout>
                 }
-              />
+              /> */}
               <Route
                 path="/register"
                 element={

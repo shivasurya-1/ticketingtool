@@ -1,173 +1,171 @@
 import React, { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import FieldsetInputField from "../common/FieldsetInputField";
-import { login } from "../../store/Slices/auth/authenticationSlice";
-import { enableButton } from "../../store/Slices/buttonSlice";
 import { axiosInstance } from "../../utils/axiosInstance";
-import { updateInput } from "../../store/actions";
 import { Eye, EyeOff } from "lucide-react";
-import { fetchUserDetails } from "../../store/actions/userActions";
 
 const LoginForm = () => {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // State to track password visibility
+  const [showPassword, setShowPassword] = useState(false);
 
-  const formData = useSelector((state) => ({
-    password: state.inputs.password || "test@gmail.com",
-    email: state.inputs.email || "test123",
-  }));
+  // Handle email input change
+  const handleEmailChange = (e) => {
+    setEmail(e.target.value);
+    setError("");
+  };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    dispatch(updateInput({ name, value }));
+  // Handle password input change
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value);
+    setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    // Basic validation
+    if (!email.trim()) {
+      setError("Email cannot be empty");
+      return;
+    }
+
+    if (!password.trim()) {
+      setError("Password cannot be empty");
+      return;
+    }
+
+    // Simple email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
     setIsLoading(true);
 
-    let missingFields = [];
-    let invalidFields = [];
-
-    if (!formData.email) {
-      missingFields.push("email");
-    } else {
-      // Basic email format validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email)) {
-        invalidFields.push("email");
-      }
-    }
-    if (!formData.password) {
-      missingFields.push("password");
-    }
-
-    if (missingFields.length > 0) {
-      const message =
-        missingFields.length === 1
-          ? `${missingFields[0]} cannot be empty`
-          : `${missingFields.slice(0, -1).join(", ")} and ${missingFields.at(
-              -1
-            )} cannot be empty`;
-
-      setError(message);
-      setIsLoading(false);
-      console.log(error);
-      return;
-    }
-
-    if (invalidFields.length > 0) {
-      let message =
-        invalidFields.length === 1
-          ? `Enter a valid ${invalidFields[0]}`
-          : `${invalidFields.slice(0, -1).join(", ")} and ${invalidFields.at(
-              -1
-            )} are not valid.`;
-
-      setError(message);
-      setIsLoading(false);
-      return;
-    }
+    // Prepare login data with trimmed values
+    const loginData = {
+      email: email.trim(),
+      password: password.trim(),
+    };
 
     const userLoginAPI = process.env.REACT_APP_LOGIN_API;
-    console.log("API: ", userLoginAPI);
-    console.log("FormDATA", formData);
+
     try {
-      const response = await axiosInstance.post(userLoginAPI, formData, {
+      const response = await axiosInstance.post(userLoginAPI, loginData, {
         headers: {
           "Content-Type": "application/json",
         },
       });
-      console.log("Login response:", response);
-      if (response.status === 200) {
-        console.log("Login successful");
-        const accessToken = response.data.access;
-        const refreshToken = response.data.refresh;
-        localStorage.setItem("access_token", accessToken);
-        localStorage.setItem("refresh_token", refreshToken);
-        dispatch(fetchUserDetails(accessToken));
-      }
 
-      //  localStorage
-      if (response.data.access) {
+      if (response.status === 200) {
+        // Store tokens in localStorage
         localStorage.setItem("access_token", response.data.access);
-      }
+        localStorage.setItem("refresh_token", response.data.refresh);
 
-      if (response.status === 200) {
-        dispatch(login());
-        dispatch(enableButton());
+        // Navigate to home page on successful login
         navigate("/");
       }
     } catch (error) {
       if (error.response) {
-        if (error.response.status === 404) {
-          setError("Invalid Email");
+        if (error.response.status === 401) {
+          setError("Invalid email or password");
+        } else if (error.response.status === 404) {
+          setError("Email not registered");
         } else if (error.response.status >= 500) {
-          setError("server issue please try again later");
+          setError("Server issue. Please try again later");
         } else if (error.response.data && error.response.data.error) {
           setError(error.response.data.error);
         } else {
-          setError("An error occurred. Please try again later.");
+          setError("Login failed. Please try again.");
         }
       } else if (error.request) {
         setError("Network error. Please check your connection and try again.");
       } else {
         setError("An unexpected error occurred. Please try again.");
       }
-      console.error("Login error:", error);
     } finally {
       setIsLoading(false);
     }
   };
+
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
 
   return (
-    <div className=" w-full">
-      <header className="text-center   px-4">
-        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">
+    <div className="w-full">
+      <header className="text-center px-4 mb-5">
+        <h1 className="text-xl md:text-3xl lg:text-4xl font-bold">
           WELCOME TO NxDesk
         </h1>
-        <p className="text-lg md:text-xl text-blue-900 font-semibold">
+        <p className="text-base md:text-xl text-blue-900 font-semibold mt-3">
           The Ultimate Ticketing Tool for all your issues
         </p>
       </header>
-      <div className=" bg-blue-50 p-6 md:p-12 rounded-3xl shadow-2xl w-full sm:w-10/12 md:w-7/12 lg:w-10/12 xl:w-8/12 mb-4 md:mb-6 mx-auto">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <FieldsetInputField
-            id="email"
-            label="Email Address"
-            type="text"
-            name="email"
-            onChange={handleInputChange}
-            required
-            disabled={isLoading}
-          />
-          <div className="relative">
-            <FieldsetInputField
-              id="password"
-              label="Password"
-              type={showPassword ? "text" : "password"}
-              name="password"
-              onChange={handleInputChange}
-              required
-              disabled={isLoading}
-              className="w-full outline-none bg-transparent pr-10"
-            />
-            <button
-              type="button"
-              onClick={togglePasswordVisibility}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-              aria-label={showPassword ? "Hide password" : "Show password"}
+      <div className="bg-blue-50 p-8 mt-3 md:p-8 rounded-3xl shadow-2xl w-full sm:w-10/12 md:w-7/12 lg:w-10/12 xl:w-8/12 mb-4 md:mb-6 mx-auto">
+        <div className="text-center mb-5">
+          <h2 className="text-xl font-bold text-gray-800">Login</h2>
+          <div className="mt-1 flex items-center justify-center">
+            <div className="h-1 w-16 bg-blue-500 rounded"></div>
+          </div>
+          <p className="text-gray-600 mt-3">
+            Please enter your credentials to access your account
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Email Input */}
+          <div>
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700 mb-1"
             >
-              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-            </button>
+              Email Address
+            </label>
+            <input
+              id="email"
+              type="text"
+              name="email"
+              value={email}
+              onChange={handleEmailChange}
+              className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              disabled={isLoading}
+            />
+          </div>
+
+          {/* Password Input */}
+          <div>
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Password
+            </label>
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={password}
+                onChange={handlePasswordChange}
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 pr-10"
+                disabled={isLoading}
+              />
+              <button
+                type="button"
+                onClick={togglePasswordVisibility}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           <div className="flex justify-between text-left">
@@ -177,14 +175,13 @@ const LoginForm = () => {
             >
               Forgot your password?
             </a>
-            <br />
           </div>
 
           <div className="text-center">
             <button
               type="submit"
               disabled={isLoading}
-              className={`px-6 py-2 text-white bg-blue-500 rounded-md transition-colors
+              className={`px-6 py-2 text-white bg-blue-500 rounded-md transition-colors w-full font-medium
               ${
                 isLoading
                   ? "bg-blue-400 cursor-not-allowed"
@@ -197,7 +194,7 @@ const LoginForm = () => {
 
           {error && (
             <div
-              className="text-red-500 text-center p-2 bg-red-50 rounded-md"
+              className="text-red-500 text-center p-1.5 bg-red-50 rounded-md"
               role="alert"
             >
               {error}

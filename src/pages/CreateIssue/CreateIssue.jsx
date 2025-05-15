@@ -530,6 +530,7 @@ export default function CreateIssue() {
         setImpactList(choicesList.data.impact_choices);
         setContactModeList(choicesList.data.contact_mode_choices);
         setPriorityList(priorityList.data);
+        console.log("Priorities List", priorityList)
         setUsersListWithOrganisations(usersListWithOrganisations.data);
         console.log("Solution Grps", subGroupsList.data);
 

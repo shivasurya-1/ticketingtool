@@ -46,12 +46,31 @@ function Sidebar() {
     projects: false,
   });
 
+  // Track open nested sections
+  const [openNestedSections, setOpenNestedSections] = useState({
+    createTicket: false,
+  });
+
+  // Toggle nested section visibility
+  const toggleNestedSection = (section, event) => {
+    // Prevent the click from navigating to parent link
+    event && event.preventDefault();
+    event && event.stopPropagation();
+    
+    setOpenNestedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
   // Configure which links are disabled (all enabled by default)
   const [disabledLinks, setDisabledLinks] = useState({
     // Set to true to disable specific links
     dashboard: false,
     incidents: false,
     createIncident: false,
+    reportIssue: false,
+    serviceRequest: true, // Disabled as requested
     myTickets: isAdmin, // Available for non-admin users only
     assignedToMe: isAdmin, // Available for non-admin users only
     grouptickets: false,
@@ -95,7 +114,7 @@ function Sidebar() {
         return true; // Show all items to admin by default
       } else {
         // For non-admin, only show these specific items by default
-        return ["dashboard", "incidents", "createIncident", "myTickets", "assignedToMe"].includes(item.id);
+        return ["dashboard", "incidents", "createIncident", "reportIssue", "serviceRequest", "myTickets", "assignedToMe"].includes(item.id);
       }
     }
     
@@ -157,9 +176,26 @@ function Sidebar() {
         {
           id: "createIncident",
           name: "Create Ticket",
-          route: "/request-issue/application-support/sap/create-issue",
+          route: "#",
           icon: <PlusCircle size={16} />,
-          showForRoles: ["all"]
+          showForRoles: ["all"],
+          hasSubItems: true,
+          subItems: [
+            {
+              id: "reportIssue",
+              name: "Report an Issue",
+              route: "/request-issue",
+              icon: <AlertTriangle size={14} />,
+              showForRoles: ["all"]
+            },
+            {
+              id: "serviceRequest",
+              name: "Raise a Service Request",
+              route: "/request-service",
+              icon: <Ticket size={14} />,
+              showForRoles: ["all"]
+            }
+          ]
         },
         {
           id: "myTickets",
@@ -391,15 +427,104 @@ function Sidebar() {
 
   // Check if current route is in a section to auto-expand it
   useEffect(() => {
+    // Check main sections
     sidebarGroups.forEach((group) => {
       const isActiveSection = group.items.some(
-        (item) => item.route === location.pathname
+        (item) => {
+          // Check if the main item matches the current path
+          if (item.route === location.pathname) return true;
+          
+          // Check if any subitem matches the current path
+          if (item.subItems) {
+            return item.subItems.some(subItem => subItem.route === location.pathname);
+          }
+          
+          return false;
+        }
       );
+      
       if (isActiveSection) {
         setOpenSections((prev) => ({ ...prev, [group.id]: true }));
       }
     });
+    
+    // Check nested sections
+    sidebarGroups.forEach((group) => {
+      group.items.forEach((item) => {
+        if (item.subItems) {
+          const isActiveNestedSection = item.subItems.some(
+            (subItem) => subItem.route === location.pathname
+          );
+          
+          if (isActiveNestedSection) {
+            setOpenNestedSections((prev) => ({ ...prev, [item.id]: true }));
+          }
+        }
+      });
+    });
   }, [location.pathname]);
+
+  // Helper function to check if an item or any of its subitems is active
+  const isItemActive = (item) => {
+    if (item.route === location.pathname) return true;
+    
+    if (item.subItems) {
+      return item.subItems.some(subItem => subItem.route === location.pathname);
+    }
+    
+    return false;
+  };
+
+  // Render sub-menu items
+  const renderSubMenuItems = (parentItem) => {
+    if (!parentItem.subItems || !openNestedSections[parentItem.id]) return null;
+    
+    return (
+      <div className="pl-6 pt-1 pb-1 space-y-1">
+        {parentItem.subItems.map((subItem) => {
+          // Skip rendering if subitem shouldn't be shown for current role
+          if (!getItemVisibility(subItem)) {
+            return null;
+          }
+
+          const isActive = location.pathname === subItem.route;
+          const isDisabled = disabledLinks[subItem.id];
+
+          const linkClasses = `flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-all duration-200 ${
+            isDisabled
+              ? "opacity-50 cursor-not-allowed text-blue-200"
+              : isActive
+              ? "bg-white/20 text-white"
+              : "hover:bg-blue-700/40 text-blue-100"
+          }`;
+
+          if (isDisabled) {
+            return (
+              <div
+                key={subItem.id}
+                className={linkClasses}
+                title="This feature is currently disabled"
+              >
+                {subItem.icon}
+                <span className="flex-grow truncate">{subItem.name}</span>
+                <Lock size={12} className="ml-auto opacity-70" />
+              </div>
+            );
+          }
+
+          return (
+            <Link key={subItem.id} to={subItem.route} className={linkClasses}>
+              {subItem.icon}
+              <span className="flex-grow truncate">{subItem.name}</span>
+              {isActive && (
+                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white"></span>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+    );
+  };
 
   // Render link with disabled state handling
   const renderLink = (item) => {
@@ -410,7 +535,9 @@ function Sidebar() {
 
     const isActive = location.pathname === item.route;
     const isDisabled = disabledLinks[item.id];
+    const hasSubItems = item.hasSubItems;
 
+    // Custom classes for parent items with subitems
     const linkClasses = `flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all duration-200 ${
       isDisabled
         ? "opacity-50 cursor-not-allowed text-blue-200"
@@ -419,6 +546,40 @@ function Sidebar() {
         : "hover:bg-blue-700/40 text-blue-100"
     }`;
 
+    // If item has subitems, render a button that toggles subitem visibility
+    if (hasSubItems) {
+      const isActive = isItemActive(item);
+      
+      return (
+        <div key={item.id} className="w-full">
+          <button
+            onClick={(e) => toggleNestedSection(item.id, e)}
+            className={`${isActive ? "bg-white/20 text-white" : "text-blue-100 hover:bg-blue-700/40"} flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all duration-200 w-full justify-between ${isDisabled ? "opacity-50 cursor-not-allowed text-blue-200" : ""}`}
+            disabled={isDisabled}
+          >
+            <div className="flex items-center gap-2">
+              {item.icon}
+              <span className="truncate">{item.name}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              {isActive && (
+                <span className="h-1.5 w-1.5 rounded-full bg-white"></span>
+              )}
+              {isDisabled ? (
+                <Lock size={12} className="opacity-70" />
+              ) : openNestedSections[item.id] ? (
+                <ChevronUp size={14} />
+              ) : (
+                <ChevronDown size={14} />
+              )}
+            </div>
+          </button>
+          {renderSubMenuItems(item)}
+        </div>
+      );
+    }
+
+    // For disabled items
     if (isDisabled) {
       return (
         <div
@@ -433,6 +594,7 @@ function Sidebar() {
       );
     }
 
+    // For regular items
     return (
       <Link key={item.id} to={item.route} className={linkClasses}>
         {item.icon}

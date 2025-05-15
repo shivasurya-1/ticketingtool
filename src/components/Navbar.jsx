@@ -12,7 +12,7 @@ import {
   LogOut,
   Loader2,
   Menu,
-  X
+  X,
 } from "lucide-react";
 
 const navItems = [
@@ -58,8 +58,11 @@ const Navbar = ({ isLoading = false }) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsProfileDropdownOpen(false);
       }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target) && 
-          !event.target.closest('.mobile-menu-button')) {
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(event.target) &&
+        !event.target.closest(".mobile-menu-button")
+      ) {
         setIsMenuOpen(false);
       }
     };
@@ -74,7 +77,7 @@ const Navbar = ({ isLoading = false }) => {
   const onClickSignOutBtn = () => {
     if (!isLoading) {
       dispatch(logout());
-      navigate("/login");
+      navigate("/login", { replace: true });
     }
   };
 
@@ -84,11 +87,13 @@ const Navbar = ({ isLoading = false }) => {
         <div className="absolute inset-0 bg-white bg-opacity-70 z-50 flex items-center justify-center rounded-lg">
           <div className="flex flex-col items-center">
             <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
-            <span className="mt-1 text-sm font-medium text-blue-800">Work in progress...</span>
+            <span className="mt-1 text-sm font-medium text-blue-800">
+              Work in progress...
+            </span>
           </div>
         </div>
       )}
-      
+
       <header className="w-full shadow-sm bg-white">
         <div className="container mx-auto">
           <nav className="px-4 py-2">
@@ -106,7 +111,7 @@ const Navbar = ({ isLoading = false }) => {
               </Link>
 
               {/* Mobile menu button */}
-              <button 
+              <button
                 className="md:hidden mobile-menu-button p-1 rounded-md hover:bg-blue-50 focus:outline-none"
                 onClick={toggleMobileMenu}
                 disabled={isLoading}
@@ -117,13 +122,13 @@ const Navbar = ({ isLoading = false }) => {
                   <Menu className="w-5 h-5 text-gray-600" />
                 )}
               </button>
-<ul className="flex space-x-1">
-                  {navItems.map((item) => (
-                    <li key={item.path}>
-                      <Link
-                        to={item.path}
-                        onClick={() => handleNavItemClick(item)}
-                        className={`
+              <ul className="flex space-x-1">
+                {navItems.map((item) => (
+                  <li key={item.path}>
+                    <Link
+                      to={item.path}
+                      onClick={() => handleNavItemClick(item)}
+                      className={`
                           px-3 py-1.5 rounded-md transition-all text-sm font-medium
                           ${
                             activePage === item.name
@@ -131,17 +136,15 @@ const Navbar = ({ isLoading = false }) => {
                               : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
                           }
                         `}
-                      >
-                        {item.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+                    >
+                      {item.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
               {/* Navigation and Profile Section */}
               <div className="hidden md:flex items-center justify-between space-x-4">
                 {/* Navigation Items */}
-                
-
 
                 {/* Profile Section */}
                 <div className="relative" ref={dropdownRef}>
@@ -164,7 +167,7 @@ const Navbar = ({ isLoading = false }) => {
                     </div>
                     <div className="hidden sm:block">
                       <p className="text-gray-800 font-medium text-xs leading-tight">
-                        {userProfile ? userProfile.first_name : "Guest"}
+                        {userProfile ? userProfile.username : "Guest"}
                       </p>
                       <p className="text-gray-500 text-xs">
                         {userProfile ? userProfile.role || "User" : "Sign in"}
@@ -183,7 +186,9 @@ const Navbar = ({ isLoading = false }) => {
                       <div className="p-3 border-b border-gray-50 bg-white">
                         <p className="font-medium text-gray-800 text-sm">
                           {userProfile
-                            ? `${userProfile.first_name} ${userProfile.last_name || ""}`
+                            ? `${userProfile.first_name} ${
+                                userProfile.last_name || ""
+                              }`
                             : "Guest User"}
                         </p>
                         <p className="text-xs text-gray-500 truncate">
@@ -206,7 +211,7 @@ const Navbar = ({ isLoading = false }) => {
                           <User className="w-3.5 h-3.5 mr-2 text-blue-500" />
                           Your Profile
                         </div>
-                        <div
+                        {/* <div
                           className="px-3 py-1.5 text-xs text-gray-700 hover:bg-blue-50 cursor-pointer flex items-center"
                           onClick={() => {
                             if (!isLoading) {
@@ -217,9 +222,9 @@ const Navbar = ({ isLoading = false }) => {
                         >
                           <Settings className="w-3.5 h-3.5 mr-2 text-blue-500" />
                           Settings
-                        </div>
+                        </div> */}
                         <div className="border-t border-gray-50 my-1"></div>
-                        <div 
+                        <div
                           className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 cursor-pointer flex items-center"
                           onClick={onClickSignOutBtn}
                         >
@@ -236,7 +241,10 @@ const Navbar = ({ isLoading = false }) => {
 
           {/* Mobile Menu */}
           {isMenuOpen && (
-            <div className="md:hidden bg-white py-2 border-t border-blue-50 rounded-b-lg" ref={mobileMenuRef}>
+            <div
+              className="md:hidden bg-white py-2 border-t border-blue-50 rounded-b-lg"
+              ref={mobileMenuRef}
+            >
               <ul className="space-y-1 px-4">
                 {navItems.map((item) => (
                   <li key={item.path}>
@@ -318,7 +326,7 @@ const Navbar = ({ isLoading = false }) => {
                     <Settings className="w-3.5 h-3.5 mr-2 text-blue-500" />
                     Settings
                   </div>
-                  <div 
+                  <div
                     className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-md cursor-pointer flex items-center"
                     onClick={onClickSignOutBtn}
                   >
