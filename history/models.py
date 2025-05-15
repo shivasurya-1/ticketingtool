@@ -27,6 +27,7 @@ class History(models.Model):
         return self.title
 
 class Reports(models.Model):
+
     report_id = models.AutoField(primary_key=True)  # Primary Key
     title = models.TextField()  
     created_at = models.DateTimeField(auto_now_add=True)  # Timestamp when created

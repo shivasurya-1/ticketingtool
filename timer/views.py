@@ -31,6 +31,11 @@ from .serializers import (
     TicketCommentCreateSerializer,
     TicketCommentListSerializer
 )
+from rest_framework import serializers
+from rest_framework.serializers import ValidationError
+from django.db.models import Q
+ 
+ 
 
 
 
@@ -248,6 +253,64 @@ class CreateTicketAPIView(APIView):
     #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
  
   
+    # def post(self, request):
+    #     self.permission_required = "create_ticket"
+    #     if not HasRolePermission.has_permission(self, request, self.permission_required):
+    #         return Response({"detail": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+ 
+    #     data = request.data.copy()
+    #     data["created_by"] = request.user.id
+ 
+    #     ticket_id = data.get("ticket_id", "")
+    #     prefix = ''.join([c for c in ticket_id if c.isalpha()])
+ 
+    #     existing_ids = Ticket.objects.filter(ticket_id__startswith=prefix).values_list('ticket_id', flat=True)
+    #     if ticket_id in existing_ids:
+    #         last_id = sorted(existing_ids)[-1]
+    #         data["ticket_id"] = increment_id(last_id)
+ 
+    #     # Collect attachments
+    #     attachments_data = request.FILES.getlist('attachments') or request.FILES.getlist('attachment')
+ 
+    #     # Pass data to serializer directly
+    #     serializer = TicketSerializer(data=data)
+    #     if serializer.is_valid():
+    #         ticket = serializer.save(created_by=request.user, is_active=bool(data.get('assignee')))
+ 
+    #         # Save attachments
+    #         for file in attachments_data:
+    #             Attachment.objects.create(ticket=ticket, file=file)
+ 
+    #         # Email notifications and ticket history
+    #         if ticket.assignee:
+    #             engineer_email = ticket.assignee.email if ticket.assignee else None
+    #             requester_email = ticket.created_by.email if ticket.created_by else None
+    #             developer_organisation = ticket.assignee.organisation.organisation_mail if ticket.assignee and ticket.assignee.organisation else None
+ 
+    #             send_ticket_creation_email.delay(
+    #                 ticket.ticket_id,
+    #                 engineer_email,
+    #                 requester_email,
+    #                 developer_organisation
+    #             )
+ 
+    #             history_data = {
+    #                 "title": f"{request.user.username} created Ticket",
+    #                 "ticket": ticket.ticket_id,
+    #                 "created_by": request.user.id
+    #             }
+    #             history_serializer = TicketHistorySerializer(data=history_data)
+    #             if history_serializer.is_valid():
+    #                 history_serializer.save(modified_by=request.user)
+ 
+    #             return Response({"message": "Ticket created successfully", "ticket_id": ticket.ticket_id}, status=status.HTTP_201_CREATED)
+ 
+    #         return Response({"message": "Ticket Sent to Dispatcher successfully", "ticket_id": ticket.ticket_id}, status=status.HTTP_201_CREATED)
+ 
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)    15/05/25
+
+
+     
     def post(self, request):
         self.permission_required = "create_ticket"
         if not HasRolePermission.has_permission(self, request, self.permission_required):
@@ -256,53 +319,72 @@ class CreateTicketAPIView(APIView):
         data = request.data.copy()
         data["created_by"] = request.user.id
  
+        # Handle ticket ID generation
         ticket_id = data.get("ticket_id", "")
         prefix = ''.join([c for c in ticket_id if c.isalpha()])
- 
         existing_ids = Ticket.objects.filter(ticket_id__startswith=prefix).values_list('ticket_id', flat=True)
         if ticket_id in existing_ids:
             last_id = sorted(existing_ids)[-1]
             data["ticket_id"] = increment_id(last_id)
  
-        # Collect attachments
+        # Handle file attachments
         attachments_data = request.FILES.getlist('attachments') or request.FILES.getlist('attachment')
  
-        # Pass data to serializer directly
+        # Validate foreign keys only if assignee is passed
+        assignee_present = str(data.get('assignee', '')).strip()
+        if assignee_present:
+            serializer = TicketSerializer(data=data)
+            try:
+                data['assignee'] = serializer.validate_assignee(data['assignee'])
+                data['developer_organization'] = serializer.validate_developer_organization(data['developer_organization'])
+                data['solution_grp'] = serializer.validate_solution_grp(data['solution_grp'])
+            except serializers.ValidationError as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+ 
+        # Save ticket
         serializer = TicketSerializer(data=data)
         if serializer.is_valid():
-            ticket = serializer.save(created_by=request.user, is_active=bool(data.get('assignee')))
+            ticket = serializer.save(
+                created_by=request.user,
+                modified_by=request.user,
+                is_active=True  # ✅ Always active to make it appear in lists
+            )
  
             # Save attachments
             for file in attachments_data:
                 Attachment.objects.create(ticket=ticket, file=file)
  
-            # Email notifications and ticket history
+            # Send email and log history if assignee present
             if ticket.assignee:
-                engineer_email = ticket.assignee.email if ticket.assignee else None
-                requester_email = ticket.created_by.email if ticket.created_by else None
-                developer_organisation = ticket.assignee.organisation.organisation_mail if ticket.assignee and ticket.assignee.organisation else None
+                engineer_email = ticket.assignee.email
+                requester_email = request.user.email
+                dev_org_email = ticket.assignee.organisation.organisation_mail if ticket.assignee.organisation else None
  
                 send_ticket_creation_email.delay(
                     ticket.ticket_id,
-                    engineer_email,
+                    engineer_email,  
                     requester_email,
-                    developer_organisation
+                    dev_org_email
                 )
  
-                history_data = {
-                    "title": f"{request.user.username} created Ticket",
-                    "ticket": ticket.ticket_id,
-                    "created_by": request.user.id
-                }
-                history_serializer = TicketHistorySerializer(data=history_data)
-                if history_serializer.is_valid():
-                    history_serializer.save(modified_by=request.user)
+            # Always log ticket creation
+            history_data = {
+                "title": f"{request.user.username} created Ticket",
+                "ticket": ticket.ticket_id,
+                "created_by": request.user.id
+            }
+            history_serializer = TicketHistorySerializer(data=history_data)
+            if history_serializer.is_valid():
+                history_serializer.save(modified_by=request.user)
  
-                return Response({"message": "Ticket created successfully", "ticket_id": ticket.ticket_id}, status=status.HTTP_201_CREATED)
- 
-            return Response({"message": "Ticket Sent to Dispatcher successfully", "ticket_id": ticket.ticket_id}, status=status.HTTP_201_CREATED)
+            return Response({
+                "message": "Ticket created successfully",
+                "ticket_id": ticket.ticket_id
+            }, status=status.HTTP_201_CREATED)
  
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+ 
+ 
  
 
 
@@ -310,54 +392,111 @@ class ListTicketAPIView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def get(self, request,assignee=None):
+    # def get(self, request,assignee=None):
+    #     self.permission_required = "view_ticket"
+    #     HasRolePermission.has_permission(self, request, self.permission_required)
+
+    #     print(f"Logged-in user: {request.user}")
+    #     print(f"User ID: {request.user.id}")
+    #     print(request.query_params.get)
+    #     # If user has Admin role, show all tickets
+  
+
+    #     if UserRole.objects.filter(user=request.user, role__name='Admin',is_active= True).exists():
+    #         all_tickets = Ticket.objects.filter(is_active= True)
+    #         paginator = LimitOffsetPagination()
+    #         paginated = paginator.paginate_queryset(all_tickets, request, view=self)
+    #         serializer = TicketSerializer(paginated, many=True)
+    #         return paginator.get_paginated_response({
+    #             "all_tickets": serializer.data
+    #         })
+    #     # Otherwise, show created and assigned tickets
+    #     created_tickets = Ticket.objects.filter(created_by=request.user,is_active= True)
+
+    #     assigned_tickets = Ticket.objects.filter(assignee=request.user,is_active= True).exclude(
+    #         ticket_id__in=created_tickets.values_list('ticket_id', flat=True)
+    #     )
+    #     all_tickets_user = Ticket.objects.filter(assignee=request.user,is_active= True)
+
+    #     paginator_assignee = LimitOffsetPagination()
+    #     paginator_created = LimitOffsetPagination()
+    #     all_paginator=LimitOffsetPagination()
+    #     paginated_created = paginator_created.paginate_queryset(created_tickets, request, view=self)
+    #     paginated_assigned = paginator_assignee.paginate_queryset(assigned_tickets, request, view=self)
+    #     all_paginated_1= all_paginator.paginate_queryset(created_tickets|all_tickets_user, request, view=self)
+    #     all_serializer  = TicketSerializer(all_paginated_1, many=True)
+    #     created_serializer = TicketSerializer(paginated_created, many=True)
+    #     assigned_serializer = TicketSerializer(paginated_assigned, many=True)
+    #     if request.query_params.get('created')=='True':
+    #         return paginator_created.get_paginated_response({
+    #                 "all_tickets": created_serializer.data
+    #             })
+    #     if request.query_params.get('assignee')=='True':
+    #         return paginator_assignee.get_paginated_response({
+    #                 "all_tickets": assigned_serializer.data
+    #             })
+    #     else:
+
+    #         return paginator_created.get_paginated_response({
+    #                 "all_tickets": all_serializer.data
+    #             })      
+
+     
+    def get(self, request, assignee=None):
         self.permission_required = "view_ticket"
         HasRolePermission.has_permission(self, request, self.permission_required)
-
+ 
         print(f"Logged-in user: {request.user}")
         print(f"User ID: {request.user.id}")
         print(request.query_params.get)
-        # If user has Admin role, show all tickets
-  
-
-        if UserRole.objects.filter(user=request.user, role__name='Admin',is_active= True).exists():
-            all_tickets = Ticket.objects.filter(is_active= True)
+ 
+        # If user is Admin, return all active tickets
+        if UserRole.objects.filter(user=request.user, role__name='Admin', is_active=True).exists():
+            all_tickets = Ticket.objects.filter(is_active=True)
             paginator = LimitOffsetPagination()
             paginated = paginator.paginate_queryset(all_tickets, request, view=self)
             serializer = TicketSerializer(paginated, many=True)
             return paginator.get_paginated_response({
                 "all_tickets": serializer.data
             })
-        # Otherwise, show created and assigned tickets
-        created_tickets = Ticket.objects.filter(created_by=request.user,is_active= True)
-
-        assigned_tickets = Ticket.objects.filter(assignee=request.user,is_active= True).exclude(
+ 
+        # If user is not admin, get created, assigned, and all tickets involving the user
+        created_tickets = Ticket.objects.filter(created_by=request.user)
+        assigned_tickets = Ticket.objects.filter(assignee=request.user).exclude(
             ticket_id__in=created_tickets.values_list('ticket_id', flat=True)
         )
-        all_tickets_user = Ticket.objects.filter(assignee=request.user,is_active= True)
-
-        paginator_assignee = LimitOffsetPagination()
+        all_tickets_user = Ticket.objects.filter(
+            Q(created_by=request.user) | Q(assignee=request.user)
+        ).distinct()
+ 
+        # Pagination
         paginator_created = LimitOffsetPagination()
-        all_paginator=LimitOffsetPagination()
+        paginator_assigned = LimitOffsetPagination()
+        paginator_all = LimitOffsetPagination()
+ 
         paginated_created = paginator_created.paginate_queryset(created_tickets, request, view=self)
-        paginated_assigned = paginator_assignee.paginate_queryset(assigned_tickets, request, view=self)
-        all_paginated_1= all_paginator.paginate_queryset(created_tickets|all_tickets_user, request, view=self)
-        all_serializer  = TicketSerializer(all_paginated_1, many=True)
+        paginated_assigned = paginator_assigned.paginate_queryset(assigned_tickets, request, view=self)
+        paginated_all = paginator_all.paginate_queryset(all_tickets_user, request, view=self)
+ 
         created_serializer = TicketSerializer(paginated_created, many=True)
         assigned_serializer = TicketSerializer(paginated_assigned, many=True)
-        if request.query_params.get('created')=='True':
+        all_serializer = TicketSerializer(paginated_all, many=True)
+ 
+        # Filter by query param
+        if request.query_params.get('created') == 'True':
             return paginator_created.get_paginated_response({
-                    "all_tickets": created_serializer.data
-                })
-        if request.query_params.get('assignee')=='True':
-            return paginator_assignee.get_paginated_response({
-                    "all_tickets": assigned_serializer.data
-                })
+                "all_tickets": created_serializer.data
+            })
+        elif request.query_params.get('assignee') == 'True':
+            return paginator_assigned.get_paginated_response({
+                "all_tickets": assigned_serializer.data
+            })
         else:
-
-            return paginator_created.get_paginated_response({
-                    "all_tickets": all_serializer.data
-                })      
+            return paginator_all.get_paginated_response({
+                "all_tickets": all_serializer.data
+            })
+ 
+ 
             
 
 class DashboardTicketAPIView(APIView):
@@ -501,12 +640,49 @@ class dispatcherAPIView(APIView):
                 "all_tickets": serializer.data
             })
         return Response({"No tickets"}, status=status.HTTP_400_BAD_REQUEST)
+    # def put(self, request, *args, **kwargs):
+    #     self.permission_required = "create_ticket"
+        
+    #     # if not HasRolePermission.has_permission(self, request, self.permission_required):
+    #     #     return Response({"error": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+
+    #     ticket_id = request.data.get("ticket_id")
+    #     if not ticket_id:
+    #         return Response({"error": "Ticket ID is required for update."}, status=status.HTTP_400_BAD_REQUEST)
+
+    #     try:
+    #         ticket = Ticket.objects.get(ticket_id=ticket_id)
+    #     except Ticket.DoesNotExist:
+    #         return Response({"error": "Ticket not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    #     data = request.data.copy()
+    #     print(data)
+
+    #     serializer = TicketSerializer(ticket, data=data, partial=True)
+    #     data['assignee']=serializer.validate_assignee(data['assignee'])
+        
+    #     print("********")
+    #     print("********")
+    #     if data['developer_organization']:
+    #         data['developer_organization']=serializer.validate_developer_organization(data['developer_organization'])
+    #         data['solution_grp']=serializer.validate_solution_grp(data['solution_grp'])
+      
+    #     if serializer.is_valid():
+            
+    #         updated_ticket = serializer.save(modified_by=request.user)
+            
+           
+
+    #         return Response({
+    #             "message": "Ticket updated successfully",
+    #             "ticket_id": updated_ticket.ticket_id
+    #         }, status=status.HTTP_200_OK)
+    #     else:
+    #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     def put(self, request, *args, **kwargs):
         self.permission_required = "create_ticket"
         
-        # if not HasRolePermission.has_permission(self, request, self.permission_required):
-        #     return Response({"error": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
-
         ticket_id = request.data.get("ticket_id")
         if not ticket_id:
             return Response({"error": "Ticket ID is required for update."}, status=status.HTTP_400_BAD_REQUEST)
@@ -517,23 +693,12 @@ class dispatcherAPIView(APIView):
             return Response({"error": "Ticket not found."}, status=status.HTTP_404_NOT_FOUND)
 
         data = request.data.copy()
-        print(data)
 
         serializer = TicketSerializer(ticket, data=data, partial=True)
-        data['assignee']=serializer.validate_assignee(data['assignee'])
         
-        print("********")
-        print("********")
-        if data['developer_organization']:
-            data['developer_organization']=serializer.validate_developer_organization(data['developer_organization'])
-            data['solution_grp']=serializer.validate_solution_grp(data['solution_grp'])
-      
+        # This will now trigger all field-specific validations
         if serializer.is_valid():
-            
             updated_ticket = serializer.save(modified_by=request.user)
-            
-           
-
             return Response({
                 "message": "Ticket updated successfully",
                 "ticket_id": updated_ticket.ticket_id
@@ -541,7 +706,6 @@ class dispatcherAPIView(APIView):
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-  
             
 class TotalTicketsAPIViewCount(APIView):
     authentication_classes = [JWTAuthentication]

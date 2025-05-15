@@ -89,7 +89,7 @@ class Ticket(models.Model):
     ticket_id = models.CharField(
         max_length=32, primary_key=True, unique=True, editable=True
     )
-    summary = models.CharField(max_length=50)
+    summary = models.CharField(max_length=250)
     description = models.TextField()
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='open')
 

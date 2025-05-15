@@ -170,6 +170,12 @@ class TicketSerializer(serializers.ModelSerializer):
             'created_by': {'read_only': True},
             'modified_by': {'read_only': True},
         }
+
+    def validate_assignee(self, value):
+        """Custom validation for the assignee field."""
+        if value and not User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Assignee does not exist.")
+        return value
  
     def get_attachments(self, obj):
         """Return only the file URLs for attachments."""
