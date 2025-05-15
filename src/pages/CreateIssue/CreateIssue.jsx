@@ -530,14 +530,14 @@ export default function CreateIssue() {
         setImpactList(choicesList.data.impact_choices);
         setContactModeList(choicesList.data.contact_mode_choices);
         setPriorityList(priorityList.data);
-        console.log("Priorities List", priorityList)
+        console.log("Priorities List", priorityList);
         setUsersListWithOrganisations(usersListWithOrganisations.data);
         console.log("Solution Grps", subGroupsList.data);
 
         // Set Low priority as default
         if (priorityList.data) {
           const priorityMinorChoice = priorityList.data.find(
-            (choice) => choice.urgency_name === "Minor"
+            (choice) => choice.urgency_name === "Trivial"
           );
           if (priorityMinorChoice) {
             setFormData((prev) => ({
@@ -828,6 +828,7 @@ export default function CreateIssue() {
       setNewMessage("");
       setExpandEditor(false);
       setFormErrors({});
+      window.location.reload();
     } catch (error) {
       console.log("Ticket Not Creating", error);
       toast.error("There was an error creating the issue.");

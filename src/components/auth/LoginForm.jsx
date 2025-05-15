@@ -3,8 +3,11 @@ import { useNavigate } from "react-router-dom";
 import FieldsetInputField from "../common/FieldsetInputField";
 import { axiosInstance } from "../../utils/axiosInstance";
 import { Eye, EyeOff } from "lucide-react";
+import { fetchUserDetails } from "../../store/actions/userActions";
+import { useDispatch } from "react-redux";
 
 const LoginForm = () => {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -65,8 +68,11 @@ const LoginForm = () => {
 
       if (response.status === 200) {
         // Store tokens in localStorage
-        localStorage.setItem("access_token", response.data.access);
+        const accessToken = response.data.access;
+        localStorage.setItem("access_token", accessToken);
         localStorage.setItem("refresh_token", response.data.refresh);
+
+        dispatch(fetchUserDetails(accessToken));
 
         // Navigate to home page on successful login
         navigate("/");
@@ -74,7 +80,7 @@ const LoginForm = () => {
     } catch (error) {
       if (error.response) {
         if (error.response.status === 401) {
-          setError("Invalid email or password");
+          setError(error?.response?.data?.error);
         } else if (error.response.status === 404) {
           setError("Email not registered");
         } else if (error.response.status >= 500) {

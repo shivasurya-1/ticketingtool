@@ -66,7 +66,7 @@ function Sidebar() {
   // Configure which links are disabled (all enabled by default)
   const [disabledLinks, setDisabledLinks] = useState({
     // Set to true to disable specific links
-    dashboard: false,
+    dashboard: true,
     incidents: false,
     createIncident: false,
     reportIssue: false,

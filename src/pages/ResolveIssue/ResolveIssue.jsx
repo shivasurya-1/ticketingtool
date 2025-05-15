@@ -311,7 +311,7 @@ export default function ResolveIssue() {
             {ticket.status === "Resolved" ? (
               <button
                 type="button"
-                className="border rounded px-2 py-0.5 text-xs bg-green-50 text-green-700 hover:bg-green-100"
+                className="border rounded px-4 py-2 text-xs bg-green-50 text-green-700 hover:bg-green-100"
               >
                 Resolved
               </button>
@@ -324,21 +324,21 @@ export default function ResolveIssue() {
                       <>
                         <button
                           type="button"
-                          className="border rounded px-2 py-0.5 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
+                          className="border rounded px-4 py-2 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
                           onClick={handleStartWork}
                         >
                           Start Work
                         </button>
                         <button
                           type="button"
-                          className="border rounded px-2 py-0.5 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
+                          className="border rounded px-4 py-2 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
                         >
                           Assign
                         </button>
 
                         <button
                           type="button"
-                          className="border rounded px-2 py-0.5 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
+                          className="border rounded px-4 py-2 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
                         >
                           Change Priority
                         </button>
@@ -347,21 +347,21 @@ export default function ResolveIssue() {
                       <>
                         <button
                           type="button"
-                          className="border rounded px-2 py-0.5 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100"
+                          className="border rounded px-4 py-2 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100"
                           onClick={handleQuestionToUser}
                         >
                           Question to User
                         </button>
                         <button
                           type="button"
-                          className="border rounded px-2 py-0.5 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
+                          className="border rounded px-4 py-2 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
                         >
                           Assign
                         </button>
 
                         <button
                           type="button"
-                          className="border rounded px-2 py-0.5 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
+                          className="border rounded px-4 py-2 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100"
                         >
                           Change Priority
                         </button>
@@ -426,7 +426,7 @@ export default function ResolveIssue() {
                   Description
                 </label>
                 <div
-                  className="border rounded px-2 py-1 text-sm flex-1 bg-gray-50 max-h-28 overflow-auto"
+                  className="border rounded px-2 py-1 text-sm flex-1 bg-gray-50 max-h-80 overflow-auto"
                   dangerouslySetInnerHTML={{
                     __html: ticket?.description || "No description provided",
                   }}
@@ -581,7 +581,7 @@ export default function ResolveIssue() {
         {/* Toast Container and Chatbot */}
         <ChatbotPopup />
         <ToastContainer
-          position="bottom-right"
+          position="top-right"
           autoClose={3000}
           hideProgressBar={false}
           newestOnTop={false}

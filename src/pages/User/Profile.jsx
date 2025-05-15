@@ -263,14 +263,20 @@ export default function Profile() {
     }
   };
 
-  const isProfileIncomplete = () => {
-    return (
-      !userProfile.emp_id ||
-      !userProfile.department ||
-      !userProfile.first_name ||
-      !userProfile.last_name
-    );
-  };
+ const isProfileIncomplete = () => {
+  const requiredFields = [
+    userProfile.first_name,
+    userProfile.last_name,
+    userProfile.employee_id,
+    userProfile.department,
+    userProfile.phone_number
+  ];
+
+  return requiredFields.some(field => {
+    if (field === null || field === undefined) return true;
+    return String(field).trim() === '';
+  });
+};
 
   // Format phone number display for viewing mode
   const formatPhoneNumberForDisplay = (phone) => {
@@ -455,7 +461,7 @@ export default function Profile() {
                       <div className="flex-1">
                         <p className="text-xs text-gray-500">Employee ID</p>
                         <p className="text-sm font-medium">
-                          {userProfile.employee_id || "Not assigned yet"}
+                          {`EMP ${userProfile.employee_id}` || "Not assigned yet"}
                         </p>
                       </div>
                     </div>
