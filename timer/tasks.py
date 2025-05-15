@@ -7,66 +7,186 @@ from django.utils import timezone
 from datetime import timedelta
 from django.utils.html import strip_tags
 import os
-
 from .models import Ticket, Attachment, SLATimer
+from django.core.mail import send_mail, EmailMultiAlternatives
+from django.utils.html import strip_tags
+from datetime import datetime
+from django.template.loader import render_to_string
+from celery import shared_task
+from django.urls import reverse
+ 
 
 
+# @shared_task
+# def send_ticket_creation_email(ticket_id, engineer_email, requester_email, org_email):
+#     """
+#     Send notification emails when a new ticket is created.
+#     """
+#     try:
+#         ticket = Ticket.objects.select_related('developer_organization').get(ticket_id=ticket_id)
+#     except Ticket.DoesNotExist:
+#         raise Exception(f"Ticket with ID {ticket_id} not found.")
+
+#     subject = f"New Ticket Created: {ticket.ticket_id}"
+
+#     body = (
+#         f"Ticket Summary: {ticket.summary}\n"
+#         f"Description: {ticket.description}\n\n"
+#         f"Please log in to the system to view the ticket.\n\n"
+#         f"Thank you."
+#     )
+
+#     # Email to Engineer
+#     if engineer_email:
+#         engineer_msg = "A new ticket has been assigned to you.\n\n" + body
+#         send_mail(
+#             subject,
+#             engineer_msg,
+#             settings.EMAIL_HOST_USER,
+#             [engineer_email],
+#             fail_silently=False
+#         )
+
+#     # Email to Organization
+#     if org_email:
+#         org_msg = "A new ticket has been assigned to your organization.\n\n" + body
+#         send_mail(
+#             subject,
+#             org_msg,
+#             settings.EMAIL_HOST_USER,
+#             [org_email],
+#             fail_silently=False
+#         )
+#     else:
+#         print(f"No valid email found for developer organization of ticket {ticket.ticket_id}")
+
+#     # Email to Requester
+#     if requester_email:
+#         requester_msg = (
+#             f"Your ticket has been successfully created with ID: {ticket.ticket_id}\n\n" + body
+#         )
+#         send_mail(
+#             f"Ticket Created: {ticket.ticket_id}",
+#             requester_msg,
+#             settings.EMAIL_HOST_USER,
+#             [requester_email],
+#             fail_silently=False
+#         )
 @shared_task
-def send_ticket_creation_email(ticket_id, engineer_email, requester_email, org_email):
-    """
-    Send notification emails when a new ticket is created.
-    """
+def send_ticket_creation_email(ticket_id, engineer_email, requester_email, developer_org_email):
+    try:
+        Ticket = apps.get_model('timer', 'Ticket')
+        Attachment = apps.get_model('timer', 'Attachment')
+    except LookupError:
+        raise Exception("Required model not found in 'timer' app.")
+ 
     try:
         ticket = Ticket.objects.select_related('developer_organization').get(ticket_id=ticket_id)
     except Ticket.DoesNotExist:
         raise Exception(f"Ticket with ID {ticket_id} not found.")
-
-    subject = f"New Ticket Created: {ticket.ticket_id}"
-
-    body = (
-        f"Ticket Summary: {ticket.summary}\n"
+ 
+    ticket_url = f"{settings.SITE_URL}/tickets/{ticket.ticket_id}"
+    from_email = settings.DEFAULT_FROM_EMAIL
+    subject = f"🎫 New Ticket Created: {ticket.ticket_id}"
+ 
+    plain_body = (
+        f"Hello,\n\n"
+        f"A new ticket has been created.\n\n"
+        f"Ticket ID: {ticket.ticket_id}\n"
+        f"Summary: {ticket.summary}\n"
         f"Description: {ticket.description}\n\n"
-        f"Please log in to the system to view the ticket.\n\n"
-        f"Thank you."
+        f"Please log in to the system to view the ticket:\n{ticket_url}\n\n"
+        f"Thank you,\nThe Support Team"
     )
-
-    # Email to Engineer
-    if engineer_email:
-        engineer_msg = "A new ticket has been assigned to you.\n\n" + body
-        send_mail(
-            subject,
-            engineer_msg,
-            settings.EMAIL_HOST_USER,
-            [engineer_email],
-            fail_silently=False
-        )
-
-    # Email to Organization
-    if org_email:
-        org_msg = "A new ticket has been assigned to your organization.\n\n" + body
-        send_mail(
-            subject,
-            org_msg,
-            settings.EMAIL_HOST_USER,
-            [org_email],
-            fail_silently=False
-        )
-    else:
-        print(f"No valid email found for developer organization of ticket {ticket.ticket_id}")
-
-    # Email to Requester
+ 
+    base_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Ticket Created</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
+      <table align="center" width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+        <tr>
+          <td align="center" style="padding: 20px;">
+            <div style="
+                background-image: url('https://res.cloudinary.com/dxragmx2f/image/upload/v1746952549/NxTalk-02_bkbkpj.jpg');
+                background-size: cover;
+                background-repeat: no-repeat;
+                background-position: center;
+                width: 250px;
+                height: 100px;
+                margin: auto;
+                display: block;
+                border-radius: 8px;
+                "></div>
+          </td>
+        </tr>
+ 
+        <tr>
+          <td style="padding: 20px; text-align: center;">
+            <h3 style="color: green;">🎫 Ticket Successfully Created</h3>
+            <table align="center" style="margin-top: 10px; font-size: 16px;">
+              <tr>
+                <td><strong>Ticket ID:</strong></td>
+                <td style="padding-left: 10px;">{ticket.ticket_id}</td>
+              </tr>
+              <tr>
+                <td><strong>Summary:</strong></td>
+                <td style="padding-left: 10px;">{ticket.summary}</td>
+              </tr>
+              <tr>
+                <td><strong>Description:</strong></td>
+                <td style="padding-left: 10px;">{ticket.description}</td>
+              </tr>
+            </table>
+            <br>
+            <a href="{ticket_url}" target="_blank" style="
+              background-color: #28a745;
+              color: white;
+              padding: 10px 20px;
+              text-decoration: none;
+              border-radius: 5px;
+              display: inline-block;
+            ">View Ticket</a>
+            <br><br>
+            <p style="color: #555;">Thank you for your attention.<br>The Support Team</p>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+    """
+ 
+    def send_email_to(recipient, role):
+        role_note = {
+            'engineer': 'assigned to you',
+            'developer_org': 'assigned to your organization',
+            'requester': 'successfully created',
+        }[role]
+ 
+        personalized_plain = plain_body.replace("has been created", f"has been {role_note}")
+        personalized_html = base_html.replace("Successfully Created", role_note.capitalize())
+ 
+        msg = EmailMultiAlternatives(subject, personalized_plain, from_email, [recipient])
+        msg.attach_alternative(personalized_html, "text/html")
+ 
+        # Attach files
+        for attachment in ticket.attachments.all():
+            if attachment.file and os.path.isfile(attachment.file.path):
+                msg.attach_file(attachment.file.path)
+ 
+        msg.send(fail_silently=False)
+ 
+    # Send to each recipient
+    if ticket.assignee:
+        send_email_to(ticket.assignee.email, 'engineer')
+    if developer_org_email:
+        send_email_to(developer_org_email, 'developer_org')
     if requester_email:
-        requester_msg = (
-            f"Your ticket has been successfully created with ID: {ticket.ticket_id}\n\n" + body
-        )
-        send_mail(
-            f"Ticket Created: {ticket.ticket_id}",
-            requester_msg,
-            settings.EMAIL_HOST_USER,
-            [requester_email],
-            fail_silently=False
-        )
-
+        send_email_to(requester_email, 'requester')
+ 
 
 @shared_task
 def send_assignment_email(engineer_username, engineer_email, ticket_summary, ticket_description):
