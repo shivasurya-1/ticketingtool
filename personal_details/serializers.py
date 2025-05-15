@@ -105,7 +105,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     email = serializers.ReadOnlyField(source="user.email")
     created_by = serializers.ReadOnlyField(source="created_by.id")
     modified_by = serializers.ReadOnlyField(source="modified_by.id")
- 
+    employee_id = serializers.SerializerMethodField()
  
    
     class Meta:
@@ -179,4 +179,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
            
         instance.save()
         return instance
- 
+    
+    def get_employee_id(self, obj):
+        try:
+            return obj.user.user_roles.first().employee.employee_id
+        except:
+            return None

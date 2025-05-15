@@ -112,50 +112,129 @@ class RegisterGetAPIVIEW(APIView):
 class LoginUserAPIView(APIView):
     """Handles user login with proper validation, authentication, and error handling."""
 
+    # def post(self, request):
+    #     try:
+    #         email = request.data.get("email")
+    #         password = request.data.get("password")
+
+    #         if not email or not password:
+    #             logger.warning(f"Login attempt with missing email or password: {request.data}")
+    #             return Response(
+    #                 {"error": "Email and password are required."},
+    #                 status=status.HTTP_400_BAD_REQUEST
+    #             )
+
+    #         try:
+    #             user_obj = User.objects.get(email=email)
+    #         except User.DoesNotExist:
+    #             logger.warning(f"Login failed: User with email '{email}' not found.")
+    #             return Response(
+    #                 {"error": "Invalid email or password."},
+    #                 status=status.HTTP_401_UNAUTHORIZED
+    #             )
+
+    #         user = authenticate(username=user_obj.username, password=password)
+
+    #         if user is None:
+    #             logger.warning(f"Login failed: Invalid password for user '{email}'.")
+    #             return Response(
+    #                 {"error": "Invalid email or password."},
+    #                 status=status.HTTP_401_UNAUTHORIZED
+    #             )
+
+    #         if not user.is_active:
+    #             logger.warning(f"Login failed: Inactive user '{email}'.")
+    #             return Response(
+    #                 {"error": "Account is disabled. Please contact support."},
+    #                 status=status.HTTP_403_FORBIDDEN
+    #             )
+
+    #         refresh = RefreshToken.for_user(user)
+
+    #         # Trigger background task
+    #         async_setup_user_related_records.delay(user.id)
+
+    #         logger.info(f"Login successful for user '{email}'.")
+
+    #         return Response(
+    #             {
+    #                 "message": "Login successful.",
+    #                 "access": str(refresh.access_token),
+    #                 "refresh": str(refresh),
+    #             },
+    #             status=status.HTTP_200_OK,
+    #         )
+
+    #     except Exception as e:
+    #         logger.error(f"Unexpected error during login: {str(e)}", exc_info=True)
+    #         return Response(
+    #             {"error": "An unexpected error occurred. Please try again later."},
+    #             status=status.HTTP_500_INTERNAL_SERVER_ERROR
+    #         )
     def post(self, request):
         try:
             email = request.data.get("email")
             password = request.data.get("password")
-
-            if not email or not password:
-                logger.warning(f"Login attempt with missing email or password: {request.data}")
+ 
+            if not email:
+                logger.warning("Login attempt failed: Email is required.")
                 return Response(
-                    {"error": "Email and password are required."},
+                    {"error": "Email is required."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
+ 
+            if not password:
+                logger.warning("Login attempt failed: Password is required.")
+                return Response(
+                    {"error": "Password is required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+ 
+            # Optional: validate email format
+            from django.core.validators import validate_email
+            from django.core.exceptions import ValidationError
+ 
+            try:
+                validate_email(email)
+            except ValidationError:
+                logger.warning(f"Login attempt failed: Invalid email format '{email}'.")
+                return Response(
+                    {"error": "Please enter a valid email address."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+ 
             try:
                 user_obj = User.objects.get(email=email)
             except User.DoesNotExist:
-                logger.warning(f"Login failed: User with email '{email}' not found.")
+                logger.warning(f"Login failed: Email '{email}' not found.")
                 return Response(
-                    {"error": "Invalid email or password."},
-                    status=status.HTTP_401_UNAUTHORIZED
+                    {"error": "Invalid email."},
+                    status=status.HTTP_404_NOT_FOUND
                 )
-
+ 
             user = authenticate(username=user_obj.username, password=password)
-
+ 
             if user is None:
                 logger.warning(f"Login failed: Invalid password for user '{email}'.")
                 return Response(
-                    {"error": "Invalid email or password."},
+                    {"error": "Invalid password."},
                     status=status.HTTP_401_UNAUTHORIZED
                 )
-
+ 
             if not user.is_active:
                 logger.warning(f"Login failed: Inactive user '{email}'.")
                 return Response(
                     {"error": "Account is disabled. Please contact support."},
                     status=status.HTTP_403_FORBIDDEN
                 )
-
+ 
             refresh = RefreshToken.for_user(user)
-
-            # Trigger background task
+ 
+            # Optional: trigger background task
             async_setup_user_related_records.delay(user.id)
-
+ 
             logger.info(f"Login successful for user '{email}'.")
-
+ 
             return Response(
                 {
                     "message": "Login successful.",
@@ -164,13 +243,15 @@ class LoginUserAPIView(APIView):
                 },
                 status=status.HTTP_200_OK,
             )
-
+ 
         except Exception as e:
             logger.error(f"Unexpected error during login: {str(e)}", exc_info=True)
             return Response(
                 {"error": "An unexpected error occurred. Please try again later."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+ 
+ 
  
 
 from rest_framework.permissions import IsAuthenticated 
