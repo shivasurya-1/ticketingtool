@@ -159,6 +159,27 @@ class TicketSerializer(serializers.ModelSerializer):
         allow_null=True
 
     )
+    # project = serializers.PrimaryKeyRelatedField(
+
+    #     queryset=ProjectsDetails.objects.all(),
+
+    #     required=False,
+
+    #     allow_null=True
+
+    # )
+
+    # product = serializers.CharField(
+
+    #     required=False,
+
+    #     allow_blank=True,
+
+    #     allow_null=True
+
+    # )
+
+ 
 
  
     attachments = serializers.SerializerMethodField()

@@ -17,34 +17,57 @@ class PriorityView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
+    # def get(self, request, pk=None, *args, **kwargs):
+    #     self.permission_required = "view_priority"
+
+    #     if not HasRolePermission().has_permission(request, self.permission_required):
+    #         return Response({'error': 'Permission denied.'}, status=403)
+
+    #     print("User's Organisation:", request.user.organisation)
+
+    #     if pk:
+    #         try:
+    #             priority = Priority.objects.get(pk=pk)
+    #             serializer = PrioritySerializer(priority)
+    #             return Response(serializer.data)
+    #         except Priority.DoesNotExist:
+    #             return Response({'error': 'Priority not found'}, status=status.HTTP_404_NOT_FOUND)
+    #     else:
+    #         # Check if the user's organisation is valid and associated with any priorities
+    #         organisation = request.user.organisation
+    #         # print(f"Organisation ID: {organisation.id}")  # Debugging
+
+    #         priorities = Priority.objects.filter(organisation=organisation)
+
+    #         # Debugging the fetched priorities
+    #         print("Fetched Priorities: ", priorities)
+
+    #         if not priorities:
+    #             return Response({'error': 'No priorities found for your organisation.'}, status=status.HTTP_404_NOT_FOUND)
+
+    #         serializer = PrioritySerializer(priorities, many=True)
+    #         return Response(serializer.data)
+
     def get(self, request, pk=None, *args, **kwargs):
         self.permission_required = "view_priority"
-
         if not HasRolePermission().has_permission(request, self.permission_required):
             return Response({'error': 'Permission denied.'}, status=403)
-
-        print("User's Organisation:", request.user.organisation)
-
+ 
+        organisation = request.user.organisation
+        if not organisation:
+            return Response({'error': 'User is not associated with any organisation.'}, status=400)
+ 
         if pk:
             try:
-                priority = Priority.objects.get(pk=pk)
+                priority = Priority.objects.get(pk=pk, organisation=organisation)
                 serializer = PrioritySerializer(priority)
                 return Response(serializer.data)
             except Priority.DoesNotExist:
                 return Response({'error': 'Priority not found'}, status=status.HTTP_404_NOT_FOUND)
         else:
-            # Check if the user's organisation is valid and associated with any priorities
-            organisation = request.user.organisation
-            # print(f"Organisation ID: {organisation.id}")  # Debugging
-
             priorities = Priority.objects.filter(organisation=organisation)
-
-            # Debugging the fetched priorities
-            print("Fetched Priorities: ", priorities)
-
-            if not priorities:
+            if not priorities.exists():
                 return Response({'error': 'No priorities found for your organisation.'}, status=status.HTTP_404_NOT_FOUND)
-
             serializer = PrioritySerializer(priorities, many=True)
             return Response(serializer.data)
 
@@ -62,56 +85,64 @@ class PriorityView(APIView):
         days = int(match.group(1)) if match.group(1) else 0
         hours = int(match.group(2)) if match.group(2) else 0
         return timedelta(days=days, hours=hours)
- 
     def post(self, request):
-        self.permission_required = "create_priority"
+            self.permission_required = "create_priority"
+            if not HasRolePermission().has_permission(request, self.permission_required):
+                return Response({'error': 'Permission denied.'}, status=403)
     
-        if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'error': 'Permission denied.'}, status=403)
-        data = request.data.copy()
-        try:
-            data['response_target_time'] = self.parse_duration(data.get("response_target_time", "0h"))
-        except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
- 
-        # Check for existing priority
-        existing_priority = Priority.objects.filter(
-            urgency_name=data.get("urgency_name"),
-            response_target_time=data.get("response_target_time")
-        ).first()
- 
-        if existing_priority:
-            return Response({"message": "Priority already exists"}, status=status.HTTP_200_OK)
- 
-        serializer = PrioritySerializer(data=data, context={'request': request})
-        if serializer.is_valid():
-            priority = serializer.save(created_by=request.user)
-            return Response(PrioritySerializer(priority).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-   
- 
- 
-
-
-    def put(self, request, pk):
-        self.permission_required = "update_priority"
+            data = request.data.copy()
+            organisation_id = data.get("organisation")
+            urgency_name = data.get("urgency_name", "").strip()
     
-        if not HasRolePermission().has_permission(request, self.permission_required):
-         return Response({'error': 'Permission denied.'}, status=403)
-        try:
-            priority = Priority.objects.get(pk=pk)
-        except Priority.DoesNotExist:
-            return Response({'error': 'Priority not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = PrioritySerializer(priority, data=request.data, partial=True)
-        if serializer.is_valid():
-            priority=serializer.save(updated_by=request.user)
-            # return Response(serializer.data)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-            # return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        else:
+            if not organisation_id or not urgency_name:
+                return Response({'error': 'organisation and urgency_name are required fields.'}, status=400)
+    
+            try:
+                data['response_target_time'] = self.parse_duration(data.get("response_target_time", "0h"))
+            except ValueError as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+            # Case-insensitive check for urgency_name per organisation
+            if Priority.objects.filter(
+                organisation_id=organisation_id,
+                urgency_name__iexact=urgency_name
+            ).exists():
+                return Response({"message": "Urgency name already exists for this organisation (case-insensitive)."}, status=400)
+    
+            serializer = PrioritySerializer(data=data, context={'request': request})
+            if serializer.is_valid():
+                priority = serializer.save(created_by=request.user)
+                return Response(PrioritySerializer(priority).data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def put(self, request, pk):
+            self.permission_required = "update_priority"
+            if not HasRolePermission().has_permission(request, self.permission_required):
+                return Response({'error': 'Permission denied.'}, status=403)
+    
+            try:
+                priority = Priority.objects.get(pk=pk)
+            except Priority.DoesNotExist:
+                return Response({'error': 'Priority not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+            organisation = priority.organisation
+    
+            new_urgency = request.data.get("urgency_name", "").strip()
+            if new_urgency and new_urgency.lower() != priority.urgency_name.lower():
+                if Priority.objects.filter(
+                    organisation=organisation,
+                    urgency_name__iexact=new_urgency
+                ).exclude(pk=pk).exists():
+                    return Response({"message": "Urgency name already exists for this organisation (case-insensitive)."}, status=400)
+    
+            serializer = PrioritySerializer(priority, data=request.data, partial=True)
+            if serializer.is_valid():
+                priority = serializer.save(modified_by=request.user)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
         
+ 
      
 
     def delete(self, request, pk): 
